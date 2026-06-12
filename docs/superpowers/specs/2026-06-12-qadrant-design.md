@@ -1,7 +1,7 @@
-# Design Specification: apok - Time Tracker & Analytics System
+# Design Specification: qadrant - Time Tracker & Analytics System
 
 ## 1. Overview & Goals
-**apok** is a modern, high-fidelity, multi-tenant time tracking application with integrated charting features. It is a complete revamp and combination of two existing tools: `notion-tt` (timer tracker) and `notion-tt-charter` (charts & analytics). 
+**qadrant** is a modern, high-fidelity, multi-tenant time tracking application with integrated charting features. It is a complete revamp and combination of two existing tools: `notion-tt` (timer tracker) and `notion-tt-charter` (charts & analytics). 
 
 ### Key Objectives
 * **Unified Tooling**: Replace the dual-system architecture (Express + Notion + SQLite) with a client-only Vite + React SPA backed by a PocketBase BaaS instance.
@@ -23,19 +23,19 @@
                  ▼                            ▼                            ▼
       ┌─────────────────────┐      ┌────────────────────┐      ┌───────────────────────┐
       │  Vite + React SPA   │      │     CLI Tool       │      │      MCP Server       │
-      │  (Client Frontend)  │      │      (apok)        │      │   (apok-mcp tool)     │
+      │  (Client Frontend)  │      │      (qadrant)        │      │   (qadrant-mcp tool)     │
       └─────────────────────┘      └──────────┬─────────┘      └───────────┬───────────┘
                                               │                            │
                                               └─────────────┬──────────────┘
                                                             ▼
                                                     Reads/Writes config
-                                                   `~/.apok/config.json`
+                                                   `~/.qadrant/config.json`
 ```
 
 ### Components
 1. **React Web SPA**: Client-side single-page app hosted on serverless static hosting (e.g., Vercel / Cloudflare Pages). Communication is 100% direct with PocketBase.
 2. **PocketBase BaaS**: Handles auth, security rules, and data persistence.
-3. **CLI (`apok`)**: Command line interface for starting/stopping/viewing timers. Saves local credentials.
+3. **CLI (`qadrant`)**: Command line interface for starting/stopping/viewing timers. Saves local credentials.
 4. **MCP Server**: Stdio-based Model Context Protocol server allowing LLMs to log developer hours in real-time.
 
 ---
@@ -45,7 +45,7 @@
 ### Collection: `users` (System Auth)
 * **Custom Fields**:
   * `space_colors` (json, optional) — Maps top-level Space names to hex colors.
-    * Example: `{"Work": "#35675d", "Piano": "#ba1a1a", "apok": "#000000"}`
+    * Example: `{"Work": "#35675d", "Piano": "#ba1a1a", "qadrant": "#000000"}`
 * **API Rules**:
   * List, View, Update: `id = @request.auth.id`
   * Create, Delete: locked (handled by Google OAuth2 registrar)
@@ -115,40 +115,40 @@ To support mobile browsers (Safari) and avoid popup block errors, we utilize a f
 
 ---
 
-## 6. CLI Integration (`apok`)
+## 6. CLI Integration (`qadrant`)
 
-* **Package**: Locally publishable npm executable (`apok-cli`).
-* **Config File**: Reads/writes credentials to `~/.apok/config.json`.
+* **Package**: Locally publishable npm executable (`qadrant-cli`).
+* **Config File**: Reads/writes credentials to `~/.qadrant/config.json`.
 * **Commands**:
-  * `apok login <token>`: Authenticates using the web-generated token.
-  * `apok start "<task>" [--space <space>] [--sub <specialization>]`: Starts a new session. Closes active timers first.
-  * `apok stop`: Stops the current session.
-  * `apok status`: Returns elapsed time and task name for active timers.
-  * `apok list [--limit <n>]`: Prints a table of recent sessions.
-  * `apok stats`: Prints tracked hours by timeframe.
+  * `qadrant login <token>`: Authenticates using the web-generated token.
+  * `qadrant start "<task>" [--space <space>] [--sub <specialization>]`: Starts a new session. Closes active timers first.
+  * `qadrant stop`: Stops the current session.
+  * `qadrant status`: Returns elapsed time and task name for active timers.
+  * `qadrant list [--limit <n>]`: Prints a table of recent sessions.
+  * `qadrant stats`: Prints tracked hours by timeframe.
 
 ---
 
-## 7. MCP Server Integration (`apok-mcp`)
+## 7. MCP Server Integration (`qadrant-mcp`)
 
 ### Best Practice Compliance
 * **Language/Transport**: Node.js + TypeScript SDK, running over standard I/O (`stdio`).
-* **Session Sharing**: Reuses `~/.apok/config.json` written by the CLI to authenticate PocketBase requests.
+* **Session Sharing**: Reuses `~/.qadrant/config.json` written by the CLI to authenticate PocketBase requests.
 * **Zod Schemas**: Every tool defines strict parameters and descriptions with examples to help LLM clients form correct arguments.
 
 ### Exposed Tools
-* `apok_start_timer` (idempotent: false, readOnly: false)
+* `qadrant_start_timer` (idempotent: false, readOnly: false)
   * Schema: `{ task: string, space?: string, specialization?: string }`
   * Action: Starts a new active timer, stopping any current timer first.
-* `apok_stop_timer` (idempotent: false, readOnly: false)
+* `qadrant_stop_timer` (idempotent: false, readOnly: false)
   * Schema: `{}`
   * Action: Stops the currently active timer.
-* `apok_get_active_timer` (idempotent: true, readOnly: true)
+* `qadrant_get_active_timer` (idempotent: true, readOnly: true)
   * Schema: `{}`
   * Action: Returns active timer details or null.
-* `apok_list_entries` (idempotent: true, readOnly: true)
+* `qadrant_list_entries` (idempotent: true, readOnly: true)
   * Schema: `{ limit?: number }`
   * Action: Lists the most recent timer logs.
-* `apok_get_stats` (idempotent: true, readOnly: true)
+* `qadrant_get_stats` (idempotent: true, readOnly: true)
   * Schema: `{ timeframe?: string }`
   * Action: Returns aggregated statistics for LLM reporting.

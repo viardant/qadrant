@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
 
-const CONFIG_DIR = path.join(os.homedir(), '.apok');
+const CONFIG_DIR = path.join(os.homedir(), '.qadrant');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 export interface Config {
@@ -78,15 +78,15 @@ async function apiCall(pbUrl: string, token: string, pathStr: string, options: R
 
 function printHelp() {
   console.log(`
-apok - Apok Time Tracker CLI
+qadrant - Qadrant Time Tracker CLI
 
 Usage:
-  apok login <token> [--url <pocketbase_url>]
-  apok start "<task>" [--space <space>] [--sub <specialization>]
-  apok stop
-  apok status
-  apok list [--limit <n>]
-  apok stats
+  qadrant login <token> [--url <pocketbase_url>]
+  qadrant start "<task>" [--space <space>] [--sub <specialization>]
+  qadrant stop
+  qadrant status
+  qadrant list [--limit <n>]
+  qadrant stats
 `);
 }
 
@@ -140,7 +140,7 @@ export async function main() {
   // All other commands require config
   const config = await readConfig();
   if (!config || !config.auth_token || !config.pb_url || !config.user_id) {
-    console.error('Error: Not authenticated. Please login first: apok login <token>');
+    console.error('Error: Not authenticated. Please login first: qadrant login <token>');
     process.exit(1);
     return;
   }

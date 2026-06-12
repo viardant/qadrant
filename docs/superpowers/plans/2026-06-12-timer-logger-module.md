@@ -51,7 +51,7 @@
     const mockOnStart = vi.fn();
     const mockOnStop = vi.fn();
     const spaces = ['Design', 'Development', 'DevOps'];
-    const specializations = ['apok', 'infra', 'ui'];
+    const specializations = ['qadrant', 'infra', 'ui'];
 
     beforeEach(() => {
       vi.clearAllMocks();
@@ -87,11 +87,11 @@
 
       fireEvent.change(screen.getByPlaceholderText('Task name...'), { target: { value: 'Code Logger' } });
       fireEvent.change(screen.getByPlaceholderText('Space...'), { target: { value: 'Development' } });
-      fireEvent.change(screen.getByPlaceholderText('Specialization...'), { target: { value: 'apok' } });
+      fireEvent.change(screen.getByPlaceholderText('Specialization...'), { target: { value: 'qadrant' } });
 
       fireEvent.click(screen.getByRole('button', { name: 'START' }));
 
-      expect(mockOnStart).toHaveBeenCalledWith('Code Logger', 'Development', 'apok');
+      expect(mockOnStart).toHaveBeenCalledWith('Code Logger', 'Development', 'qadrant');
     });
 
     test('renders ticking timer in active session state', () => {

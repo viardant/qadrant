@@ -12,7 +12,7 @@ vi.mock('fs/promises', () => ({
 
 describe('CLI Argument Parsing', () => {
   it('should parse login command with token and custom url', () => {
-    const parsed = parseArgs(['node', 'apok', 'login', 'my-token', '--url', 'https://example.com']);
+    const parsed = parseArgs(['node', 'qadrant', 'login', 'my-token', '--url', 'https://example.com']);
     expect(parsed.command).toBe('login');
     expect(parsed.args[0]).toBe('my-token');
     expect(parsed.options.url).toBe('https://example.com');
@@ -21,7 +21,7 @@ describe('CLI Argument Parsing', () => {
   it('should parse start command with task, space and sub specialization', () => {
     const parsed = parseArgs([
       'node',
-      'apok',
+      'qadrant',
       'start',
       'Coding task 7',
       '--space',
@@ -36,17 +36,17 @@ describe('CLI Argument Parsing', () => {
   });
 
   it('should parse stop command', () => {
-    const parsed = parseArgs(['node', 'apok', 'stop']);
+    const parsed = parseArgs(['node', 'qadrant', 'stop']);
     expect(parsed.command).toBe('stop');
   });
 
   it('should parse status command', () => {
-    const parsed = parseArgs(['node', 'apok', 'status']);
+    const parsed = parseArgs(['node', 'qadrant', 'status']);
     expect(parsed.command).toBe('status');
   });
 
   it('should parse list command with limit', () => {
-    const parsed = parseArgs(['node', 'apok', 'list', '--limit', '10']);
+    const parsed = parseArgs(['node', 'qadrant', 'list', '--limit', '10']);
     expect(parsed.command).toBe('list');
     expect(parsed.options.limit).toBe(10);
   });

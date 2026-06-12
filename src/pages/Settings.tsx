@@ -177,8 +177,8 @@ export default function Settings() {
         <div className="flex flex-col gap-2">
           <span className="font-mono text-xs text-on-surface/60 uppercase">Terminal Setup Protocol</span>
           <div className="terminal-block">
-            <code className="terminal-prompt">npm install -g apok-cli</code>
-            <code className="terminal-prompt">apok login {copied ? '<copied-token>' : '...' }</code>
+            <code className="terminal-prompt">npm install -g qadrant-cli</code>
+            <code className="terminal-prompt">qadrant login {copied ? '<copied-token>' : '...' }</code>
           </div>
         </div>
       </section>

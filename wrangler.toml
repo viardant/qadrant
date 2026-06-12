@@ -1,0 +1,9 @@
+name = "qadrant"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-06-01"
+
+[env.preview.vars]
+VITE_POCKETBASE_URL = "https://pb-qadrant-staging.viardant.com"
+
+[env.production.vars]
+VITE_POCKETBASE_URL = "https://pb-qadrant.viardant.com"

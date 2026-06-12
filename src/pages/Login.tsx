@@ -96,7 +96,7 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      <h1>Login to Apok</h1>
+      <h1>Login to Qadrant</h1>
       {error && (
         <div className="error-message">
           {error}

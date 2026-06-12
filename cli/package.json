@@ -1,9 +1,9 @@
 {
-  "name": "apok-cli",
+  "name": "qadrant-cli",
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "apok": "./dist/index.js"
+    "qadrant": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",

@@ -13,7 +13,7 @@ const mockEntries: TimeEntry[] = [
     id: '1',
     task: 'Task 1',
     space: 'Work',
-    specialization: 'apok',
+    specialization: 'qadrant',
     start_date: '2026-06-08T09:00:00.000Z', // Monday
     completion_time: '2026-06-08T11:30:00.000Z', // 2.5 hours
     completed: true,
@@ -43,7 +43,7 @@ const mockEntries: TimeEntry[] = [
     id: '4',
     task: 'Task 4',
     space: 'Work',
-    specialization: 'apok',
+    specialization: 'qadrant',
     start_date: '2026-05-15T09:00:00.000Z', // Previous month
     completion_time: '2026-05-15T11:00:00.000Z', // 2.0 hours
     completed: true,
@@ -61,7 +61,7 @@ const mockEntries: TimeEntry[] = [
   }
 ];
 
-describe('apok analytics transformations', () => {
+describe('qadrant analytics transformations', () => {
   it('should aggregate time entries correctly by week and by Space', () => {
     const result = transformToWeeklyData(mockEntries);
     // Expected: 2 weeks (2026-05-11 and 2026-06-08)

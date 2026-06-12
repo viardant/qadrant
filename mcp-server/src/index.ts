@@ -11,7 +11,7 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
 
-const CONFIG_FILE = path.join(os.homedir(), '.apok', 'config.json');
+const CONFIG_FILE = path.join(os.homedir(), '.qadrant', 'config.json');
 
 interface Config {
   pb_url: string;
@@ -58,7 +58,7 @@ async function apiCall(pbUrl: string, token: string, pathStr: string, options: R
 // Instantiate server
 const server = new Server(
   {
-    name: 'apok-mcp-server',
+    name: 'qadrant-mcp-server',
     version: '1.0.0',
   },
   {
@@ -73,7 +73,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: 'apok_start_timer',
+        name: 'qadrant_start_timer',
         description: 'Starts a new active time tracking timer. If a timer is already running, stops it first.',
         inputSchema: {
           type: 'object',
@@ -84,7 +84,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             space: {
               type: 'string',
-              description: 'Optional top-level project/category space (e.g. "Work", "Piano", "apok")',
+              description: 'Optional top-level project/category space (e.g. "Work", "Piano", "qadrant")',
             },
             specialization: {
               type: 'string',
@@ -95,7 +95,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'apok_stop_timer',
+        name: 'qadrant_stop_timer',
         description: 'Stops the currently running active time tracker timer.',
         inputSchema: {
           type: 'object',
@@ -103,7 +103,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'apok_get_active_timer',
+        name: 'qadrant_get_active_timer',
         description: 'Retrieves the currently running timer session details or returns null.',
         inputSchema: {
           type: 'object',
@@ -111,7 +111,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'apok_list_entries',
+        name: 'qadrant_list_entries',
         description: 'Retrieves a list of recent completed time tracking logs.',
         inputSchema: {
           type: 'object',
@@ -124,7 +124,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'apok_get_stats',
+        name: 'qadrant_get_stats',
         description: 'Calculates the cumulative tracked hours and displays total time analytics.',
         inputSchema: {
           type: 'object',
@@ -154,7 +154,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [
         {
           type: 'text',
-          text: 'Error: Not authenticated. Please login first in the terminal using the apok CLI: apok login <token>',
+          text: 'Error: Not authenticated. Please login first in the terminal using the qadrant CLI: qadrant login <token>',
         },
       ],
       isError: true,
@@ -165,7 +165,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case 'apok_start_timer': {
+      case 'qadrant_start_timer': {
         const { task, space = '', specialization = '' } = StartTimerSchema.parse(args);
 
         // 1. Check for running timer
@@ -212,7 +212,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'apok_stop_timer': {
+      case 'qadrant_stop_timer': {
         const filter = `user='${config.user_id}' && completed=false`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
         const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
@@ -249,7 +249,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'apok_get_active_timer': {
+      case 'qadrant_get_active_timer': {
         const filter = `user='${config.user_id}' && completed=false`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
         const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
@@ -278,7 +278,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'apok_list_entries': {
+      case 'qadrant_list_entries': {
         const parsed = ListEntriesSchema.parse(args || {});
         const limit = parsed.limit || 10;
         const filter = `user='${config.user_id}' && completed=true`;
@@ -304,7 +304,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'apok_get_stats': {
+      case 'qadrant_get_stats': {
         const filter = `user='${config.user_id}' && completed=true`;
         const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000`;
         const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: TimeEntryRecord[] };
@@ -349,7 +349,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Apok MCP Server running on stdio');
+  console.error('Qadrant MCP Server running on stdio');
 }
 
 main().catch((error) => {
