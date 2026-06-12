@@ -53,18 +53,22 @@ export default function Settings() {
   const handleColorChange = async (space: string, color: string) => {
     if (!pb.authStore.model?.id) return;
 
+    const oldColors = { ...spaceColors };
     const newMap = { ...spaceColors, [space]: color };
     setSpaceColors(newMap);
 
     try {
-      await pb.collection('users').update(pb.authStore.model.id, {
+      const updatedUser = await pb.collection('users').update(pb.authStore.model.id, {
         space_colors: newMap,
       });
+      pb.authStore.save(pb.authStore.token, updatedUser);
     } catch (err) {
       console.error('Failed to update space color preference:', err);
+      setSpaceColors(oldColors);
       alert('Failed to save color preference.');
     }
   };
+
 
   const handleCopyToken = async () => {
     const token = pb.authStore.token;

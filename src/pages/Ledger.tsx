@@ -80,6 +80,12 @@ export default function Ledger() {
     e.preventDefault();
     if (!editingEntry) return;
 
+    const trimmedTask = editTask.trim();
+    if (!trimmedTask) {
+      alert('Task name cannot be empty.');
+      return;
+    }
+
     try {
       const startIso = fromDatetimeLocal(editStartDate);
       const completionIso = fromDatetimeLocal(editCompletionTime);
@@ -89,8 +95,17 @@ export default function Ledger() {
         return;
       }
 
+      if (startIso && completionIso) {
+        const start = new Date(startIso);
+        const end = new Date(completionIso);
+        if (end <= start) {
+          alert('Stop date and time must be chronologically after the start date and time.');
+          return;
+        }
+      }
+
       await pb.collection('time_entries').update(editingEntry.id, {
-        task: editTask,
+        task: trimmedTask,
         space: editSpace,
         specialization: editSpecialization,
         start_date: startIso,
@@ -104,6 +119,7 @@ export default function Ledger() {
       alert('Failed to save log entry edits.');
     }
   };
+
 
   const toDatetimeLocal = (isoString: string | null) => {
     if (!isoString) return '';

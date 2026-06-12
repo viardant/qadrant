@@ -37,6 +37,7 @@ describe('Ledger Component', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.resetAllMocks();
   });
 
@@ -252,5 +253,60 @@ describe('Ledger Component', () => {
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith('entry_1');
     });
+  });
+
+  test('blocks saving and shows alert if stop time is before start time or task is empty', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    mockGetList.mockResolvedValue({
+      page: 1,
+      perPage: 20,
+      totalItems: 1,
+      totalPages: 1,
+      items: [
+        {
+          id: 'entry_1',
+          task: 'Original Task',
+          space: 'Dev',
+          specialization: 'Frontend',
+          start_date: '2026-06-12T10:00:00.000Z',
+          completion_time: '2026-06-12T11:00:00.000Z',
+          completed: true,
+          user: 'user_123',
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <Ledger />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Original Task')).toBeInTheDocument();
+    });
+
+    const editButton = screen.getByRole('button', { name: /edit/i });
+    fireEvent.click(editButton);
+
+    // Test case 1: empty task name
+    fireEvent.change(screen.getByLabelText(/task/i), { target: { value: '   ' } });
+    const saveButton = screen.getByRole('button', { name: /save/i });
+    fireEvent.click(saveButton);
+
+    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Task name cannot be empty'));
+    expect(mockUpdate).not.toHaveBeenCalled();
+
+    // Test case 2: invalid chronological order
+    fireEvent.change(screen.getByLabelText(/task/i), { target: { value: 'Valid Task Name' } });
+    // Date/time inputs
+    fireEvent.change(screen.getByLabelText(/start date & time/i), { target: { value: '2026-06-12T12:00' } });
+    fireEvent.change(screen.getByLabelText(/stop date & time/i), { target: { value: '2026-06-12T10:00' } });
+    
+    fireEvent.click(saveButton);
+
+    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Stop date and time must be chronologically after'));
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
