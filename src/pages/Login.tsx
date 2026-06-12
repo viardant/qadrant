@@ -49,8 +49,8 @@ export default function Login() {
           // Navigate to dashboard/home
           navigate('/');
         })
-        .catch((err: any) => {
-          setError(err.message || 'OAuth code exchange failed.');
+        .catch((err: unknown) => {
+          setError((err as Error).message || 'OAuth code exchange failed.');
           setLoading(false);
         });
     }
@@ -77,8 +77,8 @@ export default function Login() {
       const authUrl = googleProvider.authUrl + encodeURIComponent(redirectUrl);
 
       window.location.href = authUrl;
-    } catch (err: any) {
-      setError(err.message || 'Failed to list auth methods.');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to list auth methods.');
     }
   };
 
