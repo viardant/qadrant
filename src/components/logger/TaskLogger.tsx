@@ -106,12 +106,12 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
       e.preventDefault();
       setSpaceIndex((prev) => (prev - 1 + filteredSpaces.length) % filteredSpaces.length);
     } else if (e.key === 'Enter') {
+      e.preventDefault(); // Always prevent form submission if suggestions are open
       if (spaceIndex >= 0 && spaceIndex < filteredSpaces.length) {
-        e.preventDefault();
         setSpace(filteredSpaces[spaceIndex]);
-        setShowSpaceSuggestions(false);
-        setSpaceIndex(-1);
       }
+      setShowSpaceSuggestions(false);
+      setSpaceIndex(-1);
     } else if (e.key === 'Escape') {
       setShowSpaceSuggestions(false);
       setSpaceIndex(-1);
@@ -129,12 +129,12 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
       e.preventDefault();
       setSpecIndex((prev) => (prev - 1 + filteredSpecs.length) % filteredSpecs.length);
     } else if (e.key === 'Enter') {
+      e.preventDefault(); // Always prevent form submission if suggestions are open
       if (specIndex >= 0 && specIndex < filteredSpecs.length) {
-        e.preventDefault();
         setSpecialization(filteredSpecs[specIndex]);
-        setShowSpecSuggestions(false);
-        setSpecIndex(-1);
       }
+      setShowSpecSuggestions(false);
+      setSpecIndex(-1);
     } else if (e.key === 'Escape') {
       setShowSpecSuggestions(false);
       setSpecIndex(-1);
@@ -207,11 +207,21 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
               setShowSpaceSuggestions(true);
               setSpaceIndex(-1);
             }}
+            onBlur={() => {
+              setTimeout(() => {
+                setShowSpaceSuggestions(false);
+                setSpaceIndex(-1);
+              }, 200);
+            }}
             onKeyDown={handleSpaceKeyDown}
             className="w-full font-mono"
+            role="combobox"
+            aria-expanded={showSpaceSuggestions && filteredSpaces.length > 0}
+            aria-autocomplete="list"
+            aria-controls="space-suggestions-list"
           />
           {showSpaceSuggestions && filteredSpaces.length > 0 && (
-            <ul className="suggestions-list">
+            <ul id="space-suggestions-list" className="suggestions-list" role="listbox">
               {filteredSpaces.map((s, idx) => (
                 <li
                   key={s}
@@ -220,6 +230,8 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
                     setShowSpaceSuggestions(false);
                   }}
                   className={`suggestions-item ${idx === spaceIndex ? 'active' : ''}`}
+                  role="option"
+                  aria-selected={idx === spaceIndex}
                 >
                   {s}
                 </li>
@@ -244,11 +256,21 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
               setShowSpecSuggestions(true);
               setSpecIndex(-1);
             }}
+            onBlur={() => {
+              setTimeout(() => {
+                setShowSpecSuggestions(false);
+                setSpecIndex(-1);
+              }, 200);
+            }}
             onKeyDown={handleSpecKeyDown}
             className="w-full font-mono"
+            role="combobox"
+            aria-expanded={showSpecSuggestions && filteredSpecs.length > 0}
+            aria-autocomplete="list"
+            aria-controls="spec-suggestions-list"
           />
           {showSpecSuggestions && filteredSpecs.length > 0 && (
-            <ul className="suggestions-list">
+            <ul id="spec-suggestions-list" className="suggestions-list" role="listbox">
               {filteredSpecs.map((s, idx) => (
                 <li
                   key={s}
@@ -257,6 +279,8 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
                     setShowSpecSuggestions(false);
                   }}
                   className={`suggestions-item ${idx === specIndex ? 'active' : ''}`}
+                  role="option"
+                  aria-selected={idx === specIndex}
                 >
                   {s}
                 </li>

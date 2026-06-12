@@ -9,12 +9,9 @@ import { pb } from '../lib/pocketbase';
 vi.mock('../lib/pocketbase', () => {
   return {
     pb: {
-      collection: vi.fn().mockReturnValue({
-        listAuthMethods: vi.fn(),
-        authWithOAuth2Code: vi.fn(),
-      }),
+      collection: vi.fn(),
       authStore: {
-        exportToCookie: vi.fn().mockReturnValue('pb_auth=mocked_cookie_value; Path=/'),
+        exportToCookie: vi.fn(),
       },
     },
   };
@@ -35,11 +32,18 @@ describe('Login OAuth Flow', () => {
 
     sessionStorage.clear();
     document.cookie = '';
-    vi.clearAllMocks();
+
+    // Re-initialize default mocks
+    vi.mocked(pb.collection).mockReturnValue({
+      listAuthMethods: vi.fn(),
+      authWithOAuth2Code: vi.fn(),
+    } as any);
+    vi.mocked(pb.authStore.exportToCookie).mockReturnValue('pb_auth=mocked_cookie_value; Path=/');
   });
 
   afterEach(() => {
     (window as any).location = originalLocation;
+    vi.resetAllMocks();
   });
 
   test('initiates OAuth redirect when clicking login button with URL-encoded redirect URI', async () => {

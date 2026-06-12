@@ -78,6 +78,7 @@ export default function Logger() {
         completion_time: null,
       });
       setActiveSession(record);
+      await fetchHistoryAndActive();
     } catch (err) {
       console.error('Failed to initiate tracker session:', err);
       alert('Failed to initiate tracker session.');

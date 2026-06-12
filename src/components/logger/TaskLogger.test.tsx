@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { vi, describe, test, expect, beforeEach } from 'vitest';
+import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { TaskLogger } from './TaskLogger';
 
 // Mock PocketBase client
@@ -25,6 +25,10 @@ describe('TaskLogger', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
   });
 
   test('renders inputs in idle state', () => {
@@ -159,5 +163,61 @@ describe('TaskLogger', () => {
     // Selecting option sets input value
     fireEvent.click(screen.getByText('Development'));
     expect(spaceInput).toHaveValue('Development');
+  });
+
+  test('pressing Enter when suggestions are open but none is highlighted closes suggestions and does not submit', () => {
+    render(
+      <TaskLogger
+        onStart={mockOnStart}
+        onStop={mockOnStop}
+        activeSession={null}
+        spaces={spaces}
+        specializations={specializations}
+      />
+    );
+
+    const spaceInput = screen.getByPlaceholderText('Space...');
+    fireEvent.focus(spaceInput);
+
+    // Open suggestions
+    expect(screen.getByText('Development')).toBeInTheDocument();
+
+    // Hit enter
+    fireEvent.keyDown(spaceInput, { key: 'Enter', code: 'Enter' });
+
+    // Expect suggestions to be closed and onStart not called
+    expect(screen.queryByText('Development')).not.toBeInTheDocument();
+    expect(mockOnStart).not.toHaveBeenCalled();
+  });
+
+  test('blurring the input closes suggestions after timeout', async () => {
+    vi.useFakeTimers();
+    render(
+      <TaskLogger
+        onStart={mockOnStart}
+        onStop={mockOnStop}
+        activeSession={null}
+        spaces={spaces}
+        specializations={specializations}
+      />
+    );
+
+    const spaceInput = screen.getByPlaceholderText('Space...');
+    fireEvent.focus(spaceInput);
+
+    expect(screen.getByText('Development')).toBeInTheDocument();
+
+    fireEvent.blur(spaceInput);
+
+    // Suggestions should still be visible before the timeout
+    expect(screen.getByText('Development')).toBeInTheDocument();
+
+    // Fast-forward timeout
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(screen.queryByText('Development')).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 });
