@@ -40,7 +40,7 @@ describe('MCP Server Configuration & Logic Stub', () => {
     global.fetch = mockFetch;
 
     const res = await fetch('http://localhost:8090/api/collections/time_entries/records');
-    const data = await res.json() as any;
+    const data = await res.json() as { items: unknown[] };
     expect(mockFetch).toHaveBeenCalled();
     expect(data.items).toEqual([]);
   });

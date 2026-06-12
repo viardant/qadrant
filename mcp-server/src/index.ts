@@ -19,16 +19,26 @@ interface Config {
   user_id: string;
 }
 
+interface TimeEntryRecord {
+  id: string;
+  task: string;
+  space?: string;
+  specialization?: string;
+  start_date: string;
+  completion_time?: string;
+  completed: boolean;
+}
+
 async function readConfig(): Promise<Config | null> {
   try {
     const data = await fs.readFile(CONFIG_FILE, 'utf-8');
     return JSON.parse(data);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
 
-async function apiCall(pbUrl: string, token: string, pathStr: string, options: RequestInit = {}): Promise<any> {
+async function apiCall(pbUrl: string, token: string, pathStr: string, options: RequestInit = {}): Promise<unknown> {
   const headers = {
     'Authorization': token,
     'Content-Type': 'application/json',
@@ -161,10 +171,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // 1. Check for running timer
         const filter = `user='${config.user_id}' && completed=false`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
-        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl);
+        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
         const activeEntries = activeResponse.items || [];
 
-        let stoppedTasks: string[] = [];
+        const stoppedTasks: string[] = [];
         if (activeEntries.length > 0) {
           for (const entry of activeEntries) {
             await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
@@ -179,7 +189,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         // 2. Start new timer
-        const newEntry = await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
+        await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
           method: 'POST',
           body: JSON.stringify({
             completed: false,
@@ -205,7 +215,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'apok_stop_timer': {
         const filter = `user='${config.user_id}' && completed=false`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
-        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl);
+        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
         const activeEntries = activeResponse.items || [];
 
         if (activeEntries.length === 0) {
@@ -233,7 +243,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: `TIMER_STOPPED_PROTOCOL: Successfully stopped active timer session for "${activeEntries.map((e: any) => e.task).join(', ')}".`,
+              text: `TIMER_STOPPED_PROTOCOL: Successfully stopped active timer session for "${activeEntries.map((e) => e.task).join(', ')}".`,
             },
           ],
         };
@@ -242,7 +252,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'apok_get_active_timer': {
         const filter = `user='${config.user_id}' && completed=false`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
-        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl);
+        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
         const activeEntries = activeResponse.items || [];
 
         if (activeEntries.length === 0) {
@@ -273,7 +283,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const limit = parsed.limit || 10;
         const filter = `user='${config.user_id}' && completed=true`;
         const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&sort=-start_date&perPage=${limit}`;
-        const response = await apiCall(config.pb_url, config.auth_token, url);
+        const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: TimeEntryRecord[] };
         const entries = response.items || [];
 
         if (entries.length === 0) {
@@ -282,7 +292,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const formatted = entries.map((e: any) => {
+        const formatted = entries.map((e) => {
           const start = new Date(e.start_date).getTime();
           const end = e.completion_time ? new Date(e.completion_time).getTime() : start;
           const hours = (end - start) / (1000 * 60 * 60);
@@ -297,7 +307,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'apok_get_stats': {
         const filter = `user='${config.user_id}' && completed=true`;
         const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000`;
-        const response = await apiCall(config.pb_url, config.auth_token, url);
+        const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: TimeEntryRecord[] };
         const entries = response.items || [];
 
         let totalMs = 0;
@@ -321,12 +331,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     }
-  } catch (err: any) {
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     return {
       content: [
         {
           type: 'text',
-          text: `Error executing tool ${name}: ${err.message}`,
+          text: `Error executing tool ${name}: ${errMsg}`,
         },
       ],
       isError: true,

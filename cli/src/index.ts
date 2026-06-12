@@ -17,7 +17,7 @@ export async function readConfig(): Promise<Config | null> {
   try {
     const data = await fs.readFile(CONFIG_FILE, 'utf-8');
     return JSON.parse(data);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -35,7 +35,7 @@ export function parseArgs(argv: string[]) {
 
   const command = args[0] as 'login' | 'start' | 'stop' | 'status' | 'list' | 'stats' | null;
   const remainingArgs: string[] = [];
-  const options: Record<string, any> = {};
+  const options: { url?: string; space?: string; sub?: string; limit?: number } = {};
 
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
@@ -120,16 +120,17 @@ export async function main() {
         throw new Error(`Authentication failed with status ${res.status}`);
       }
 
-      const data = await res.json() as any;
+      const data = await res.json() as { token?: string; record?: { id: string } };
       await writeConfig({
         pb_url: normalizedUrl,
         auth_token: data.token || token,
-        user_id: data.record?.id
+        user_id: data.record?.id || ''
       });
 
       console.log('LOGIN_SUCCESSFUL_AUTHENTICATED');
-    } catch (err: any) {
-      console.error(`Authentication error: ${err.message}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Authentication error: ${errMsg}`);
       process.exit(1);
       return;
     }
@@ -187,8 +188,9 @@ export async function main() {
       });
 
       console.log('TIMER_STARTED_PROTOCOL');
-    } catch (err: any) {
-      console.error(`Error: ${err.message}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${errMsg}`);
       process.exit(1);
       return;
     }
@@ -214,8 +216,9 @@ export async function main() {
         }
       }
       console.log('TIMER_STOPPED_PROTOCOL');
-    } catch (err: any) {
-      console.error(`Error: ${err.message}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${errMsg}`);
       process.exit(1);
       return;
     }
@@ -245,8 +248,9 @@ export async function main() {
         .join(':');
 
       console.log(`${formattedTime} - ${entry.task}`);
-    } catch (err: any) {
-      console.error(`Error: ${err.message}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${errMsg}`);
       process.exit(1);
       return;
     }
@@ -285,8 +289,9 @@ export async function main() {
 
         console.log(`${dateStr.padEnd(10)} | ${durationStr} | ${spaceStr} | ${subStr} | ${taskStr}`);
       }
-    } catch (err: any) {
-      console.error(`Error: ${err.message}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${errMsg}`);
       process.exit(1);
       return;
     }
@@ -309,8 +314,9 @@ export async function main() {
 
       const totalHours = totalMs / (1000 * 60 * 60);
       console.log(`TOTAL_TRACKED_HOURS: ${totalHours.toFixed(2)}`);
-    } catch (err: any) {
-      console.error(`Error: ${err.message}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${errMsg}`);
       process.exit(1);
       return;
     }
