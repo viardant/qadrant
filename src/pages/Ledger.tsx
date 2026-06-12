@@ -14,7 +14,6 @@ export default function Ledger() {
 
   // Edit Modal State
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
-  const [editTask, setEditTask] = useState('');
   const [editSpace, setEditSpace] = useState('');
   const [editSpecialization, setEditSpecialization] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
@@ -29,7 +28,7 @@ export default function Ledger() {
     try {
       const result = await pb.collection('time_entries').getList<TimeEntry>(page, PAGE_SIZE, {
         sort: '-start_date',
-        filter: `completed = true && user = "${pb.authStore.model?.id}"`,
+        filter: `completion_time != "" && user = "${pb.authStore.model?.id}"`,
       });
       setEntries(result.items);
       setTotalPages(result.totalPages);
@@ -65,7 +64,6 @@ export default function Ledger() {
 
   const handleOpenEdit = (entry: TimeEntry) => {
     setEditingEntry(entry);
-    setEditTask(entry.task || '');
     setEditSpace(entry.space || '');
     setEditSpecialization(entry.specialization || '');
     setEditStartDate(toDatetimeLocal(entry.start_date));
@@ -80,9 +78,9 @@ export default function Ledger() {
     e.preventDefault();
     if (!editingEntry) return;
 
-    const trimmedTask = editTask.trim();
-    if (!trimmedTask) {
-      alert('Task name cannot be empty.');
+    const trimmedSpace = editSpace.trim();
+    if (!trimmedSpace) {
+      alert('Space name cannot be empty.');
       return;
     }
 
@@ -105,8 +103,7 @@ export default function Ledger() {
       }
 
       await pb.collection('time_entries').update(editingEntry.id, {
-        task: trimmedTask,
-        space: editSpace,
+        space: trimmedSpace,
         specialization: editSpecialization,
         start_date: startIso,
         completion_time: completionIso,
@@ -183,7 +180,6 @@ export default function Ledger() {
             <table className="ledger-table">
               <thead>
                 <tr>
-                  <th>Task</th>
                   <th>Space</th>
                   <th>Specialization</th>
                   <th>Start Date</th>
@@ -195,16 +191,15 @@ export default function Ledger() {
               <tbody>
                 {entries.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '2rem 1rem', color: 'rgba(28, 27, 28, 0.4)' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '2rem 1rem', color: 'rgba(28, 27, 28, 0.4)' }}>
                       NO_COMPLETED_TIME_ENTRIES_FOUND
                     </td>
                   </tr>
                 ) : (
                   entries.map((entry) => (
                     <tr key={entry.id}>
-                      <td style={{ fontWeight: 600 }}>{entry.task || 'UNNAMED_TASK'}</td>
                       <td>
-                        <span className="font-mono text-xs px-2 py-0.5 border border-outline rounded bg-outline-light">
+                        <span className="font-mono text-xs px-2 py-0.5 border border-outline rounded bg-outline-light" style={{ fontWeight: 600 }}>
                           {entry.space || '-'}
                         </span>
                       </td>
@@ -284,23 +279,13 @@ export default function Ledger() {
 
             <form onSubmit={handleSaveEdit} className="terminal-modal-body">
               <div className="input-group">
-                <label htmlFor="modal-task">Task</label>
-                <input
-                  id="modal-task"
-                  type="text"
-                  value={editTask}
-                  onChange={(e) => setEditTask(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="input-group">
-                <label htmlFor="modal-space">Space</label>
+                <label htmlFor="modal-space">Space *</label>
                 <input
                   id="modal-space"
                   type="text"
                   value={editSpace}
                   onChange={(e) => setEditSpace(e.target.value)}
+                  required
                 />
               </div>
 

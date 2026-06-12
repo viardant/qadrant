@@ -47,8 +47,8 @@ export default function Logger() {
       }
       setRecentCombos(combos);
 
-      // Check if there is an active running timer (completed = false)
-      const running = records.items.find((r) => !r.completed);
+      // Check if there is an active running timer (completion_time is null/empty)
+      const running = records.items.find((r) => !r.completion_time);
       if (running) {
         setActiveSession(running);
       } else {
@@ -65,16 +65,14 @@ export default function Logger() {
     fetchHistoryAndActive();
   }, []);
 
-  const handleStartSession = async (task: string, space: string, specialization: string) => {
+  const handleStartSession = async (space: string, specialization: string) => {
     if (!pb.authStore.isValid) return;
     try {
       const record = await pb.collection('time_entries').create<TimeEntry>({
         user: pb.authStore.model?.id,
-        task,
         space,
         specialization,
         start_date: new Date().toISOString(),
-        completed: false,
         completion_time: null,
       });
       setActiveSession(record);
@@ -89,7 +87,6 @@ export default function Logger() {
     if (!activeSession) return;
     try {
       await pb.collection('time_entries').update(activeSession.id, {
-        completed: true,
         completion_time: new Date().toISOString(),
       });
       setActiveSession(null);

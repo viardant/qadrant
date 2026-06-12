@@ -50,22 +50,18 @@ describe('Ledger Component', () => {
       items: [
         {
           id: 'entry_1',
-          task: 'Implement Authentication',
           space: 'Dev',
           specialization: 'Frontend',
           start_date: '2026-06-12T10:00:00.000Z',
           completion_time: '2026-06-12T12:30:00.000Z',
-          completed: true,
           user: 'user_123',
         },
         {
           id: 'entry_2',
-          task: 'Database Migration',
           space: 'Ops',
           specialization: 'Backend',
           start_date: '2026-06-12T14:00:00.000Z',
           completion_time: '2026-06-12T15:15:00.000Z',
-          completed: true,
           user: 'user_123',
         },
       ],
@@ -79,11 +75,8 @@ describe('Ledger Component', () => {
 
     // Verify loading state or directly table content
     await waitFor(() => {
-      expect(screen.getByText('Implement Authentication')).toBeInTheDocument();
+      expect(screen.getByText('Dev')).toBeInTheDocument();
     });
-
-    expect(screen.getByText('Database Migration')).toBeInTheDocument();
-    expect(screen.getByText('Dev')).toBeInTheDocument();
     expect(screen.getByText('Ops')).toBeInTheDocument();
     expect(screen.getByText('Frontend')).toBeInTheDocument();
     expect(screen.getByText('Backend')).toBeInTheDocument();
@@ -103,12 +96,10 @@ describe('Ledger Component', () => {
           totalPages: 2,
           items: Array.from({ length: 20 }, (_, i) => ({
             id: `entry_${i}`,
-            task: `Task ${i}`,
-            space: 'Dev',
+            space: `Dev ${i}`,
             specialization: 'Frontend',
             start_date: '2026-06-12T10:00:00.000Z',
             completion_time: '2026-06-12T11:00:00.000Z',
-            completed: true,
             user: 'user_123',
           })),
         };
@@ -120,12 +111,10 @@ describe('Ledger Component', () => {
           totalPages: 2,
           items: Array.from({ length: 5 }, (_, i) => ({
             id: `entry_${i + 20}`,
-            task: `Task ${i + 20}`,
-            space: 'Dev',
+            space: `Dev ${i + 20}`,
             specialization: 'Frontend',
             start_date: '2026-06-12T10:00:00.000Z',
             completion_time: '2026-06-12T11:00:00.000Z',
-            completed: true,
             user: 'user_123',
           })),
         };
@@ -140,7 +129,7 @@ describe('Ledger Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Task 0')).toBeInTheDocument();
+      expect(screen.getByText('Dev 0')).toBeInTheDocument();
     });
 
     const nextButton = screen.getByRole('button', { name: /next/i });
@@ -149,7 +138,7 @@ describe('Ledger Component', () => {
     fireEvent.click(nextButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Task 20')).toBeInTheDocument();
+      expect(screen.getByText('Dev 20')).toBeInTheDocument();
     });
 
     const prevButton = screen.getByRole('button', { name: /prev/i });
@@ -158,7 +147,7 @@ describe('Ledger Component', () => {
     fireEvent.click(prevButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Task 0')).toBeInTheDocument();
+      expect(screen.getByText('Dev 0')).toBeInTheDocument();
     });
   });
 
@@ -171,12 +160,10 @@ describe('Ledger Component', () => {
       items: [
         {
           id: 'entry_1',
-          task: 'Original Task',
           space: 'Dev',
           specialization: 'Frontend',
           start_date: '2026-06-12T10:00:00.000Z',
           completion_time: '2026-06-12T11:00:00.000Z',
-          completed: true,
           user: 'user_123',
         },
       ],
@@ -189,26 +176,26 @@ describe('Ledger Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Original Task')).toBeInTheDocument();
+      expect(screen.getByText('Dev')).toBeInTheDocument();
     });
 
     const editButton = screen.getByRole('button', { name: /edit/i });
     fireEvent.click(editButton);
 
     // Verify modal is open
-    expect(screen.getByLabelText(/task/i)).toHaveValue('Original Task');
+    expect(screen.getByLabelText(/space \*/i)).toHaveValue('Dev');
 
-    // Edit the task field
-    fireEvent.change(screen.getByLabelText(/task/i), { target: { value: 'Updated Task' } });
+    // Edit the space field
+    fireEvent.change(screen.getByLabelText(/space \*/i), { target: { value: 'Updated Space' } });
     
     // Save the changes
-    mockUpdate.mockResolvedValue({ id: 'entry_1', task: 'Updated Task' });
+    mockUpdate.mockResolvedValue({ id: 'entry_1', space: 'Updated Space' });
     const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
       expect(mockUpdate).toHaveBeenCalledWith('entry_1', expect.objectContaining({
-        task: 'Updated Task',
+        space: 'Updated Space',
       }));
     });
   });
@@ -224,12 +211,10 @@ describe('Ledger Component', () => {
       items: [
         {
           id: 'entry_1',
-          task: 'Task to Delete',
-          space: 'Dev',
+          space: 'Dev to Delete',
           specialization: 'Frontend',
           start_date: '2026-06-12T10:00:00.000Z',
           completion_time: '2026-06-12T11:00:00.000Z',
-          completed: true,
           user: 'user_123',
         },
       ],
@@ -242,7 +227,7 @@ describe('Ledger Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Task to Delete')).toBeInTheDocument();
+      expect(screen.getByText('Dev to Delete')).toBeInTheDocument();
     });
 
     const deleteButton = screen.getByRole('button', { name: /delete/i });
@@ -255,7 +240,7 @@ describe('Ledger Component', () => {
     });
   });
 
-  test('blocks saving and shows alert if stop time is before start time or task is empty', async () => {
+  test('blocks saving and shows alert if stop time is before start time or space is empty', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
     mockGetList.mockResolvedValue({
@@ -266,12 +251,10 @@ describe('Ledger Component', () => {
       items: [
         {
           id: 'entry_1',
-          task: 'Original Task',
           space: 'Dev',
           specialization: 'Frontend',
           start_date: '2026-06-12T10:00:00.000Z',
           completion_time: '2026-06-12T11:00:00.000Z',
-          completed: true,
           user: 'user_123',
         },
       ],
@@ -284,22 +267,22 @@ describe('Ledger Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Original Task')).toBeInTheDocument();
+      expect(screen.getByText('Dev')).toBeInTheDocument();
     });
 
     const editButton = screen.getByRole('button', { name: /edit/i });
     fireEvent.click(editButton);
 
-    // Test case 1: empty task name
-    fireEvent.change(screen.getByLabelText(/task/i), { target: { value: '   ' } });
+    // Test case 1: empty space name
+    fireEvent.change(screen.getByLabelText(/space \*/i), { target: { value: '   ' } });
     const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
-    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Task name cannot be empty'));
+    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Space name cannot be empty'));
     expect(mockUpdate).not.toHaveBeenCalled();
 
     // Test case 2: invalid chronological order
-    fireEvent.change(screen.getByLabelText(/task/i), { target: { value: 'Valid Task Name' } });
+    fireEvent.change(screen.getByLabelText(/space \*/i), { target: { value: 'Valid Space Name' } });
     // Date/time inputs
     fireEvent.change(screen.getByLabelText(/start date & time/i), { target: { value: '2026-06-12T12:00' } });
     fireEvent.change(screen.getByLabelText(/stop date & time/i), { target: { value: '2026-06-12T10:00' } });

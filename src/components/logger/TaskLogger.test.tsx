@@ -42,13 +42,12 @@ describe('TaskLogger', () => {
       />
     );
 
-    expect(screen.getByPlaceholderText('Task name...')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Space...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Space name...')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Specialization...')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'START' })).toBeInTheDocument();
   });
 
-  test('clicking start calls onStart with task, space, and specialization', () => {
+  test('clicking start calls onStart with space and specialization', () => {
     render(
       <TaskLogger
         onStart={mockOnStart}
@@ -59,13 +58,12 @@ describe('TaskLogger', () => {
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Task name...'), { target: { value: 'Code Logger' } });
-    fireEvent.change(screen.getByPlaceholderText('Space...'), { target: { value: 'Development' } });
+    fireEvent.change(screen.getByPlaceholderText('Space name...'), { target: { value: 'Development' } });
     fireEvent.change(screen.getByPlaceholderText('Specialization...'), { target: { value: 'qadrant' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'START' }));
 
-    expect(mockOnStart).toHaveBeenCalledWith('Code Logger', 'Development', 'qadrant');
+    expect(mockOnStart).toHaveBeenCalledWith('Development', 'qadrant');
   });
 
   test('renders ticking timer in active session state', () => {
@@ -73,11 +71,9 @@ describe('TaskLogger', () => {
     const mockStartDate = new Date(Date.now() - 5000).toISOString(); // 5 seconds ago
     const activeSession = {
       id: 'session_123',
-      task: 'Ticking Task',
       space: 'Design',
       specialization: 'ui',
       start_date: mockStartDate,
-      completed: false,
       completion_time: null,
       user: 'test_user_id'
     };
@@ -92,9 +88,9 @@ describe('TaskLogger', () => {
       />
     );
 
-    // Verify task and tag labels are present
-    expect(screen.getByText('Ticking Task')).toBeInTheDocument();
-    expect(screen.getByText('[Design] ui')).toBeInTheDocument();
+    // Verify Space and Specialization labels are present
+    expect(screen.getByText('Design')).toBeInTheDocument();
+    expect(screen.getByText('// ui')).toBeInTheDocument();
 
     // Check initial ticking duration
     expect(screen.getByText('00:00:05')).toBeInTheDocument();
@@ -112,11 +108,9 @@ describe('TaskLogger', () => {
   test('clicking stop calls onStop', () => {
     const activeSession = {
       id: 'session_123',
-      task: 'Ticking Task',
       space: 'Design',
       specialization: 'ui',
       start_date: new Date().toISOString(),
-      completed: false,
       completion_time: null,
       user: 'test_user_id'
     };
@@ -146,7 +140,7 @@ describe('TaskLogger', () => {
       />
     );
 
-    const spaceInput = screen.getByPlaceholderText('Space...');
+    const spaceInput = screen.getByPlaceholderText('Space name...');
     fireEvent.focus(spaceInput);
 
     // Expect default space suggestions
@@ -176,7 +170,7 @@ describe('TaskLogger', () => {
       />
     );
 
-    const spaceInput = screen.getByPlaceholderText('Space...');
+    const spaceInput = screen.getByPlaceholderText('Space name...');
     fireEvent.focus(spaceInput);
 
     // Open suggestions
@@ -202,7 +196,7 @@ describe('TaskLogger', () => {
       />
     );
 
-    const spaceInput = screen.getByPlaceholderText('Space...');
+    const spaceInput = screen.getByPlaceholderText('Space name...');
     fireEvent.focus(spaceInput);
 
     expect(screen.getByText('Development')).toBeInTheDocument();

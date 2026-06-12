@@ -57,7 +57,7 @@ export default function Charts() {
         return;
       }
       try {
-        // Fetch completed and completed time entries for the user
+        // Fetch completed and active time entries for the user
         const records = await pb.collection('time_entries').getFullList<TimeEntry>({
           filter: `user = "${pb.authStore.model?.id}"`,
           sort: '-start_date',
@@ -88,7 +88,7 @@ export default function Charts() {
   }
 
   // Get completed entries
-  const completedEntries = entries.filter(e => e.completed && e.completion_time);
+  const completedEntries = entries.filter(e => e.completion_time);
 
   // Filter completed entries by preset selection
   const getFilteredEntries = () => {
