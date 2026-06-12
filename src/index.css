@@ -460,3 +460,336 @@ button:hover {
   to { transform: rotate(360deg); }
 }
 
+/* Ledger & Settings page custom layout */
+.ledger-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  background-color: var(--bg-surface);
+  box-shadow: 2px 2px 0px var(--text-on-surface);
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.ledger-table th {
+  padding: 0.75rem 1rem;
+  background-color: var(--outline-light);
+  border-bottom: 1.5px solid var(--outline);
+  font-weight: 700;
+  color: rgba(28, 27, 28, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ledger-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--outline-light);
+  color: var(--text-on-surface);
+  white-space: nowrap;
+}
+
+.ledger-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ledger-table tr:hover {
+  background-color: rgba(53, 103, 93, 0.03);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.btn-edit {
+  background-color: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.btn-edit:hover {
+  background-color: var(--primary);
+  color: var(--bg-surface);
+}
+
+.btn-delete {
+  background-color: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.btn-delete:hover {
+  background-color: var(--error);
+  color: var(--bg-surface);
+}
+
+/* Pagination container */
+.ledger-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.pagination-info {
+  color: rgba(28, 27, 28, 0.6);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pagination-btn {
+  background-color: var(--bg-surface);
+  color: var(--text-on-surface);
+  border: 1px solid var(--outline);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: var(--outline-light);
+  border-color: var(--text-on-surface);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Terminal Modal Window style */
+.terminal-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(28, 27, 28, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.terminal-modal-box {
+  background-color: var(--bg-surface);
+  border: 1.5px solid var(--text-on-surface);
+  border-radius: 4px;
+  box-shadow: 6px 6px 0px var(--text-on-surface);
+  width: 90%;
+  max-width: 500px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: modal-enter 0.15s ease-out;
+}
+
+@keyframes modal-enter {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.terminal-modal-title {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--outline);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0;
+}
+
+.terminal-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.terminal-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--text-on-surface);
+  border: 1px solid var(--outline);
+}
+
+.btn-secondary:hover {
+  background-color: var(--outline-light);
+}
+
+/* Settings elements */
+.settings-section {
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  padding: 1.5rem;
+  background-color: var(--bg-surface);
+  box-shadow: 2px 2px 0px var(--text-on-surface);
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.settings-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.color-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .color-picker-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .color-picker-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--outline-light);
+  padding: 0.5rem;
+  border-radius: 4px;
+  background-color: var(--bg-surface);
+}
+
+.color-picker-row label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-grow: 1;
+}
+
+.color-input-wrapper {
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--outline);
+}
+
+.color-input-wrapper input[type="color"] {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.token-copy-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.token-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.token-input {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  flex-grow: 1;
+  background-color: var(--outline-light);
+  border: 1px solid var(--outline);
+  padding: 0.5rem;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-block {
+  background-color: #1c1b1c;
+  color: #a4c6a9;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--text-on-surface);
+  line-height: 1.6;
+}
+
+.terminal-block code {
+  display: block;
+}
+
+.terminal-prompt::before {
+  content: "$ ";
+  color: var(--primary);
+}
+
+.logout-btn-container {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 1rem;
+}
+
+.btn-logout {
+  background-color: transparent;
+  color: var(--error);
+  border: 1.5px solid var(--error);
+}
+
+.btn-logout:hover {
+  background-color: var(--error);
+  color: var(--bg-surface);
+}
+
+
