@@ -21,12 +21,10 @@ interface Config {
 
 interface TimeEntryRecord {
   id: string;
-  task: string;
-  space?: string;
+  space: string;
   specialization?: string;
   start_date: string;
   completion_time?: string;
-  completed: boolean;
 }
 
 async function readConfig(): Promise<Config | null> {
@@ -74,24 +72,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'qadrant_start_timer',
-        description: 'Starts a new active time tracking timer. If a timer is already running, stops it first.',
+        description: 'Starts a new active time tracking timer for a space. If a timer is already running, stops it first.',
         inputSchema: {
           type: 'object',
           properties: {
-            task: {
-              type: 'string',
-              description: 'The description of what activity is being tracked (e.g. "Implementing auth tests")',
-            },
             space: {
               type: 'string',
-              description: 'Optional top-level project/category space (e.g. "Work", "Piano", "qadrant")',
+              description: 'The space category to track time for (e.g. "Work", "Piano", "qadrant")',
             },
             specialization: {
               type: 'string',
-              description: 'Optional sub-level specialization within the space (e.g. "Client A", "Chopin")',
+              description: 'Optional sub-level specialization or task detail within the space (e.g. "Designing schema", "Scales")',
             },
           },
-          required: ['task'],
+          required: ['space'],
         },
       },
       {
@@ -137,8 +131,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // Call tool schemas Zod validators
 const StartTimerSchema = z.object({
-  task: z.string(),
-  space: z.string().optional(),
+  space: z.string(),
   specialization: z.string().optional(),
 });
 
@@ -166,10 +159,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'qadrant_start_timer': {
-        const { task, space = '', specialization = '' } = StartTimerSchema.parse(args);
+        const { space, specialization = '' } = StartTimerSchema.parse(args);
 
         // 1. Check for running timer
-        const filter = `user='${config.user_id}' && completed=false`;
+        const filter = `user='${config.user_id}' && completion_time=""`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
         const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
         const activeEntries = activeResponse.items || [];
@@ -180,11 +173,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
               method: 'PATCH',
               body: JSON.stringify({
-                completed: true,
                 completion_time: new Date().toISOString()
               })
             });
-            stoppedTasks.push(entry.task);
+            stoppedTasks.push(entry.space);
           }
         }
 
@@ -192,9 +184,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
           method: 'POST',
           body: JSON.stringify({
-            completed: false,
             start_date: new Date().toISOString(),
-            task,
             space,
             specialization,
             user: config.user_id
@@ -206,14 +196,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: `TIMER_STARTED_PROTOCOL: ${stopMsg}Started tracking "${task}"` + (space ? ` in Space: ${space}` : '') + (specialization ? ` // Sub: ${specialization}` : ''),
+              text: `TIMER_STARTED_PROTOCOL: ${stopMsg}Started tracking Space: ${space}` + (specialization ? ` // Sub: ${specialization}` : ''),
             },
           ],
         };
       }
 
       case 'qadrant_stop_timer': {
-        const filter = `user='${config.user_id}' && completed=false`;
+        const filter = `user='${config.user_id}' && completion_time=""`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
         const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
         const activeEntries = activeResponse.items || [];
@@ -233,24 +223,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
             method: 'PATCH',
             body: JSON.stringify({
-              completed: true,
               completion_time: new Date().toISOString()
             })
           });
         }
 
+        const stopMsgList = activeEntries.map((e) => {
+          const spec = e.specialization ? ` // ${e.specialization}` : '';
+          return `"${e.space}${spec}"`;
+        }).join(', ');
         return {
           content: [
             {
               type: 'text',
-              text: `TIMER_STOPPED_PROTOCOL: Successfully stopped active timer session for "${activeEntries.map((e) => e.task).join(', ')}".`,
+              text: `TIMER_STOPPED_PROTOCOL: Successfully stopped active timer session for ${stopMsgList}.`,
             },
           ],
         };
       }
 
       case 'qadrant_get_active_timer': {
-        const filter = `user='${config.user_id}' && completed=false`;
+        const filter = `user='${config.user_id}' && completion_time=""`;
         const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
         const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
         const activeEntries = activeResponse.items || [];
@@ -268,11 +261,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const entry = activeEntries[0];
         const elapsedSeconds = Math.floor((Date.now() - new Date(entry.start_date).getTime()) / 1000);
+        const specDisplay = entry.specialization ? ` // Sub: ${entry.specialization}` : '';
         return {
           content: [
             {
               type: 'text',
-              text: `ACTIVE_TIMER: "${entry.task}" [Space: ${entry.space || 'None'} // Sub: ${entry.specialization || 'None'}] running for ${elapsedSeconds} seconds.`,
+              text: `ACTIVE_TIMER: Space: ${entry.space}${specDisplay} running for ${elapsedSeconds} seconds.`,
             },
           ],
         };
@@ -281,7 +275,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'qadrant_list_entries': {
         const parsed = ListEntriesSchema.parse(args || {});
         const limit = parsed.limit || 10;
-        const filter = `user='${config.user_id}' && completed=true`;
+        const filter = `user='${config.user_id}' && completion_time!=""`;
         const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&sort=-start_date&perPage=${limit}`;
         const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: TimeEntryRecord[] };
         const entries = response.items || [];
@@ -296,7 +290,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const start = new Date(e.start_date).getTime();
           const end = e.completion_time ? new Date(e.completion_time).getTime() : start;
           const hours = (end - start) / (1000 * 60 * 60);
-          return `- [${new Date(e.start_date).toLocaleDateString()}] (${hours.toFixed(2)}h) Space: ${e.space || '-'} // Sub: ${e.specialization || '-'} // Task: ${e.task}`;
+          return `- [${new Date(e.start_date).toLocaleDateString()}] (${hours.toFixed(2)}h) Space: ${e.space} // Sub: ${e.specialization || '-'}`;
         }).join('\n');
 
         return {
@@ -305,7 +299,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'qadrant_get_stats': {
-        const filter = `user='${config.user_id}' && completed=true`;
+        const filter = `user='${config.user_id}' && completion_time!=""`;
         const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000`;
         const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: TimeEntryRecord[] };
         const entries = response.items || [];
