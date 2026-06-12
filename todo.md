@@ -7,4 +7,4 @@
 - [x] Task 5: Dashboard Visualizations (Recharts)
 - [x] Task 6: Ledger History & Settings PAT
 - [x] Task 7: Command Line Interface (apok)
-- [ ] Task 8: Model Context Protocol (MCP) Server
+- [x] Task 8: Model Context Protocol (MCP) Server
