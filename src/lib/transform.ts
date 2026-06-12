@@ -41,7 +41,7 @@ export function getLocalWeekMondayString(d: Date): string {
 
 // Calculate decimal hours of a completed entry
 export function getEntryDurationHours(entry: TimeEntry): number {
-  if (!entry.completed || !entry.completion_time) return 0;
+  if (!entry.completion_time) return 0;
   const start = new Date(entry.start_date);
   const end = new Date(entry.completion_time);
   const ms = end.getTime() - start.getTime();
@@ -50,7 +50,7 @@ export function getEntryDurationHours(entry: TimeEntry): number {
 
 // 1. Weekly Stacked Data
 export function transformToWeeklyData(entries: TimeEntry[]): ChartDataPoint[] {
-  const completed = entries.filter(e => e.completed && e.completion_time);
+  const completed = entries.filter(e => e.completion_time);
   const weeks: Record<string, Record<string, number>> = {};
   const spaces = new Set<string>();
 
@@ -80,7 +80,7 @@ export function transformToWeeklyData(entries: TimeEntry[]): ChartDataPoint[] {
 
 // 2. Monthly Stacked Data
 export function transformToMonthlyData(entries: TimeEntry[]): ChartDataPoint[] {
-  const completed = entries.filter(e => e.completed && e.completion_time);
+  const completed = entries.filter(e => e.completion_time);
   const months: Record<string, Record<string, number>> = {};
   const spaces = new Set<string>();
 
@@ -110,7 +110,7 @@ export function transformToMonthlyData(entries: TimeEntry[]): ChartDataPoint[] {
 
 // 3. Space Distribution
 export function transformToSpaceDistribution(entries: TimeEntry[]): SpaceDistribution[] {
-  const completed = entries.filter(e => e.completed && e.completion_time);
+  const completed = entries.filter(e => e.completion_time);
   const spaces: Record<string, number> = {};
 
   for (const entry of completed) {
@@ -127,7 +127,7 @@ export function transformToSpaceDistribution(entries: TimeEntry[]): SpaceDistrib
 
 // 4. Daily Trend
 export function transformToDailyTrend(entries: TimeEntry[]): DailyTrendPoint[] {
-  const completed = entries.filter(e => e.completed && e.completion_time);
+  const completed = entries.filter(e => e.completion_time);
   const days: Record<string, number> = {};
 
   for (const entry of completed) {
@@ -147,7 +147,7 @@ export function transformToDailyTrend(entries: TimeEntry[]): DailyTrendPoint[] {
 
 // 5. Aggregate Stats (Today and This Week)
 export function getAggregateStats(entries: TimeEntry[], relativeTo: Date = new Date()) {
-  const completed = entries.filter(e => e.completed && e.completion_time);
+  const completed = entries.filter(e => e.completion_time);
   const todayStr = getLocalDateString(relativeTo);
   const thisWeekStr = getLocalWeekMondayString(relativeTo);
 

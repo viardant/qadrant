@@ -11,52 +11,42 @@ import {
 const mockEntries: TimeEntry[] = [
   {
     id: '1',
-    task: 'Task 1',
     space: 'Work',
     specialization: 'qadrant',
     start_date: '2026-06-08T09:00:00.000Z', // Monday
     completion_time: '2026-06-08T11:30:00.000Z', // 2.5 hours
-    completed: true,
     user: 'u1'
   },
   {
     id: '2',
-    task: 'Task 2',
     space: 'Piano',
     specialization: 'scales',
     start_date: '2026-06-08T14:00:00.000Z',
     completion_time: '2026-06-08T15:00:00.000Z', // 1.0 hour
-    completed: true,
     user: 'u1'
   },
   {
     id: '3',
-    task: 'Task 3',
     space: 'Work',
     specialization: 'client',
     start_date: '2026-06-09T10:00:00.000Z', // Tuesday
     completion_time: '2026-06-09T14:00:00.000Z', // 4.0 hours
-    completed: true,
     user: 'u1'
   },
   {
     id: '4',
-    task: 'Task 4',
     space: 'Work',
     specialization: 'qadrant',
     start_date: '2026-05-15T09:00:00.000Z', // Previous month
     completion_time: '2026-05-15T11:00:00.000Z', // 2.0 hours
-    completed: true,
     user: 'u1'
   },
   {
     id: '5',
-    task: 'Running task',
     space: 'Work',
     specialization: '',
     start_date: '2026-06-08T12:00:00.000Z',
     completion_time: null,
-    completed: false,
     user: 'u1'
   }
 ];

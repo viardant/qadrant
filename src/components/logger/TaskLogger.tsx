@@ -2,17 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export interface TimeEntry {
   id: string;
-  task: string;
   space: string;
   specialization: string;
   start_date: string;
-  completed: boolean;
   completion_time: string | null;
   user: string;
 }
 
 interface TaskLoggerProps {
-  onStart: (task: string, space: string, specialization: string) => void;
+  onStart: (space: string, specialization: string) => void;
   onStop: () => void;
   activeSession: TimeEntry | null;
   spaces: string[];
@@ -33,7 +31,6 @@ function formatDuration(ms: number): string {
 }
 
 export function TaskLogger({ onStart, onStop, activeSession, spaces, specializations }: TaskLoggerProps) {
-  const [task, setTask] = useState('');
   const [space, setSpace] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [activeDuration, setActiveDuration] = useState('00:00:00');
@@ -78,9 +75,8 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
 
   const handleStart = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!task.trim()) return;
-    onStart(task.trim(), space.trim(), specialization.trim());
-    setTask('');
+    if (!space.trim()) return;
+    onStart(space.trim(), specialization.trim());
     setSpace('');
     setSpecialization('');
     setShowSpaceSuggestions(false);
@@ -142,20 +138,22 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
   };
 
   if (activeSession) {
-    const spaceDisplay = activeSession.space || 'No Space';
-    const specDisplay = activeSession.specialization ? ` ${activeSession.specialization}` : '';
+    const spaceDisplay = activeSession.space;
+    const specDisplay = activeSession.specialization ? ` // ${activeSession.specialization}` : '';
     return (
       <div className="active-timer-card">
         <div className="flex flex-col gap-2 w-full md:w-auto">
           <div className="text-sm font-mono text-primary font-bold uppercase tracking-wider">
             ACTIVE_SESSION_PROTOCOL
           </div>
-          <h2 className="text-2xl font-mono font-bold" style={{ marginBottom: 0 }}>{activeSession.task}</h2>
-          <div className="flex gap-2">
-            <span className="px-2 py-1 bg-outline-light font-mono text-xs rounded border border-outline">
-              {`[${spaceDisplay}]${specDisplay}`}
-            </span>
-          </div>
+          <h2 className="text-2xl font-mono font-bold" style={{ marginBottom: 0 }}>
+            {spaceDisplay}
+            {activeSession.specialization && (
+              <span className="text-lg font-normal text-on-surface/60" style={{ marginLeft: '0.5rem' }}>
+                {specDisplay}
+              </span>
+            )}
+          </h2>
         </div>
         <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto justify-end">
           <div className="text-4xl font-mono font-bold tracking-widest text-primary tabular-nums" style={{ fontSize: '2.5rem' }}>
@@ -178,25 +176,14 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
         NEW_SESSION_PROTOCOL
       </div>
       <div className="form-grid">
-        {/* Task Name */}
-        <div className="input-group">
-          <label>Task</label>
-          <input
-            type="text"
-            placeholder="Task name..."
-            value={task}
-            onChange={(e) => setTask(e.target.value)}
-            className="w-full font-mono"
-            required
-          />
-        </div>
 
         {/* Space Autocomplete */}
         <div ref={spaceRef} className="input-group relative">
-          <label>Space</label>
+          <label>Space *</label>
           <input
             type="text"
-            placeholder="Space..."
+            placeholder="Space name..."
+            required
             value={space}
             onChange={(e) => {
               setSpace(e.target.value);
