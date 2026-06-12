@@ -21,7 +21,7 @@ export default function Logger() {
       // Fetch recent entries to build autocomplete lists and quick start combos
       const records = await pb.collection('time_entries').getList<TimeEntry>(1, 100, {
         sort: '-start_date',
-        filter: `user = "${pb.authStore.record?.id}"`,
+        filter: `user = "${pb.authStore.model?.id}"`,
       });
 
       // Filter unique non-empty spaces and specializations from history
@@ -69,7 +69,7 @@ export default function Logger() {
     if (!pb.authStore.isValid) return;
     try {
       const record = await pb.collection('time_entries').create<TimeEntry>({
-        user: pb.authStore.record?.id,
+        user: pb.authStore.model?.id,
         task,
         space,
         specialization,

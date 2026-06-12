@@ -11,7 +11,7 @@ vi.mock('../../lib/pocketbase', () => {
         update: vi.fn(),
       }),
       authStore: {
-        record: { id: 'test_user_id' }
+        model: { id: 'test_user_id' }
       }
     },
   };
