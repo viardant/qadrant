@@ -1,13 +1,11 @@
 import { ReactNode } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
-import PocketBase from 'pocketbase';
+import { pb } from './lib/pocketbase';
 import Login from './pages/Login';
 import Logger from './pages/Logger';
 import Charts from './pages/Charts';
 import Ledger from './pages/Ledger';
 import Settings from './pages/Settings';
-
-export const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090');
 
 interface ProtectedRouteProps {
   children: ReactNode;
