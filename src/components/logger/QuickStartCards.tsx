@@ -2,7 +2,7 @@ import { Play } from 'lucide-react';
 
 interface QuickStartCardsProps {
   recentCombos: Array<{ space: string; specialization: string }>;
-  onStart: (task: string, space: string, specialization: string) => void;
+  onStart: (space: string, specialization: string) => void;
 }
 
 export function QuickStartCards({ recentCombos, onStart }: QuickStartCardsProps) {
@@ -17,7 +17,7 @@ export function QuickStartCards({ recentCombos, onStart }: QuickStartCardsProps)
         {recentCombos.map((combo, idx) => (
           <button
             key={`${combo.space}-${combo.specialization}-${idx}`}
-            onClick={() => onStart('Quick Start', combo.space, combo.specialization)}
+            onClick={() => onStart(combo.space, combo.specialization)}
             className="quick-start-card"
           >
             <div className="quick-start-info">

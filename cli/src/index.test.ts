@@ -18,20 +18,17 @@ describe('CLI Argument Parsing', () => {
     expect(parsed.options.url).toBe('https://example.com');
   });
 
-  it('should parse start command with task, space and sub specialization', () => {
+  it('should parse start command with space and sub specialization', () => {
     const parsed = parseArgs([
       'node',
       'qadrant',
       'start',
-      'Coding task 7',
-      '--space',
       'engineering',
       '--sub',
       'frontend'
     ]);
     expect(parsed.command).toBe('start');
-    expect(parsed.args[0]).toBe('Coding task 7');
-    expect(parsed.options.space).toBe('engineering');
+    expect(parsed.args[0]).toBe('engineering');
     expect(parsed.options.sub).toBe('frontend');
   });
 

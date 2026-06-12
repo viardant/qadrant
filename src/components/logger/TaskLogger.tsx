@@ -18,7 +18,7 @@ interface TaskLoggerProps {
 }
 
 function formatDuration(ms: number): string {
-  if (ms < 0) ms = 0;
+  if (isNaN(ms) || ms < 0) ms = 0;
   const totalSecs = Math.floor(ms / 1000);
   const hours = Math.floor(totalSecs / 3600);
   const minutes = Math.floor((totalSecs % 3600) / 60);

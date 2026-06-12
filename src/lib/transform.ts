@@ -17,6 +17,7 @@ export interface DailyTrendPoint {
 
 // Get local date string 'YYYY-MM-DD' from Date object
 export function getLocalDateString(d: Date): string {
+  if (isNaN(d.getTime())) return 'Invalid Date';
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -25,6 +26,7 @@ export function getLocalDateString(d: Date): string {
 
 // Get local month string 'YYYY-MM' from Date object
 export function getLocalMonthString(d: Date): string {
+  if (isNaN(d.getTime())) return 'Invalid Date';
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
@@ -32,6 +34,7 @@ export function getLocalMonthString(d: Date): string {
 
 // Get Monday of the week (local time) as 'YYYY-MM-DD'
 export function getLocalWeekMondayString(d: Date): string {
+  if (isNaN(d.getTime())) return 'Invalid Date';
   const dayOfWeek = d.getDay(); // 0 = Sunday, 1 = Monday, ...
   const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const monday = new Date(d);
@@ -44,6 +47,7 @@ export function getEntryDurationHours(entry: TimeEntry): number {
   if (!entry.completion_time) return 0;
   const start = new Date(entry.start_date);
   const end = new Date(entry.completion_time);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
   const ms = end.getTime() - start.getTime();
   return Math.max(0, ms / (1000 * 60 * 60));
 }
@@ -56,6 +60,7 @@ export function transformToWeeklyData(entries: TimeEntry[]): ChartDataPoint[] {
 
   for (const entry of completed) {
     const date = new Date(entry.start_date);
+    if (isNaN(date.getTime())) continue;
     const weekKey = getLocalWeekMondayString(date);
     const space = entry.space || 'No Space';
     const hours = getEntryDurationHours(entry);
@@ -86,6 +91,7 @@ export function transformToMonthlyData(entries: TimeEntry[]): ChartDataPoint[] {
 
   for (const entry of completed) {
     const date = new Date(entry.start_date);
+    if (isNaN(date.getTime())) continue;
     const monthKey = getLocalMonthString(date);
     const space = entry.space || 'No Space';
     const hours = getEntryDurationHours(entry);
@@ -114,6 +120,8 @@ export function transformToSpaceDistribution(entries: TimeEntry[]): SpaceDistrib
   const spaces: Record<string, number> = {};
 
   for (const entry of completed) {
+    const start = new Date(entry.start_date);
+    if (isNaN(start.getTime())) continue;
     const space = entry.space || 'No Space';
     const hours = getEntryDurationHours(entry);
     spaces[space] = (spaces[space] || 0) + hours;
@@ -132,6 +140,7 @@ export function transformToDailyTrend(entries: TimeEntry[]): DailyTrendPoint[] {
 
   for (const entry of completed) {
     const date = new Date(entry.start_date);
+    if (isNaN(date.getTime())) continue;
     const dayKey = getLocalDateString(date);
     const hours = getEntryDurationHours(entry);
     days[dayKey] = (days[dayKey] || 0) + hours;
@@ -147,6 +156,9 @@ export function transformToDailyTrend(entries: TimeEntry[]): DailyTrendPoint[] {
 
 // 5. Aggregate Stats (Today and This Week)
 export function getAggregateStats(entries: TimeEntry[], relativeTo: Date = new Date()) {
+  if (isNaN(relativeTo.getTime())) {
+    return { todayHours: 0, weekHours: 0 };
+  }
   const completed = entries.filter(e => e.completion_time);
   const todayStr = getLocalDateString(relativeTo);
   const thisWeekStr = getLocalWeekMondayString(relativeTo);
@@ -156,6 +168,7 @@ export function getAggregateStats(entries: TimeEntry[], relativeTo: Date = new D
 
   for (const entry of completed) {
     const date = new Date(entry.start_date);
+    if (isNaN(date.getTime())) continue;
     const dayStr = getLocalDateString(date);
     const weekStr = getLocalWeekMondayString(date);
     const hours = getEntryDurationHours(entry);

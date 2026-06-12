@@ -98,4 +98,50 @@ describe('qadrant analytics transformations', () => {
     expect(stats.todayHours).toBe(4.0);
     expect(stats.weekHours).toBe(7.5); // 2.5 + 1.0 + 4.0
   });
+
+  it('should handle invalid dates and missing fields gracefully', () => {
+    const invalidEntries: TimeEntry[] = [
+      {
+        id: 'e1',
+        space: '', // Empty space -> should default to 'No Space'
+        specialization: '',
+        start_date: '2026-06-08T09:00:00.000Z',
+        completion_time: '2026-06-08T10:00:00.000Z', // 1.0 hour
+        user: 'u1'
+      },
+      {
+        id: 'e2',
+        space: 'Work',
+        specialization: '',
+        start_date: 'invalid-date-string', // Invalid start date -> should be skipped
+        completion_time: '2026-06-08T11:00:00.000Z',
+        user: 'u1'
+      },
+      {
+        id: 'e3',
+        space: 'Work',
+        specialization: '',
+        start_date: '2026-06-08T09:00:00.000Z',
+        completion_time: 'invalid-date-string', // Invalid completion date -> duration 0/skipped
+        user: 'u1'
+      }
+    ];
+
+    // Weekly data should default empty space to 'No Space' and skip invalid start date
+    const weekly = transformToWeeklyData(invalidEntries);
+    expect(weekly.length).toBe(1);
+    expect(weekly[0].name).toBe('2026-06-08');
+    expect(weekly[0]['No Space']).toBe(1.0);
+    expect(weekly[0]['Work']).toBe(0);
+
+    // Space distribution should include 'No Space' and ignore invalid start date
+    const dist = transformToSpaceDistribution(invalidEntries);
+    expect(dist).toContainEqual({ name: 'No Space', value: 1.0 });
+    expect(dist).toContainEqual({ name: 'Work', value: 0 });
+
+    // Aggregate stats relative to invalid date should return 0s
+    const stats = getAggregateStats(invalidEntries, new Date('invalid'));
+    expect(stats.todayHours).toBe(0);
+    expect(stats.weekHours).toBe(0);
+  });
 });
