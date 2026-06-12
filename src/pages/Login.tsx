@@ -86,20 +86,8 @@ export default function Login() {
   const state = searchParams.get('state');
   if (loading || (code && state && !error)) {
     return (
-      <div
-        className="login-callback-container"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          backgroundColor: '#0a0a0a',
-          color: '#00ff00',
-          fontFamily: 'monospace',
-        }}
-      >
-        <div style={{ fontSize: '1.2rem', letterSpacing: '2px' }}>
+      <div className="login-callback-container">
+        <div className="login-callback-text">
           COMPLETING_SIGN_IN_PROTOCOL...
         </div>
       </div>
@@ -110,7 +98,7 @@ export default function Login() {
     <div className="login-page">
       <h1>Login to Apok</h1>
       {error && (
-        <div className="error-message" style={{ color: 'red', marginBottom: '1rem' }}>
+        <div className="error-message">
           {error}
         </div>
       )}

@@ -1,48 +1,57 @@
 import { render, screen, act } from '@testing-library/react';
-import { expect, test, vi } from 'vitest';
+import { expect, test, vi, afterEach } from 'vitest';
 import { TypewriterText } from './TypewriterText';
 
-test('types out text character by character', async () => {
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test('types out text character by character and controls cursor visibility', () => {
   vi.useFakeTimers();
   render(<TypewriterText text="HELLO" delay={0} speed={50} />);
   
-  // At the beginning, nothing should be typed out yet
-  expect(screen.queryByText("HELLO")).toBeNull();
+  const typewriter = screen.getByTestId("typewriter-text");
   
-  // Advance by some time, e.g. 100ms (should have typed "HE" or similar, but not "HELLO")
+  // At the beginning, nothing should be typed out yet, cursor should be visible
+  expect(typewriter.textContent).toBe("");
+  expect(screen.getByTestId("terminal-cursor")).toBeInTheDocument();
+  
+  // Advance by some time, e.g. 100ms (should have typed "HE" with speed = 50ms)
   act(() => {
     vi.advanceTimersByTime(100);
   });
-  expect(screen.queryByText("HELLO")).toBeNull();
+  expect(typewriter.textContent).toBe("HE");
+  expect(screen.getByTestId("terminal-cursor")).toBeInTheDocument();
 
-  // Advance by another 150ms (total 250ms), should show the full text "HELLO"
+  // Advance by another 150ms (total 250ms), should show the full text "HELLO" and cursor should disappear
   act(() => {
     vi.advanceTimersByTime(150);
   });
-  expect(screen.getByText("HELLO")).toBeInTheDocument();
-  
-  vi.useRealTimers();
+  expect(typewriter.textContent).toBe("HELLO");
+  expect(screen.queryByTestId("terminal-cursor")).toBeNull();
 });
 
 test('respects the custom delay parameter', () => {
   vi.useFakeTimers();
   render(<TypewriterText text="HI" delay={500} speed={50} />);
   
+  const typewriter = screen.getByTestId("typewriter-text");
+
   // Even after 100ms, typing hasn't started because of the delay
   act(() => {
     vi.advanceTimersByTime(100);
   });
-  expect(screen.queryByText("H")).toBeNull();
+  expect(typewriter.textContent).toBe("");
   
-  // Advance past the 500ms delay, and some speed time
+  // Advance past the 500ms delay (400ms more)
   act(() => {
-    vi.advanceTimersByTime(400); // Total 500ms: delay finishes, starting typing
+    vi.advanceTimersByTime(400);
   });
-  // After delay is done, at 500ms, first character or start of typing triggers
-  act(() => {
-    vi.advanceTimersByTime(150); // Advance enough to type out "HI"
-  });
-  expect(screen.getByText("HI")).toBeInTheDocument();
   
-  vi.useRealTimers();
+  // Advance enough to type out "HI" (100ms more)
+  act(() => {
+    vi.advanceTimersByTime(100);
+  });
+  expect(typewriter.textContent).toBe("HI");
+  expect(screen.queryByTestId("terminal-cursor")).toBeNull();
 });

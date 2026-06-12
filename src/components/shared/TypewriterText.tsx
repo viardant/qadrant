@@ -41,7 +41,7 @@ export function TypewriterText({ text, delay = 0, speed = 40, className, showCur
   const isDone = displayed.length === text.length;
 
   return (
-    <span className={className}>
+    <span className={className} data-testid="typewriter-text">
       {displayed}
       {showCursor && (!isDone) && (
         <span className="inline-block w-2 h-4 bg-current ml-1 animate-cursor-blink" data-testid="terminal-cursor"></span>
