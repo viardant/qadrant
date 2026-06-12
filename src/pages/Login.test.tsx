@@ -41,7 +41,7 @@ describe('Login OAuth Flow', () => {
     window.location = originalLocation;
   });
 
-  test('initiates OAuth redirect when clicking login button', async () => {
+  test('initiates OAuth redirect when clicking login button with URL-encoded redirect URI', async () => {
     const mockListAuthMethods = vi.fn().mockResolvedValue({
       authProviders: [
         {
@@ -81,11 +81,13 @@ describe('Login OAuth Flow', () => {
     expect(sessionStorage.getItem('oauth_verifier')).toBe('mock_verifier_123');
     expect(sessionStorage.getItem('oauth_state')).toBe('mock_state_123');
 
-    // Verify redirection URL is correct
-    expect(window.location.href).toBe('https://accounts.google.com/o/oauth2/auth?client_id=123&http://localhost:3000/login');
+    // Verify redirection URL is correct and URL-encoded
+    expect(window.location.href).toBe(
+      'https://accounts.google.com/o/oauth2/auth?client_id=123&http%3A%2F%2Flocalhost%3A3000%2Flogin'
+    );
   });
 
-  test('completes OAuth code exchange when redirected back with code and state', async () => {
+  test('completes OAuth code exchange when redirected back with code and state, clearing storage immediately', async () => {
     // Set up sessionStorage as if login was initiated
     sessionStorage.setItem('oauth_provider', 'google');
     sessionStorage.setItem('oauth_verifier', 'mock_verifier_123');
@@ -120,6 +122,11 @@ describe('Login OAuth Flow', () => {
 
     // Verify terminal-styled callback spinner is displayed
     expect(screen.getByText('COMPLETING_SIGN_IN_PROTOCOL...')).toBeInTheDocument();
+
+    // Verify sessionStorage parameters are cleared immediately
+    expect(sessionStorage.getItem('oauth_provider')).toBeNull();
+    expect(sessionStorage.getItem('oauth_verifier')).toBeNull();
+    expect(sessionStorage.getItem('oauth_state')).toBeNull();
 
     await waitFor(() => {
       // Verify authWithOAuth2Code was called with correct parameters

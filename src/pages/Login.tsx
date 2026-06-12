@@ -17,6 +17,11 @@ export default function Login() {
       const verifier = sessionStorage.getItem('oauth_verifier');
       const storedState = sessionStorage.getItem('oauth_state');
 
+      // Clear sessionStorage parameters immediately to prevent stale state buildup
+      sessionStorage.removeItem('oauth_provider');
+      sessionStorage.removeItem('oauth_verifier');
+      sessionStorage.removeItem('oauth_state');
+
       if (!provider || !verifier || !storedState) {
         setError('Missing OAuth session storage parameters.');
         return;
@@ -33,12 +38,14 @@ export default function Login() {
       pb.collection('users')
         .authWithOAuth2Code(provider, code, verifier, redirectUrl)
         .then(() => {
-          // Write the pb_auth cookie
-          document.cookie = pb.authStore.exportToCookie({ path: '/' });
-          // Clear sessionStorage
-          sessionStorage.removeItem('oauth_provider');
-          sessionStorage.removeItem('oauth_verifier');
-          sessionStorage.removeItem('oauth_state');
+          // Write the pb_auth cookie with explicit security attributes
+          const isSecure = window.location.protocol === 'https:';
+          document.cookie = pb.authStore.exportToCookie({
+            path: '/',
+            secure: isSecure,
+            sameSite: 'Lax',
+            httpOnly: false,
+          });
           // Navigate to dashboard/home
           navigate('/');
         })
@@ -67,7 +74,7 @@ export default function Login() {
       sessionStorage.setItem('oauth_state', googleProvider.state);
 
       const redirectUrl = window.location.origin + '/login';
-      const authUrl = googleProvider.authUrl + redirectUrl;
+      const authUrl = googleProvider.authUrl + encodeURIComponent(redirectUrl);
 
       window.location.href = authUrl;
     } catch (err: any) {
