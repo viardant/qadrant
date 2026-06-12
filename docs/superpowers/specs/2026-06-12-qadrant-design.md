@@ -54,12 +54,10 @@
 * **Fields**:
   * `id`: text (system key)
   * `user`: relation to `users` (required, single, cascade delete)
-  * `task`: text (required) — Name of activity (e.g., "Designing schema")
-  * `space`: text (optional) — Top-level categorization (e.g., "Work")
-  * `specialization`: text (optional) — Sub-level specialization (e.g., "Client A")
+  * `space`: text (required) — Top-level category/task name (e.g., "Work", "Piano")
+  * `specialization`: text (optional) — Sub-level specialization detail (e.g., "Client A", "Designing schema")
   * `start_date`: date (required) — ISO timestamp of start
   * `completion_time`: date (optional) — ISO timestamp of stop (null if timer is active)
-  * `completed`: bool (required) — Defaults to `false`
 * **Indexes**:
   * Index on `(user, start_date)` for query performance.
 * **API Rules**:
@@ -84,7 +82,7 @@
 ### Layout Pages (Bottom Nav Navigation)
 * **`/login`**: Clean terminal login. Contains a single `"CONNECT_GOOGLE_ACCOUNT"` button and callback animation loader `"COMPLETING_SIGN_IN_PROTOCOL..."`.
 * **`/` (Logger)**:
-  * *Unified Input*: Text input for task name + Space / Specialization autocomplete combo-boxes (inline additions are created on-the-fly without friction).
+  * *Unified Input*: Space (required) and Specialization (optional) autocomplete combo-boxes (inline additions are created on-the-fly without friction).
   * *Active Timer Screen*:Monospace timer showing `hh:mm:ss` with ticking separator colon and a large `STOP_SESSION` button.
   * *Quick Start Cards*: Dynamic grid showing 4–6 of the user's most recent Space + Specialization combinations. Clicking a card starts a timer pre-populated with those values.
 * **`/charts` (Dashboard)**: Curated Recharts dashboard featuring:
@@ -93,7 +91,7 @@
   3. *Space Donut*: Cumulative time percentage across Spaces.
   4. *Daily Trend*: Line graph showing total tracked hours per day.
   5. *Calendar Heatmap*: D3/Grid consistency display showing activity intensity.
-* **`/ledger` (History)**: Flat tabular log listing historical entries with options to delete or modify past timer entries (task, space, sub-level, start/stop times).
+* **`/ledger` (History)**: Flat tabular log listing historical entries with options to delete or modify past timer entries (space, specialization, start/stop times).
 * **`/settings`**: Personalization pane allowing custom hex assignments for Spaces, token generation for CLI access, and sign-out.
 
 ---
@@ -121,9 +119,9 @@ To support mobile browsers (Safari) and avoid popup block errors, we utilize a f
 * **Config File**: Reads/writes credentials to `~/.qadrant/config.json`.
 * **Commands**:
   * `qadrant login <token>`: Authenticates using the web-generated token.
-  * `qadrant start "<task>" [--space <space>] [--sub <specialization>]`: Starts a new session. Closes active timers first.
+  * `qadrant start "<space>" [--sub <specialization>]`: Starts a new session. Closes active timers first.
   * `qadrant stop`: Stops the current session.
-  * `qadrant status`: Returns elapsed time and task name for active timers.
+  * `qadrant status`: Returns elapsed time and space/specialization for active timers.
   * `qadrant list [--limit <n>]`: Prints a table of recent sessions.
   * `qadrant stats`: Prints tracked hours by timeframe.
 
@@ -138,8 +136,8 @@ To support mobile browsers (Safari) and avoid popup block errors, we utilize a f
 
 ### Exposed Tools
 * `qadrant_start_timer` (idempotent: false, readOnly: false)
-  * Schema: `{ task: string, space?: string, specialization?: string }`
-  * Action: Starts a new active timer, stopping any current timer first.
+  * Schema: `{ space: string, specialization?: string }`
+  * Action: Starts a new active timer for a space, stopping any current timer first.
 * `qadrant_stop_timer` (idempotent: false, readOnly: false)
   * Schema: `{}`
   * Action: Stops the currently active timer.
