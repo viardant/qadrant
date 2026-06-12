@@ -82,7 +82,7 @@ qadrant - Qadrant Time Tracker CLI
 
 Usage:
   qadrant login <token> [--url <pocketbase_url>]
-  qadrant start "<task>" [--space <space>] [--sub <specialization>]
+  qadrant start "<space>" [--sub <specialization>]
   qadrant stop
   qadrant status
   qadrant list [--limit <n>]
@@ -146,18 +146,17 @@ export async function main() {
   }
 
   if (parsed.command === 'start') {
-    const task = parsed.args[0];
-    if (!task) {
-      console.error('Error: Task description is required.');
+    const space = parsed.args[0];
+    if (!space) {
+      console.error('Error: Space name is required.');
       process.exit(1);
       return;
     }
-    const space = parsed.options.space || '';
     const specialization = parsed.options.sub || '';
 
     try {
       // Check if an active timer is running
-      const filter = `user='${config.user_id}' && completed=false`;
+      const filter = `user='${config.user_id}' && completion_time=""`;
       const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
       const activeResponse = await apiCall(config.pb_url, config.auth_token, url);
       const activeEntries = activeResponse.items || [];
@@ -167,7 +166,6 @@ export async function main() {
           await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
             method: 'PATCH',
             body: JSON.stringify({
-              completed: true,
               completion_time: new Date().toISOString()
             })
           });
@@ -178,9 +176,7 @@ export async function main() {
       await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
         method: 'POST',
         body: JSON.stringify({
-          completed: false,
           start_date: new Date().toISOString(),
-          task,
           space,
           specialization,
           user: config.user_id
@@ -199,7 +195,7 @@ export async function main() {
 
   if (parsed.command === 'stop') {
     try {
-      const filter = `user='${config.user_id}' && completed=false`;
+      const filter = `user='${config.user_id}' && completion_time=""`;
       const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
       const activeResponse = await apiCall(config.pb_url, config.auth_token, url);
       const activeEntries = activeResponse.items || [];
@@ -209,7 +205,6 @@ export async function main() {
           await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
             method: 'PATCH',
             body: JSON.stringify({
-              completed: true,
               completion_time: new Date().toISOString()
             })
           });
@@ -227,7 +222,7 @@ export async function main() {
 
   if (parsed.command === 'status') {
     try {
-      const filter = `user='${config.user_id}' && completed=false`;
+      const filter = `user='${config.user_id}' && completion_time=""`;
       const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
       const activeResponse = await apiCall(config.pb_url, config.auth_token, url);
       const activeEntries = activeResponse.items || [];
@@ -247,7 +242,8 @@ export async function main() {
         .map(v => String(v).padStart(2, '0'))
         .join(':');
 
-      console.log(`${formattedTime} - ${entry.task}`);
+      const specializationStr = entry.specialization ? ` // ${entry.specialization}` : '';
+      console.log(`${formattedTime} - ${entry.space}${specializationStr}`);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`Error: ${errMsg}`);
@@ -260,7 +256,7 @@ export async function main() {
   if (parsed.command === 'list') {
     try {
       const limit = parsed.options.limit || 10;
-      const filter = `user='${config.user_id}' && completed=true`;
+      const filter = `user='${config.user_id}' && completion_time!=""`;
       const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&sort=-start_date&perPage=${limit}`;
       const response = await apiCall(config.pb_url, config.auth_token, url);
       const entries = response.items || [];
@@ -270,8 +266,8 @@ export async function main() {
         return;
       }
 
-      console.log('DATE       | DURATION | SPACE      | SUB        | TASK');
-      console.log('-----------+----------+------------+------------+---------------------------');
+      console.log('DATE       | DURATION | SPACE      | SUB');
+      console.log('-----------+----------+------------+------------');
 
       for (const entry of entries) {
         const dateStr = new Date(entry.start_date).toLocaleDateString();
@@ -285,9 +281,8 @@ export async function main() {
 
         const spaceStr = (entry.space || '').slice(0, 10).padEnd(10);
         const subStr = (entry.specialization || '').slice(0, 10).padEnd(10);
-        const taskStr = entry.task || '';
 
-        console.log(`${dateStr.padEnd(10)} | ${durationStr} | ${spaceStr} | ${subStr} | ${taskStr}`);
+        console.log(`${dateStr.padEnd(10)} | ${durationStr} | ${spaceStr} | ${subStr}`);
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -300,7 +295,7 @@ export async function main() {
 
   if (parsed.command === 'stats') {
     try {
-      const filter = `user='${config.user_id}' && completed=true`;
+      const filter = `user='${config.user_id}' && completion_time!=""`;
       const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000`;
       const response = await apiCall(config.pb_url, config.auth_token, url);
       const entries = response.items || [];
