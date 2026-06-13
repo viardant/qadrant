@@ -8,11 +8,12 @@ export async function startTimer(
   input: StartTimerInput
 ): Promise<{ text: string; structured: StructuredTimerResult }> {
   const { space, specialization = '' } = input;
+  const startDate = new Date().toISOString();
 
   await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
     method: 'POST',
     body: JSON.stringify({
-      start_date: new Date().toISOString(),
+      start_date: startDate,
       space,
       specialization,
       user: config.user_id,
@@ -27,7 +28,7 @@ export async function startTimer(
     data: {
       space,
       specialization: specialization || undefined,
-      start_date: new Date().toISOString(),
+      start_date: startDate,
     },
   };
 
@@ -41,7 +42,7 @@ export async function stopTimer(
   const filter = `user='${config.user_id}' && completion_time=""`;
   const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
   const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl);
-  const activeEntries = (activeResponse as { items?: Array<{ id: string; space: string; specialization?: string }> }).items || [];
+  const activeEntries = (activeResponse as { items?: Array<{ id: string; space: string; specialization?: string; start_date: string }> }).items || [];
 
   if (activeEntries.length === 0) {
     return {
@@ -50,16 +51,18 @@ export async function stopTimer(
     };
   }
 
-  const stoppedEntries: Array<{ id: string; space: string; specialization: string }> = [];
+  const stoppedEntries: Array<{ id: string; space: string; specialization: string; start_date: string }> = [];
+  const stopTime = new Date().toISOString();
   for (const entry of activeEntries) {
     await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ completion_time: new Date().toISOString() }),
+      body: JSON.stringify({ completion_time: stopTime }),
     });
     stoppedEntries.push({
       id: entry.id,
       space: entry.space,
       specialization: entry.specialization || '',
+      start_date: entry.start_date,
     });
   }
 
@@ -73,8 +76,8 @@ export async function stopTimer(
       id: e.id,
       space: e.space,
       specialization: e.specialization,
-      start_date: '',
-      completion_time: new Date().toISOString(),
+      start_date: e.start_date,
+      completion_time: stopTime,
       duration_hours: 0,
     })),
   };
