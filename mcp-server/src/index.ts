@@ -1,328 +1,274 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { readConfig } from './services/config.js';
+import { handleApiError } from './services/api-client.js';
 import {
-  CallToolRequestSchema,
-  ErrorCode,
-  ListToolsRequestSchema,
-  McpError,
-} from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
-import os from 'os';
-import path from 'path';
-import fs from 'fs/promises';
+  StartTimerSchema,
+  ListEntriesSchema,
+  GetStatsSchema,
+  GetActiveTimerSchema,
+  StopTimerSchema,
+} from './schemas.js';
+import type {
+  StartTimerInput,
+  ListEntriesInput,
+  GetStatsInput,
+  GetActiveTimerInput,
+  StopTimerInput,
+} from './schemas.js';
+import { startTimer, stopTimer, getActiveTimer } from './tools/timer.js';
+import { listEntries } from './tools/entries.js';
+import { getStats } from './tools/stats.js';
 
-const CONFIG_FILE = path.join(os.homedir(), '.qadrant', 'config.json');
+const server = new McpServer({
+  name: 'qadrant-mcp-server',
+  version: '1.0.0',
+});
 
-interface Config {
-  pb_url: string;
-  auth_token: string;
-  user_id: string;
-}
-
-interface TimeEntryRecord {
-  id: string;
-  space: string;
-  specialization?: string;
-  start_date: string;
-  completion_time?: string;
-}
-
-async function readConfig(): Promise<Config | null> {
-  try {
-    const data = await fs.readFile(CONFIG_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return null;
-  }
-}
-
-async function apiCall(pbUrl: string, token: string, pathStr: string, options: RequestInit = {}): Promise<unknown> {
-  const headers = {
-    'Authorization': token,
-    'Content-Type': 'application/json',
-    ...(options.headers || {})
-  };
-  const res = await fetch(`${pbUrl}${pathStr}`, {
-    ...options,
-    headers
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`API error ${pathStr} (${res.status}): ${body}`);
-  }
-  return res.json();
-}
-
-// Instantiate server
-const server = new Server(
+server.registerTool(
+  'qadrant_start_timer',
   {
-    name: 'qadrant-mcp-server',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
+    title: 'Start Timer',
+    description: `Starts a new active time tracking timer for a space.
+
+Creates a new time entry record with the current timestamp as start_date. If another timer is already running, this will start a second concurrent timer (multiple timers can run simultaneously).
+
+Args:
+  - space (string, required): The space category to track (e.g. "Work", "Piano", "qadrant")
+  - specialization (string, optional): Sub-category or task detail (e.g. "Designing schema", "Scales")
+
+Returns:
+  TIMER_STARTED: Started tracking "<space>" or similar status message.
+  Structured output includes the created entry's space, specialization, and start_date.
+
+Error Handling:
+  - Returns auth error if not logged in (use "qadrant login <token>" first)
+  - Returns API error if PocketBase is unreachable`,
+    inputSchema: StartTimerSchema,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
     },
+  },
+  async (input: StartTimerInput) => {
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [{ type: 'text', text: 'Error: Not authenticated. Please login first: qadrant login <token>' }],
+        isError: true,
+      };
+    }
+
+    try {
+      const result = await startTimer(config, input);
+      return {
+        content: [{ type: 'text', text: result.text }],
+        structuredContent: result.structured,
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: handleApiError(err) }],
+        isError: true,
+      };
+    }
   }
 );
 
-// Register list tools handler
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: 'qadrant_start_timer',
-        description: 'Starts a new active time tracking timer for a space.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            space: {
-              type: 'string',
-              description: 'The space category to track time for (e.g. "Work", "Piano", "qadrant")',
-            },
-            specialization: {
-              type: 'string',
-              description: 'Optional sub-level specialization or task detail within the space (e.g. "Designing schema", "Scales")',
-            },
-          },
-          required: ['space'],
-        },
-      },
-      {
-        name: 'qadrant_stop_timer',
-        description: 'Stops all currently running active time tracker timers.',
-        inputSchema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-      {
-        name: 'qadrant_get_active_timer',
-        description: 'Retrieves all currently running active timer sessions.',
-        inputSchema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-      {
-        name: 'qadrant_list_entries',
-        description: 'Retrieves a list of recent completed time tracking logs.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            limit: {
-              type: 'number',
-              description: 'Maximum number of entries to return (default is 10)',
-            },
-          },
-        },
-      },
-      {
-        name: 'qadrant_get_stats',
-        description: 'Calculates the cumulative tracked hours and displays total time analytics.',
-        inputSchema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-    ],
-  };
-});
+server.registerTool(
+  'qadrant_stop_timer',
+  {
+    title: 'Stop Timer',
+    description: `Stops all currently running active time tracker timers.
 
-// Call tool schemas Zod validators
-const StartTimerSchema = z.object({
-  space: z.string(),
-  specialization: z.string().optional(),
-});
+Finds all time entries with no completion_time and sets their completion_time to the current timestamp.
 
-const ListEntriesSchema = z.object({
-  limit: z.number().optional(),
-});
+Returns:
+  TIMER_STOPPED: Successfully stopped active timer session for "<space>".
+  NO_ACTIVE_SESSION: There is no running timer to stop.
 
-// Register call tool handler
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const config = await readConfig();
-  if (!config) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: 'Error: Not authenticated. Please login first in the terminal using the qadrant CLI: qadrant login <token>',
-        },
-      ],
-      isError: true,
-    };
-  }
-
-  const { name, arguments: args } = request.params;
-
-  try {
-    switch (name) {
-      case 'qadrant_start_timer': {
-        const { space, specialization = '' } = StartTimerSchema.parse(args);
-
-        // Start new timer
-        await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
-          method: 'POST',
-          body: JSON.stringify({
-            start_date: new Date().toISOString(),
-            space,
-            specialization,
-            user: config.user_id
-          })
-        });
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `TIMER_STARTED_PROTOCOL: Started tracking Space: ${space}` + (specialization ? ` // Sub: ${specialization}` : ''),
-            },
-          ],
-        };
-      }
-
-      case 'qadrant_stop_timer': {
-        const filter = `user='${config.user_id}' && completion_time=""`;
-        const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
-        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
-        const activeEntries = activeResponse.items || [];
-
-        if (activeEntries.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'NO_ACTIVE_SESSION: There is no running timer to stop.',
-              },
-            ],
-          };
-        }
-
-        for (const entry of activeEntries) {
-          await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({
-              completion_time: new Date().toISOString()
-            })
-          });
-        }
-
-        const stopMsgList = activeEntries.map((e) => {
-          const spec = e.specialization ? ` // ${e.specialization}` : '';
-          return `"${e.space}${spec}"`;
-        }).join(', ');
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `TIMER_STOPPED_PROTOCOL: Successfully stopped active timer session for ${stopMsgList}.`,
-            },
-          ],
-        };
-      }
-
-      case 'qadrant_get_active_timer': {
-        const filter = `user='${config.user_id}' && completion_time=""`;
-        const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
-        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
-        const activeEntries = activeResponse.items || [];
-
-        if (activeEntries.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'NO_ACTIVE_SESSION',
-              },
-            ],
-          };
-        }
-
-        const lines = activeEntries.map(entry => {
-          const elapsedSeconds = Math.floor((Date.now() - new Date(entry.start_date).getTime()) / 1000);
-          const specDisplay = entry.specialization ? ` // Sub: ${entry.specialization}` : '';
-          return `- Active: Space: ${entry.space}${specDisplay} running for ${elapsedSeconds} seconds.`;
-        }).join('\n');
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `ACTIVE_TIMERS:\n${lines}`,
-            },
-          ],
-        };
-      }
-
-      case 'qadrant_list_entries': {
-        const parsed = ListEntriesSchema.parse(args || {});
-        const limit = parsed.limit || 10;
-        const filter = `user='${config.user_id}' && completion_time!=""`;
-        const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&sort=-start_date&perPage=${limit}`;
-        const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: TimeEntryRecord[] };
-        const entries = response.items || [];
-
-        if (entries.length === 0) {
-          return {
-            content: [{ type: 'text', text: 'No tracked time entry records found.' }],
-          };
-        }
-
-        const formatted = entries.map((e) => {
-          const start = new Date(e.start_date).getTime();
-          const end = e.completion_time ? new Date(e.completion_time).getTime() : start;
-          const hours = (end - start) / (1000 * 60 * 60);
-          return `- [${new Date(e.start_date).toLocaleDateString()}] (${hours.toFixed(2)}h) Space: ${e.space} // Sub: ${e.specialization || '-'}`;
-        }).join('\n');
-
-        return {
-          content: [{ type: 'text', text: `RECENT_COMPLETED_TIME_ENTRIES:\n${formatted}` }],
-        };
-      }
-
-      case 'qadrant_get_stats': {
-        const filter = `user='${config.user_id}' && completion_time!=""`;
-        const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000`;
-        const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: TimeEntryRecord[] };
-        const entries = response.items || [];
-
-        let totalMs = 0;
-        for (const entry of entries) {
-          const start = new Date(entry.start_date).getTime();
-          const end = entry.completion_time ? new Date(entry.completion_time).getTime() : start;
-          totalMs += Math.max(0, end - start);
-        }
-
-        const totalHours = totalMs / (1000 * 60 * 60);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `TOTAL_TRACKED_HOURS: ${totalHours.toFixed(2)} hours tracked across ${entries.length} completed sessions.`,
-            },
-          ],
-        };
-      }
-
-      default:
-        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+Error Handling:
+  - Returns auth error if not logged in`,
+    inputSchema: StopTimerSchema,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  },
+  async (input: StopTimerInput) => {
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [{ type: 'text', text: 'Error: Not authenticated. Please login first: qadrant login <token>' }],
+        isError: true,
+      };
     }
-  } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Error executing tool ${name}: ${errMsg}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-});
 
-// Run server using stdio transport
+    try {
+      const result = await stopTimer(config, input);
+      return {
+        content: [{ type: 'text', text: result.text }],
+        structuredContent: result.structured,
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: handleApiError(err) }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.registerTool(
+  'qadrant_get_active_timer',
+  {
+    title: 'Get Active Timer',
+    description: `Retrieves all currently running active timer sessions with elapsed time.
+
+Args:
+  - response_format (string, optional): 'markdown' (default) or 'json'
+
+Returns:
+  For markdown: List of active timers with elapsed seconds.
+  For json: Structured data with entries array containing id, space, specialization, start_date, duration_hours.
+
+Error Handling:
+  - Returns auth error if not logged in`,
+    inputSchema: GetActiveTimerSchema,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async (input: GetActiveTimerInput) => {
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [{ type: 'text', text: 'Error: Not authenticated. Please login first: qadrant login <token>' }],
+        isError: true,
+      };
+    }
+
+    try {
+      const result = await getActiveTimer(config, input);
+      return {
+        content: [{ type: 'text', text: result.text }],
+        structuredContent: result.structured,
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: handleApiError(err) }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.registerTool(
+  'qadrant_list_entries',
+  {
+    title: 'List Entries',
+    description: `Retrieves a list of recent completed time tracking logs with pagination.
+
+Args:
+  - limit (number, optional): Max entries to return (1-100, default 10)
+  - offset (number, optional): Number of entries to skip for pagination (default 0)
+  - response_format (string, optional): 'markdown' (default) or 'json'
+
+Returns:
+  For markdown: Formatted list with date, duration, space, specialization.
+  For json: Structured data with entries array, pagination info (total, offset, limit, has_more, next_offset), and stats.
+
+Error Handling:
+  - Returns auth error if not logged in`,
+    inputSchema: ListEntriesSchema,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async (input: ListEntriesInput) => {
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [{ type: 'text', text: 'Error: Not authenticated. Please login first: qadrant login <token>' }],
+        isError: true,
+      };
+    }
+
+    try {
+      const result = await listEntries(config, input);
+      return {
+        content: [{ type: 'text', text: result.text }],
+        structuredContent: result.structured,
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: handleApiError(err) }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.registerTool(
+  'qadrant_get_stats',
+  {
+    title: 'Get Stats',
+    description: `Calculates cumulative tracked hours and displays total time analytics.
+
+Aggregates duration across all completed time entries to compute total tracked hours.
+
+Args:
+  - response_format (string, optional): 'markdown' (default) or 'json'
+
+Returns:
+  For markdown: Total hours and session count.
+  For json: Structured data with total_hours, session_count, overall_count.
+
+Note: If you have more than 1000 entries, stats are computed from the most recent 1000.
+
+Error Handling:
+  - Returns auth error if not logged in`,
+    inputSchema: GetStatsSchema,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async (input: GetStatsInput) => {
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [{ type: 'text', text: 'Error: Not authenticated. Please login first: qadrant login <token>' }],
+        isError: true,
+      };
+    }
+
+    try {
+      const result = await getStats(config, input);
+      return {
+        content: [{ type: 'text', text: result.text }],
+        structuredContent: result.structured,
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: handleApiError(err) }],
+        isError: true,
+      };
+    }
+  }
+);
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

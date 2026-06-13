@@ -22,6 +22,7 @@ export interface StructuredEntry {
 }
 
 export interface StructuredTimerResult {
+  [key: string]: unknown;
   status: string;
   message: string;
   data?: {
