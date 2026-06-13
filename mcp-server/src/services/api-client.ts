@@ -1,3 +1,13 @@
+class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function apiCall(
   pbUrl: string,
   token: string,
@@ -5,7 +15,7 @@ export async function apiCall(
   options: RequestInit = {}
 ): Promise<unknown> {
   const headers: Record<string, string> = {
-    Authorization: token,
+    'Authorization': token,
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
@@ -17,17 +27,15 @@ export async function apiCall(
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    const error = new Error(`API error ${pathStr} (${res.status}): ${body}`);
-    (error as Error & { status: number }).status = res.status;
-    throw error;
+    throw new ApiError(`API error ${pathStr} (${res.status}): ${body}`, res.status);
   }
 
   return res.json();
 }
 
 export function handleApiError(error: unknown): string {
-  if (error instanceof Error) {
-    const status = (error as Error & { status?: number }).status;
+  if (error instanceof ApiError) {
+    const status = error.status;
     if (status === 404) {
       return 'Error: Resource not found. Please check the PocketBase URL is correct and the collection exists.';
     }
@@ -37,6 +45,9 @@ export function handleApiError(error: unknown): string {
     if (status === 429) {
       return 'Error: Rate limit exceeded. Please wait before making more requests.';
     }
+    return `Error: ${error.message}`;
+  }
+  if (error instanceof Error) {
     return `Error: ${error.message}`;
   }
   return `Error: Unexpected error occurred: ${String(error)}`;
