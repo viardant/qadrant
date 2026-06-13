@@ -72,7 +72,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'qadrant_start_timer',
-        description: 'Starts a new active time tracking timer for a space. If a timer is already running, stops it first.',
+        description: 'Starts a new active time tracking timer for a space.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -90,7 +90,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'qadrant_stop_timer',
-        description: 'Stops the currently running active time tracker timer.',
+        description: 'Stops all currently running active time tracker timers.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -98,7 +98,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'qadrant_get_active_timer',
-        description: 'Retrieves the currently running timer session details or returns null.',
+        description: 'Retrieves all currently running active timer sessions.',
         inputSchema: {
           type: 'object',
           properties: {},
