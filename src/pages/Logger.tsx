@@ -22,6 +22,7 @@ export default function Logger() {
       const records = await pb.collection('time_entries').getList<TimeEntry>(1, 100, {
         sort: '-start_date',
         filter: `user = "${pb.authStore.model?.id}"`,
+        requestKey: null,
       });
 
       // Filter unique non-empty spaces and specializations from history
@@ -73,7 +74,6 @@ export default function Logger() {
         space,
         specialization,
         start_date: new Date().toISOString(),
-        completion_time: null,
       });
       setActiveSession(record);
       await fetchHistoryAndActive();

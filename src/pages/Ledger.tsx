@@ -29,6 +29,7 @@ export default function Ledger() {
       const result = await pb.collection('time_entries').getList<TimeEntry>(page, PAGE_SIZE, {
         sort: '-start_date',
         filter: `completion_time != "" && user = "${pb.authStore.model?.id}"`,
+        requestKey: null,
       });
       setEntries(result.items);
       setTotalPages(result.totalPages);
