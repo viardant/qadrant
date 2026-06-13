@@ -161,26 +161,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'qadrant_start_timer': {
         const { space, specialization = '' } = StartTimerSchema.parse(args);
 
-        // 1. Check for running timer
-        const filter = `user='${config.user_id}' && completion_time=""`;
-        const checkUrl = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
-        const activeResponse = await apiCall(config.pb_url, config.auth_token, checkUrl) as { items?: TimeEntryRecord[] };
-        const activeEntries = activeResponse.items || [];
-
-        const stoppedTasks: string[] = [];
-        if (activeEntries.length > 0) {
-          for (const entry of activeEntries) {
-            await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
-              method: 'PATCH',
-              body: JSON.stringify({
-                completion_time: new Date().toISOString()
-              })
-            });
-            stoppedTasks.push(entry.space);
-          }
-        }
-
-        // 2. Start new timer
+        // Start new timer
         await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
           method: 'POST',
           body: JSON.stringify({
@@ -191,12 +172,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           })
         });
 
-        const stopMsg = stoppedTasks.length > 0 ? `Stopped running session for "${stoppedTasks.join(', ')}". ` : '';
         return {
           content: [
             {
               type: 'text',
-              text: `TIMER_STARTED_PROTOCOL: ${stopMsg}Started tracking Space: ${space}` + (specialization ? ` // Sub: ${specialization}` : ''),
+              text: `TIMER_STARTED_PROTOCOL: Started tracking Space: ${space}` + (specialization ? ` // Sub: ${specialization}` : ''),
             },
           ],
         };
@@ -259,14 +239,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const entry = activeEntries[0];
-        const elapsedSeconds = Math.floor((Date.now() - new Date(entry.start_date).getTime()) / 1000);
-        const specDisplay = entry.specialization ? ` // Sub: ${entry.specialization}` : '';
+        const lines = activeEntries.map(entry => {
+          const elapsedSeconds = Math.floor((Date.now() - new Date(entry.start_date).getTime()) / 1000);
+          const specDisplay = entry.specialization ? ` // Sub: ${entry.specialization}` : '';
+          return `- Active: Space: ${entry.space}${specDisplay} running for ${elapsedSeconds} seconds.`;
+        }).join('\n');
+
         return {
           content: [
             {
               type: 'text',
-              text: `ACTIVE_TIMER: Space: ${entry.space}${specDisplay} running for ${elapsedSeconds} seconds.`,
+              text: `ACTIVE_TIMERS:\n${lines}`,
             },
           ],
         };
