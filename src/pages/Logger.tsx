@@ -69,6 +69,12 @@ export default function Logger() {
   const handleStartSession = async (space: string, specialization: string) => {
     if (!pb.authStore.isValid) return;
     try {
+      if (activeSession) {
+        await pb.collection('time_entries').update(activeSession.id, {
+          completion_time: new Date().toISOString(),
+        });
+      }
+
       const record = await pb.collection('time_entries').create<TimeEntry>({
         user: pb.authStore.model?.id,
         space,
@@ -121,12 +127,10 @@ export default function Logger() {
         specializations={specializations}
       />
 
-      {!activeSession && (
-        <QuickStartCards
-          recentCombos={recentCombos}
-          onStart={handleStartSession}
-        />
-      )}
+      <QuickStartCards
+        recentCombos={recentCombos}
+        onStart={handleStartSession}
+      />
     </div>
   );
 }

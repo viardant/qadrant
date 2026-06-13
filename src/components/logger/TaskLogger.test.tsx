@@ -214,4 +214,31 @@ describe('TaskLogger', () => {
     expect(screen.queryByText('Development')).not.toBeInTheDocument();
     vi.useRealTimers();
   });
+
+  test('renders input fields even when session is active', () => {
+    const activeSession = {
+      id: 'session_123',
+      space: 'Design',
+      specialization: 'ui',
+      start_date: new Date().toISOString(),
+      completion_time: null,
+      user: 'test_user_id'
+    };
+
+    render(
+      <TaskLogger
+        onStart={mockOnStart}
+        onStop={mockOnStop}
+        activeSession={activeSession}
+        spaces={spaces}
+        specializations={specializations}
+      />
+    );
+
+    // Verify both active timer info and start inputs are rendered
+    expect(screen.getByText('Design')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Space name...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Specialization...')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'START' })).toBeInTheDocument();
+  });
 });

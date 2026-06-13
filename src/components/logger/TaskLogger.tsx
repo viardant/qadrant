@@ -137,152 +137,151 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
     }
   };
 
-  if (activeSession) {
-    const spaceDisplay = activeSession.space;
-    const specDisplay = activeSession.specialization ? ` // ${activeSession.specialization}` : '';
-    return (
-      <div className="active-timer-card">
-        <div className="flex flex-col gap-2 w-full md:w-auto">
-          <div className="text-sm font-mono text-primary font-bold uppercase tracking-wider">
-            ACTIVE_SESSION_PROTOCOL
-          </div>
-          <h2 className="text-2xl font-mono font-bold" style={{ marginBottom: 0 }}>
-            {spaceDisplay}
-            {activeSession.specialization && (
-              <span className="text-lg font-normal text-on-surface/60" style={{ marginLeft: '0.5rem' }}>
-                {specDisplay}
-              </span>
-            )}
-          </h2>
-        </div>
-        <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto justify-end">
-          <div className="text-4xl font-mono font-bold tracking-widest text-primary tabular-nums" style={{ fontSize: '2.5rem' }}>
-            {activeDuration}
-          </div>
-          <button
-            onClick={onStop}
-            className="w-full md:w-auto px-6 py-3 bg-error text-white font-mono uppercase font-bold border border-error shadow-[2px_2px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000]"
-          >
-            STOP_SESSION
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleStart} className="task-logger-form">
-      <div className="text-sm font-mono text-on-surface font-bold uppercase tracking-wider">
-        NEW_SESSION_PROTOCOL
-      </div>
-      <div className="form-grid">
+    <div className="flex flex-col gap-6 w-full">
+      {activeSession && (
+        <div className="active-timer-card">
+          <div className="flex flex-col gap-2 w-full md:w-auto">
+            <div className="text-sm font-mono text-primary font-bold uppercase tracking-wider">
+              ACTIVE_SESSION_PROTOCOL
+            </div>
+            <h2 className="text-2xl font-mono font-bold" style={{ marginBottom: 0 }}>
+              {activeSession.space}
+              {activeSession.specialization && (
+                <span className="text-lg font-normal text-on-surface/60" style={{ marginLeft: '0.5rem' }}>
+                  {` // ${activeSession.specialization}`}
+                </span>
+              )}
+            </h2>
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto justify-end">
+            <div className="text-4xl font-mono font-bold tracking-widest text-primary tabular-nums" style={{ fontSize: '2.5rem' }}>
+              {activeDuration}
+            </div>
+            <button
+              onClick={onStop}
+              type="button"
+              className="w-full md:w-auto px-6 py-3 bg-error text-white font-mono uppercase font-bold border border-error shadow-[2px_2px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000]"
+            >
+              STOP_SESSION
+            </button>
+          </div>
+        </div>
+      )}
 
-        {/* Space Autocomplete */}
-        <div ref={spaceRef} className="input-group relative">
-          <label>Space *</label>
-          <input
-            type="text"
-            placeholder="Space name..."
-            required
-            value={space}
-            onChange={(e) => {
-              setSpace(e.target.value);
-              setShowSpaceSuggestions(true);
-              setSpaceIndex(-1);
-            }}
-            onFocus={() => {
-              setShowSpaceSuggestions(true);
-              setSpaceIndex(-1);
-            }}
-            onBlur={() => {
-              setTimeout(() => {
-                setShowSpaceSuggestions(false);
+      <form onSubmit={handleStart} className="task-logger-form">
+        <div className="text-sm font-mono text-on-surface font-bold uppercase tracking-wider">
+          NEW_SESSION_PROTOCOL
+        </div>
+        <div className="form-grid">
+
+          {/* Space Autocomplete */}
+          <div ref={spaceRef} className="input-group relative">
+            <label>Space *</label>
+            <input
+              type="text"
+              placeholder="Space name..."
+              required
+              value={space}
+              onChange={(e) => {
+                setSpace(e.target.value);
+                setShowSpaceSuggestions(true);
                 setSpaceIndex(-1);
-              }, 200);
-            }}
-            onKeyDown={handleSpaceKeyDown}
-            className="w-full font-mono"
-            role="combobox"
-            aria-expanded={showSpaceSuggestions && filteredSpaces.length > 0}
-            aria-autocomplete="list"
-            aria-controls="space-suggestions-list"
-          />
-          {showSpaceSuggestions && filteredSpaces.length > 0 && (
-            <ul id="space-suggestions-list" className="suggestions-list" role="listbox">
-              {filteredSpaces.map((s, idx) => (
-                <li
-                  key={s}
-                  onClick={() => {
-                    setSpace(s);
-                    setShowSpaceSuggestions(false);
-                  }}
-                  className={`suggestions-item ${idx === spaceIndex ? 'active' : ''}`}
-                  role="option"
-                  aria-selected={idx === spaceIndex}
-                >
-                  {s}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+              }}
+              onFocus={() => {
+                setShowSpaceSuggestions(true);
+                setSpaceIndex(-1);
+              }}
+              onBlur={() => {
+                setTimeout(() => {
+                  setShowSpaceSuggestions(false);
+                  setSpaceIndex(-1);
+                }, 200);
+              }}
+              onKeyDown={handleSpaceKeyDown}
+              className="w-full font-mono"
+              role="combobox"
+              aria-expanded={showSpaceSuggestions && filteredSpaces.length > 0}
+              aria-autocomplete="list"
+              aria-controls="space-suggestions-list"
+            />
+            {showSpaceSuggestions && filteredSpaces.length > 0 && (
+              <ul id="space-suggestions-list" className="suggestions-list" role="listbox">
+                {filteredSpaces.map((s, idx) => (
+                  <li
+                    key={s}
+                    onClick={() => {
+                      setSpace(s);
+                      setShowSpaceSuggestions(false);
+                    }}
+                    className={`suggestions-item ${idx === spaceIndex ? 'active' : ''}`}
+                    role="option"
+                    aria-selected={idx === spaceIndex}
+                  >
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-        {/* Specialization Autocomplete */}
-        <div ref={specRef} className="input-group relative">
-          <label>Specialization</label>
-          <input
-            type="text"
-            placeholder="Specialization..."
-            value={specialization}
-            onChange={(e) => {
-              setSpecialization(e.target.value);
-              setShowSpecSuggestions(true);
-              setSpecIndex(-1);
-            }}
-            onFocus={() => {
-              setShowSpecSuggestions(true);
-              setSpecIndex(-1);
-            }}
-            onBlur={() => {
-              setTimeout(() => {
-                setShowSpecSuggestions(false);
+          {/* Specialization Autocomplete */}
+          <div ref={specRef} className="input-group relative">
+            <label>Specialization</label>
+            <input
+              type="text"
+              placeholder="Specialization..."
+              value={specialization}
+              onChange={(e) => {
+                setSpecialization(e.target.value);
+                setShowSpecSuggestions(true);
                 setSpecIndex(-1);
-              }, 200);
-            }}
-            onKeyDown={handleSpecKeyDown}
-            className="w-full font-mono"
-            role="combobox"
-            aria-expanded={showSpecSuggestions && filteredSpecs.length > 0}
-            aria-autocomplete="list"
-            aria-controls="spec-suggestions-list"
-          />
-          {showSpecSuggestions && filteredSpecs.length > 0 && (
-            <ul id="spec-suggestions-list" className="suggestions-list" role="listbox">
-              {filteredSpecs.map((s, idx) => (
-                <li
-                  key={s}
-                  onClick={() => {
-                    setSpecialization(s);
-                    setShowSpecSuggestions(false);
-                  }}
-                  className={`suggestions-item ${idx === specIndex ? 'active' : ''}`}
-                  role="option"
-                  aria-selected={idx === specIndex}
-                >
-                  {s}
-                </li>
-              ))}
-            </ul>
-          )}
+              }}
+              onFocus={() => {
+                setShowSpecSuggestions(true);
+                setSpecIndex(-1);
+              }}
+              onBlur={() => {
+                setTimeout(() => {
+                  setShowSpecSuggestions(false);
+                  setSpecIndex(-1);
+                }, 200);
+              }}
+              onKeyDown={handleSpecKeyDown}
+              className="w-full font-mono"
+              role="combobox"
+              aria-expanded={showSpecSuggestions && filteredSpecs.length > 0}
+              aria-autocomplete="list"
+              aria-controls="spec-suggestions-list"
+            />
+            {showSpecSuggestions && filteredSpecs.length > 0 && (
+              <ul id="spec-suggestions-list" className="suggestions-list" role="listbox">
+                {filteredSpecs.map((s, idx) => (
+                  <li
+                    key={s}
+                    onClick={() => {
+                      setSpecialization(s);
+                      setShowSpecSuggestions(false);
+                    }}
+                    className={`suggestions-item ${idx === specIndex ? 'active' : ''}`}
+                    role="option"
+                    aria-selected={idx === specIndex}
+                  >
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-      </div>
 
-      <button
-        type="submit"
-        className="mt-2 w-full py-3 bg-primary text-white font-mono uppercase font-bold border border-primary shadow-[2px_2px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000]"
-      >
-        START
-      </button>
-    </form>
+        <button
+          type="submit"
+          className="mt-2 w-full py-3 bg-primary text-white font-mono uppercase font-bold border border-primary shadow-[2px_2px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000]"
+        >
+          START
+        </button>
+      </form>
+    </div>
   );
 }
