@@ -155,23 +155,6 @@ export async function main() {
     const specialization = parsed.options.sub || '';
 
     try {
-      // Check if an active timer is running
-      const filter = `user='${config.user_id}' && completion_time=""`;
-      const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}`;
-      const activeResponse = await apiCall(config.pb_url, config.auth_token, url);
-      const activeEntries = activeResponse.items || [];
-
-      if (activeEntries.length > 0) {
-        for (const entry of activeEntries) {
-          await apiCall(config.pb_url, config.auth_token, `/api/collections/time_entries/records/${entry.id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({
-              completion_time: new Date().toISOString()
-            })
-          });
-        }
-      }
-
       // Start new timer
       await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
         method: 'POST',
@@ -232,18 +215,19 @@ export async function main() {
         return;
       }
 
-      const entry = activeEntries[0];
-      const elapsedSeconds = Math.floor((Date.now() - new Date(entry.start_date).getTime()) / 1000);
-      const safeSec = Math.max(0, elapsedSeconds);
-      const hours = Math.floor(safeSec / 3600);
-      const minutes = Math.floor((safeSec % 3600) / 60);
-      const seconds = safeSec % 60;
-      const formattedTime = [hours, minutes, seconds]
-        .map(v => String(v).padStart(2, '0'))
-        .join(':');
+      for (const entry of activeEntries) {
+        const elapsedSeconds = Math.floor((Date.now() - new Date(entry.start_date).getTime()) / 1000);
+        const safeSec = Math.max(0, elapsedSeconds);
+        const hours = Math.floor(safeSec / 3600);
+        const minutes = Math.floor((safeSec % 3600) / 60);
+        const seconds = safeSec % 60;
+        const formattedTime = [hours, minutes, seconds]
+          .map(v => String(v).padStart(2, '0'))
+          .join(':');
 
-      const specializationStr = entry.specialization ? ` // ${entry.specialization}` : '';
-      console.log(`${formattedTime} - ${entry.space}${specializationStr}`);
+        const specializationStr = entry.specialization ? ` // ${entry.specialization}` : '';
+        console.log(`${formattedTime} - ${entry.space}${specializationStr}`);
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`Error: ${errMsg}`);
