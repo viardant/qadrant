@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function Logger() {
   const [loading, setLoading] = useState(true);
-  const [activeSession, setActiveSession] = useState<TimeEntry | null>(null);
+  const [activeSessions, setActiveSessions] = useState<TimeEntry[]>([]);
   const [spaces, setSpaces] = useState<string[]>([]);
   const [specializations, setSpecializations] = useState<string[]>([]);
   const [recentCombos, setRecentCombos] = useState<Array<{ space: string; specialization: string }>>([]);
@@ -48,13 +48,9 @@ export default function Logger() {
       }
       setRecentCombos(combos);
 
-      // Check if there is an active running timer (completion_time is null/empty)
-      const running = records.items.find((r) => !r.completion_time);
-      if (running) {
-        setActiveSession(running);
-      } else {
-        setActiveSession(null);
-      }
+      // Check if there are active running timers (completion_time is null/empty)
+      const running = records.items.filter((r) => !r.completion_time);
+      setActiveSessions(running);
     } catch (err) {
       console.error('Failed to load tracking protocol history:', err);
     } finally {
@@ -69,19 +65,12 @@ export default function Logger() {
   const handleStartSession = async (space: string, specialization: string) => {
     if (!pb.authStore.isValid) return;
     try {
-      if (activeSession) {
-        await pb.collection('time_entries').update(activeSession.id, {
-          completion_time: new Date().toISOString(),
-        });
-      }
-
-      const record = await pb.collection('time_entries').create<TimeEntry>({
+      await pb.collection('time_entries').create<TimeEntry>({
         user: pb.authStore.model?.id,
         space,
         specialization,
         start_date: new Date().toISOString(),
       });
-      setActiveSession(record);
       await fetchHistoryAndActive();
     } catch (err) {
       console.error('Failed to initiate tracker session:', err);
@@ -89,14 +78,11 @@ export default function Logger() {
     }
   };
 
-  const handleStopSession = async (id?: string) => {
-    const targetId = id || activeSession?.id;
-    if (!targetId) return;
+  const handleStopSession = async (id: string) => {
     try {
-      await pb.collection('time_entries').update(targetId, {
+      await pb.collection('time_entries').update(id, {
         completion_time: new Date().toISOString(),
       });
-      setActiveSession(null);
       await fetchHistoryAndActive();
     } catch (err) {
       console.error('Failed to stop tracker session:', err);
@@ -123,7 +109,7 @@ export default function Logger() {
       <TaskLogger
         onStart={handleStartSession}
         onStop={handleStopSession}
-        activeSessions={activeSession ? [activeSession] : []}
+        activeSessions={activeSessions}
         spaces={spaces}
         specializations={specializations}
       />
