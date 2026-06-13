@@ -89,10 +89,11 @@ export default function Logger() {
     }
   };
 
-  const handleStopSession = async () => {
-    if (!activeSession) return;
+  const handleStopSession = async (id?: string) => {
+    const targetId = id || activeSession?.id;
+    if (!targetId) return;
     try {
-      await pb.collection('time_entries').update(activeSession.id, {
+      await pb.collection('time_entries').update(targetId, {
         completion_time: new Date().toISOString(),
       });
       setActiveSession(null);
@@ -122,7 +123,7 @@ export default function Logger() {
       <TaskLogger
         onStart={handleStartSession}
         onStop={handleStopSession}
-        activeSession={activeSession}
+        activeSessions={activeSession ? [activeSession] : []}
         spaces={spaces}
         specializations={specializations}
       />

@@ -9,12 +9,9 @@ export interface TimeEntry {
   user: string;
 }
 
-interface TaskLoggerProps {
-  onStart: (space: string, specialization: string) => void;
-  onStop: () => void;
-  activeSession: TimeEntry | null;
-  spaces: string[];
-  specializations: string[];
+export interface ActiveTimerCardProps {
+  session: TimeEntry;
+  onStop: (id: string) => void;
 }
 
 function formatDuration(ms: number): string {
@@ -30,10 +27,63 @@ function formatDuration(ms: number): string {
   ].join(':');
 }
 
-export function TaskLogger({ onStart, onStop, activeSession, spaces, specializations }: TaskLoggerProps) {
+export function ActiveTimerCard({ session, onStop }: ActiveTimerCardProps) {
+  const [activeDuration, setActiveDuration] = useState('00:00:00');
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const start = new Date(session.start_date).getTime();
+      const diff = Date.now() - start;
+      setActiveDuration(formatDuration(diff));
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [session.start_date]);
+
+  return (
+    <div className="active-timer-card">
+      <div className="flex flex-col gap-2 w-full md:w-auto">
+        <div className="text-sm font-mono text-primary font-bold uppercase tracking-wider">
+          ACTIVE_SESSION_PROTOCOL
+        </div>
+        <h2 className="text-2xl font-mono font-bold" style={{ marginBottom: 0 }}>
+          {session.space}
+          {session.specialization && (
+            <span className="text-lg font-normal text-on-surface/60" style={{ marginLeft: '0.5rem' }}>
+              {` // ${session.specialization}`}
+            </span>
+          )}
+        </h2>
+      </div>
+      <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto justify-end">
+        <div className="text-4xl font-mono font-bold tracking-widest text-primary tabular-nums" style={{ fontSize: '2.5rem' }}>
+          {activeDuration}
+        </div>
+        <button
+          onClick={() => onStop(session.id)}
+          type="button"
+          className="w-full md:w-auto px-6 py-3 bg-error text-white font-mono uppercase font-bold border border-error shadow-[2px_2px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000]"
+        >
+          STOP_SESSION
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface TaskLoggerProps {
+  onStart: (space: string, specialization: string) => void;
+  onStop: (id: string) => void;
+  activeSessions: TimeEntry[];
+  spaces: string[];
+  specializations: string[];
+}
+
+export function TaskLogger({ onStart, onStop, activeSessions = [], spaces, specializations }: TaskLoggerProps) {
   const [space, setSpace] = useState('');
   const [specialization, setSpecialization] = useState('');
-  const [activeDuration, setActiveDuration] = useState('00:00:00');
 
   // Autocomplete suggestions state
   const [showSpaceSuggestions, setShowSpaceSuggestions] = useState(false);
@@ -43,21 +93,6 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
 
   const spaceRef = useRef<HTMLDivElement>(null);
   const specRef = useRef<HTMLDivElement>(null);
-
-  // Active session timer effect
-  useEffect(() => {
-    if (!activeSession) return;
-
-    const updateTimer = () => {
-      const start = new Date(activeSession.start_date).getTime();
-      const diff = Date.now() - start;
-      setActiveDuration(formatDuration(diff));
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [activeSession]);
 
   // Click outside to close suggestion dropdowns
   useEffect(() => {
@@ -137,38 +172,12 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
     }
   };
 
+  const sortedSessions = [...activeSessions].sort((a, b) => {
+    return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+  });
+
   return (
     <div className="flex flex-col gap-6 w-full">
-      {activeSession && (
-        <div className="active-timer-card">
-          <div className="flex flex-col gap-2 w-full md:w-auto">
-            <div className="text-sm font-mono text-primary font-bold uppercase tracking-wider">
-              ACTIVE_SESSION_PROTOCOL
-            </div>
-            <h2 className="text-2xl font-mono font-bold" style={{ marginBottom: 0 }}>
-              {activeSession.space}
-              {activeSession.specialization && (
-                <span className="text-lg font-normal text-on-surface/60" style={{ marginLeft: '0.5rem' }}>
-                  {` // ${activeSession.specialization}`}
-                </span>
-              )}
-            </h2>
-          </div>
-          <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto justify-end">
-            <div className="text-4xl font-mono font-bold tracking-widest text-primary tabular-nums" style={{ fontSize: '2.5rem' }}>
-              {activeDuration}
-            </div>
-            <button
-              onClick={onStop}
-              type="button"
-              className="w-full md:w-auto px-6 py-3 bg-error text-white font-mono uppercase font-bold border border-error shadow-[2px_2px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000]"
-            >
-              STOP_SESSION
-            </button>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleStart} className="task-logger-form">
         <div className="text-sm font-mono text-on-surface font-bold uppercase tracking-wider">
           NEW_SESSION_PROTOCOL
@@ -282,6 +291,14 @@ export function TaskLogger({ onStart, onStop, activeSession, spaces, specializat
           START
         </button>
       </form>
+
+      {sortedSessions.map((session) => (
+        <ActiveTimerCard
+          key={session.id}
+          session={session}
+          onStop={onStop}
+        />
+      ))}
     </div>
   );
 }

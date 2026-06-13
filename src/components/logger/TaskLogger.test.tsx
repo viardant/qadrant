@@ -36,7 +36,7 @@ describe('TaskLogger', () => {
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={null}
+        activeSessions={[]}
         spaces={spaces}
         specializations={specializations}
       />
@@ -52,7 +52,7 @@ describe('TaskLogger', () => {
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={null}
+        activeSessions={[]}
         spaces={spaces}
         specializations={specializations}
       />
@@ -69,20 +69,22 @@ describe('TaskLogger', () => {
   test('renders ticking timer in active session state', () => {
     vi.useFakeTimers();
     const mockStartDate = new Date(Date.now() - 5000).toISOString(); // 5 seconds ago
-    const activeSession = {
-      id: 'session_123',
-      space: 'Design',
-      specialization: 'ui',
-      start_date: mockStartDate,
-      completion_time: null,
-      user: 'test_user_id'
-    };
+    const activeSessions = [
+      {
+        id: 'session_123',
+        space: 'Design',
+        specialization: 'ui',
+        start_date: mockStartDate,
+        completion_time: null,
+        user: 'test_user_id'
+      }
+    ];
 
     render(
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={activeSession}
+        activeSessions={activeSessions}
         spaces={spaces}
         specializations={specializations}
       />
@@ -106,20 +108,22 @@ describe('TaskLogger', () => {
   });
 
   test('clicking stop calls onStop', () => {
-    const activeSession = {
-      id: 'session_123',
-      space: 'Design',
-      specialization: 'ui',
-      start_date: new Date().toISOString(),
-      completion_time: null,
-      user: 'test_user_id'
-    };
+    const activeSessions = [
+      {
+        id: 'session_123',
+        space: 'Design',
+        specialization: 'ui',
+        start_date: new Date().toISOString(),
+        completion_time: null,
+        user: 'test_user_id'
+      }
+    ];
 
     render(
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={activeSession}
+        activeSessions={activeSessions}
         spaces={spaces}
         specializations={specializations}
       />
@@ -127,6 +131,7 @@ describe('TaskLogger', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'STOP_SESSION' }));
     expect(mockOnStop).toHaveBeenCalledTimes(1);
+    expect(mockOnStop).toHaveBeenCalledWith('session_123');
   });
 
   test('shows autocomplete suggestions when inputs are focused and filters them', () => {
@@ -134,7 +139,7 @@ describe('TaskLogger', () => {
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={null}
+        activeSessions={[]}
         spaces={spaces}
         specializations={specializations}
       />
@@ -164,7 +169,7 @@ describe('TaskLogger', () => {
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={null}
+        activeSessions={[]}
         spaces={spaces}
         specializations={specializations}
       />
@@ -190,7 +195,7 @@ describe('TaskLogger', () => {
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={null}
+        activeSessions={[]}
         spaces={spaces}
         specializations={specializations}
       />
@@ -216,20 +221,22 @@ describe('TaskLogger', () => {
   });
 
   test('renders input fields even when session is active', () => {
-    const activeSession = {
-      id: 'session_123',
-      space: 'Design',
-      specialization: 'ui',
-      start_date: new Date().toISOString(),
-      completion_time: null,
-      user: 'test_user_id'
-    };
+    const activeSessions = [
+      {
+        id: 'session_123',
+        space: 'Design',
+        specialization: 'ui',
+        start_date: new Date().toISOString(),
+        completion_time: null,
+        user: 'test_user_id'
+      }
+    ];
 
     render(
       <TaskLogger
         onStart={mockOnStart}
         onStop={mockOnStop}
-        activeSession={activeSession}
+        activeSessions={activeSessions}
         spaces={spaces}
         specializations={specializations}
       />
@@ -240,5 +247,50 @@ describe('TaskLogger', () => {
     expect(screen.getByPlaceholderText('Space name...')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Specialization...')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'START' })).toBeInTheDocument();
+  });
+
+  test('renders multiple active sessions below the form in descending order of their start date', () => {
+    const activeSessions = [
+      {
+        id: 'session_1',
+        space: 'Development',
+        specialization: 'infra',
+        start_date: new Date(Date.now() - 10000).toISOString(),
+        completion_time: null,
+        user: 'test_user_id'
+      },
+      {
+        id: 'session_2',
+        space: 'Design',
+        specialization: 'ui',
+        start_date: new Date(Date.now() - 5000).toISOString(),
+        completion_time: null,
+        user: 'test_user_id'
+      }
+    ];
+
+    const { container } = render(
+      <TaskLogger
+        onStart={mockOnStart}
+        onStop={mockOnStop}
+        activeSessions={activeSessions}
+        spaces={spaces}
+        specializations={specializations}
+      />
+    );
+
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(2);
+    expect(headings[0]).toHaveTextContent('Design');
+    expect(headings[1]).toHaveTextContent('Development');
+
+    const form = container.querySelector('form');
+    const cards = container.querySelectorAll('.active-timer-card');
+    expect(form).toBeInTheDocument();
+    expect(cards).toHaveLength(2);
+
+    // Form should precede the active timer cards in the DOM
+    const formPosition = form?.compareDocumentPosition(cards[0]);
+    expect(formPosition).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 });
