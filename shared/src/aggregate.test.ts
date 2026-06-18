@@ -579,7 +579,7 @@ describe('formatAggregateText', () => {
 
   it('includes DIMENSION header (MCP)', () => {
     const r = aggregateBy(
-      [entry({ space: 'Work', start_date: '2026-06-15T10:00:00.000Z', completion_time: '2026-06-15T12:00:00.000Z' })],
+      [mkEntry({ space: 'Work', start_date: '2026-06-15T10:00:00.000Z', completion_time: '2026-06-15T12:00:00.000Z' })],
       { by: 'space', period: 'all' },
       new Date(2026, 5, 17)
     );

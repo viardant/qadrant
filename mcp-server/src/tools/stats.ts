@@ -21,6 +21,7 @@ export async function getStats(
 
   const filterStr = encodeURIComponent(filters.join(' && '));
   const limit = input.limit ?? DEFAULT_STATS_LIMIT;
+  const includeEntries = input.include_entries ?? false;
 
   const url =
     `/api/collections/time_entries/records` +
@@ -55,7 +56,7 @@ export async function getStats(
       to: input.to,
       space: input.space,
       specialization: input.specialization,
-      includeEntries: input.include_entries ?? false,
+      includeEntries,
     });
 
     const aggregateRows = result.rows.map((row) => ({

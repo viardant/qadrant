@@ -65,7 +65,7 @@ export const GetStatsSchema = z.object({
     .optional()
     .describe('Group results by space|combo|day|week|month. Omit for the legacy single-number stats.'),
   period: PeriodEnum
-    .default('all')
+    .optional()
     .describe('Preset time window: today|this-week|this-month|all (default all). Ignored when from/to provided.'),
   from: z
     .string()
@@ -87,15 +87,15 @@ export const GetStatsSchema = z.object({
     .describe('Filter entries by specialization (exact match)'),
   include_entries: z
     .boolean()
-    .default(false)
-    .describe('Include raw entry objects under each aggregate group row'),
+    .optional()
+    .describe('Include raw entry objects under each aggregate group row (default false)'),
   limit: z
     .number()
     .int()
     .min(1)
     .max(100000)
-    .default(DEFAULT_STATS_LIMIT)
-    .describe('Maximum number of entries to fetch for aggregation'),
+    .optional()
+    .describe('Maximum number of entries to fetch for aggregation (default 10000)'),
   response_format: z
     .nativeEnum(ResponseFormat)
     .default(ResponseFormat.MARKDOWN)

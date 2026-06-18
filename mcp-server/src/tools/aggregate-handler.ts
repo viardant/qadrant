@@ -9,6 +9,7 @@ export async function qadrantAggregate(
   const statsInput: GetStatsInput = {
     by: input.by,
     period: input.period,
+    limit: 10000,
     response_format: input.response_format,
   };
 
