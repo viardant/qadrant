@@ -3,6 +3,7 @@
 import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
+import { aggregateBy, formatAggregateText, formatAggregateJson, type GroupBy, type Period } from './aggregate.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.qadrant');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
@@ -100,7 +101,8 @@ Usage:
   qadrant stop
   qadrant status
   qadrant list [--limit <n>]
-  qadrant stats
+  qadrant stats [--by <space|combo|day|week|month>] [--period <today|this-week|this-month|all>] [--format <text|json>]
+  qadrant aggregate --by <space|combo|day|week|month> [--period <today|this-week|this-month|all>] [--format <text|json>]
 `);
 }
 
@@ -307,6 +309,62 @@ export async function main() {
 
       const totalHours = totalMs / (1000 * 60 * 60);
       console.log(`TOTAL_TRACKED_HOURS: ${totalHours.toFixed(2)}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${errMsg}`);
+      process.exit(1);
+      return;
+    }
+    return;
+  }
+
+  if (parsed.command === 'aggregate') {
+    const by = parsed.options.by;
+    const period = parsed.options.period;
+    const format = parsed.options.format ?? 'text';
+
+    if (!by) {
+      console.error('ERROR: --by is required for aggregate');
+      process.exit(1);
+      return;
+    }
+    if (!['space', 'combo', 'day', 'week', 'month'].includes(by)) {
+      console.error('ERROR: --by must be one of space|combo|day|week|month');
+      process.exit(1);
+      return;
+    }
+    if (period !== undefined && !['today', 'this-week', 'this-month', 'all'].includes(period)) {
+      console.error('ERROR: --period must be one of today|this-week|this-month|all');
+      process.exit(1);
+      return;
+    }
+    if (!['text', 'json'].includes(format)) {
+      console.error('ERROR: --format must be text|json');
+      process.exit(1);
+      return;
+    }
+
+    try {
+      const filter = `user='${config.user_id}' && completion_time!=""`;
+      const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000&sort=-start_date`;
+      const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: Array<{ id: string; space: string; specialization?: string; start_date: string; completion_time?: string }> };
+      const rawEntries = response.items || [];
+      const entries = rawEntries
+        .filter((e) => e.completion_time)
+        .map((e) => ({
+          id: e.id,
+          space: e.space || '',
+          specialization: e.specialization || '',
+          start_date: e.start_date,
+          completion_time: e.completion_time || null,
+          user: config.user_id,
+        }));
+      const result = aggregateBy(entries, { by: by as GroupBy, period: period as Period | undefined });
+      if (format === 'json') {
+        console.log(formatAggregateJson(result));
+      } else {
+        console.log(formatAggregateText(result));
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`Error: ${errMsg}`);
