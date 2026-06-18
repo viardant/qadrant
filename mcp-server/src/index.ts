@@ -176,9 +176,13 @@ server.registerTool(
   'qadrant_list_entries',
   {
     title: 'List Entries',
-    description: `Retrieves a list of recent completed time tracking logs with pagination.
+    description: `Retrieves time tracking logs with pagination and optional filters.
 
 Args:
+  - space (string, optional): Filter by space name (exact match)
+  - specialization (string, optional): Filter by specialization (exact match)
+  - from (string, optional): Start date YYYY-MM-DD (inclusive)
+  - to (string, optional): End date YYYY-MM-DD (inclusive)
   - limit (number, optional): Max entries to return (1-100, default 10)
   - offset (number, optional): Number of entries to skip for pagination (default 0)
   - response_format (string, optional): 'markdown' (default) or 'json'
@@ -225,21 +229,25 @@ server.registerTool(
   'qadrant_get_stats',
   {
     title: 'Get Stats',
-    description: `Calculates cumulative tracked hours and displays total time analytics. Optionally groups results by a chosen dimension.
+    description: `Calculates tracked hours with optional aggregation, filters, and raw entry inclusion.
 
-Aggregates duration across all completed time entries to compute total tracked hours. When 'by' is provided, returns a grouped table instead of the legacy single-number total.
+Aggregates duration across completed time entries. Supports grouping by dimension, time window filtering, space/specialization filtering, and optional raw entry inclusion under each aggregate group.
 
 Args:
-  - by (string, optional): "space" | "combo" | "day" | "week" | "month". Omit for the legacy single-number stats.
-  - period (string, optional): "today" | "this-week" | "this-month" | "all" (default "all").
-  - response_format (string, optional): 'markdown' (default) or 'json'.
+  - by (string, optional): "space" | "combo" | "day" | "week" | "month". Omit for legacy single-number total.
+  - period (string, optional): "today" | "this-week" | "this-month" | "all" (default "all")
+  - from (string, optional): Custom start date YYYY-MM-DD (inclusive). Takes precedence over period.
+  - to (string, optional): Custom end date YYYY-MM-DD (inclusive). Takes precedence over period.
+  - space (string, optional): Filter entries by space name (exact match)
+  - specialization (string, optional): Filter entries by specialization (exact match)
+  - include_entries (boolean, optional): Include raw entry objects under each aggregate group row
+  - limit (number, optional): Max entries to fetch (default 10000)
+  - response_format (string, optional): 'markdown' (default) or 'json'
 
 Returns:
   For markdown (no 'by'): Total hours and session count.
   For markdown (with 'by'): A grouped table with KEY/HOURS/SESSIONS/SHARE.
-  For json: Structured payload (single-number or grouped depending on 'by').
-
-Note: If you have more than 1000 entries, stats are computed from the most recent 1000.
+  For json: Structured payload with aggregate rows (including entries if include_entries=true).
 
 Error Handling:
   - Returns auth error if not logged in`,
@@ -278,23 +286,13 @@ Error Handling:
 server.registerTool(
   'qadrant_aggregate',
   {
-    title: 'Aggregate Time Entries',
-    description: `Aggregates completed time entries by a chosen dimension over a preset time window.
-
-Useful for the agent to answer questions like "how many hours did I spend on Work this month?" or "what is my distribution across spaces this week?" without fetching raw entries and computing on the fly.
+    title: 'Aggregate Time Entries (Deprecated)',
+    description: `DEPRECATED: Use qadrant_get_stats instead. Aggregates completed time entries by a chosen dimension over a preset time window.
 
 Args:
   - by (string, required): Group dimension. One of "space" | "combo" | "day" | "week" | "month".
   - period (string, optional): Time window. One of "today" | "this-week" | "this-month" | "all". Default "all".
-  - response_format (string, optional): 'markdown' (default) or 'json'.
-
-Returns:
-  For markdown: a DIMENSION/PERIOD/WINDOW header followed by a KEY/HOURS/SESSIONS/SHARE table and a TOTAL row.
-  For json: the structured envelope { by, period, window, rows: [{key, hours, sessions, share}], total: {hours, sessions} }.
-
-Error Handling:
-  - Returns auth error if not logged in
-  - Returns API error if PocketBase is unreachable`,
+  - response_format (string, optional): 'markdown' (default) or 'json'.`,
     inputSchema: AggregateSchema,
     annotations: {
       readOnlyHint: true,
