@@ -38,6 +38,19 @@ export interface StructuredTimerResult {
     session_count: number;
     overall_count: number;
   };
+  aggregate?: {
+    by: string;
+    period: string;
+    window: { start: string; end: string } | null;
+    rows: Array<{
+      key: string;
+      hours: number;
+      sessions: number;
+      share: number;
+      entries?: StructuredEntry[];
+    }>;
+    total: { hours: number; sessions: number };
+  };
 }
 
 export enum ResponseFormat {
