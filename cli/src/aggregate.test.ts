@@ -11,6 +11,7 @@ import {
   comboDisplayName as cdn,
   aggregateBy,
   formatAggregateText,
+  formatAggregateJson,
   type GroupBy as GB,
   type AggregateResult,
 } from './aggregate.js';
@@ -397,5 +398,23 @@ describe('formatAggregateText', () => {
     const all: import('./aggregate.js').AggregateResult = { ...fixture(), period: 'all', window: null };
     const out = formatAggregateText(all);
     expect(out).not.toContain('WINDOW:');
+  });
+});
+
+describe('formatAggregateJson', () => {
+  it('serialises to the documented JSON envelope', () => {
+    const json = formatAggregateJson(fixture());
+    const parsed = JSON.parse(json);
+    expect(parsed.by).toBe('space');
+    expect(parsed.period).toBe('this-month');
+    expect(parsed.window).toEqual({ start: '2026-06-01', end: '2026-06-30' });
+    expect(parsed.rows[0]).toEqual({ key: 'Work', hours: 12.34, sessions: 8, share: 0.6421 });
+    expect(parsed.total).toEqual({ hours: 19.20, sessions: 16 });
+  });
+
+  it('emits null window when period is "all"', () => {
+    const all: import('./aggregate.js').AggregateResult = { ...fixture(), period: 'all', window: null };
+    const parsed = JSON.parse(formatAggregateJson(all));
+    expect(parsed.window).toBeNull();
   });
 });

@@ -261,3 +261,7 @@ export function formatAggregateText(result: AggregateResult): string {
   );
   return lines.join('\n');
 }
+
+export function formatAggregateJson(result: AggregateResult): string {
+  return JSON.stringify(result, null, 2);
+}
