@@ -9,7 +9,9 @@ import {
   type Period,
   groupBy,
   comboDisplayName,
+  aggregateBy,
   type GroupBy,
+  type AggregateResult,
 } from './aggregate.js';
 
 describe('getLocalDateString', () => {
@@ -296,5 +298,58 @@ describe('groupBy', () => {
     const result = gb(data, 'space');
     expect(result).toHaveLength(1);
     expect(result[0].hours).toBeCloseTo(1.0, 5);
+  });
+});
+
+describe('aggregateBy', () => {
+  const sample: import('./aggregate.js').TimeEntry[] = [
+    e('Work', 'frontend', '2026-06-15T10:00:00.000Z', '2026-06-15T11:00:00.000Z'),
+    e('Work', 'frontend', '2026-06-16T10:00:00.000Z', '2026-06-16T11:30:00.000Z'),
+    e('Piano', '',        '2026-06-15T15:00:00.000Z', '2026-06-15T16:00:00.000Z'),
+  ];
+  const now = new Date(2026, 5, 17, 14, 0, 0);
+
+  it('produces a sorted result (hours desc, key asc)', () => {
+    const result = aggregateBy(sample, { by: 'combo', period: 'all' }, now);
+    expect(result.by).toBe('combo');
+    expect(result.period).toBe('all');
+    expect(result.window).toBeNull();
+    expect(result.rows[0].key).toBe('Work / frontend');
+    expect(result.rows[0].hours).toBeCloseTo(2.5, 5);
+  });
+
+  it('applies share fractions that sum to <= 1', () => {
+    const result = aggregateBy(sample, { by: 'space', period: 'all' }, now);
+    const totalShare = result.rows.reduce((sum, r) => sum + r.share, 0);
+    expect(totalShare).toBeCloseTo(1.0, 5);
+  });
+
+  it('returns a window for "this-month"', () => {
+    const result = aggregateBy(sample, { by: 'day', period: 'this-month' }, now);
+    expect(result.window).not.toBeNull();
+    expect(result.window!.start).toBe('2026-06-01');
+    expect(result.window!.end).toBe('2026-06-30');
+  });
+
+  it('returns empty rows when nothing matches the period', () => {
+    const result = aggregateBy([], { by: 'space', period: 'today' }, now);
+    expect(result.rows).toEqual([]);
+    expect(result.total).toEqual({ hours: 0, sessions: 0 });
+  });
+
+  it('total hours equal the sum of row hours', () => {
+    const result = aggregateBy(sample, { by: 'space', period: 'all' }, now);
+    const summed = result.rows.reduce((s, r) => s + r.hours, 0);
+    expect(result.total.hours).toBeCloseTo(summed, 5);
+  });
+});
+
+describe('AggregateResult type', () => {
+  it('row has share field', () => {
+    const result = aggregateBy([
+      e('Work', 'frontend', '2026-06-15T10:00:00.000Z', '2026-06-15T11:00:00.000Z'),
+    ], { by: 'space', period: 'all' });
+    expect(result.rows[0].share).toBeDefined();
+    expect(typeof result.rows[0].share).toBe('number');
   });
 });

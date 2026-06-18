@@ -149,3 +149,43 @@ export function groupBy(entries: TimeEntry[], by: GroupBy): AggregateRow[] {
   }
   return rows;
 }
+
+export interface AggregateResult {
+  by: GroupBy;
+  period: Period;
+  window: Window | null;
+  rows: Array<AggregateRow & { share: number }>;
+  total: { hours: number; sessions: number };
+}
+
+export interface AggregateOptions {
+  by: GroupBy;
+  period?: Period;
+}
+
+export function aggregateBy(
+  entries: TimeEntry[],
+  options: AggregateOptions,
+  now: Date = new Date()
+): AggregateResult {
+  const period: Period = options.period ?? 'all';
+  const filtered = filterByPeriod(entries, period, now);
+  const rows = groupBy(filtered, options.by);
+  const totalHours = rows.reduce((s, r) => s + r.hours, 0);
+  const totalSessions = rows.reduce((s, r) => s + r.sessions, 0);
+  const enriched = rows.map((r) => ({
+    ...r,
+    share: totalHours > 0 ? Number((r.hours / totalHours).toFixed(4)) : 0,
+  }));
+  enriched.sort((a, b) => b.hours - a.hours || a.key.localeCompare(b.key));
+  return {
+    by: options.by,
+    period,
+    window: windowForPeriod(period, now),
+    rows: enriched,
+    total: {
+      hours: Number(totalHours.toFixed(2)),
+      sessions: totalSessions,
+    },
+  };
+}
