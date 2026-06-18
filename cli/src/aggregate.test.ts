@@ -53,6 +53,10 @@ describe('getLocalWeekMondayString', () => {
     const sunday = new Date(2026, 5, 21);
     expect(getLocalWeekMondayString(sunday)).toBe('2026-06-15');
   });
+
+  it('returns "Invalid Date" for an invalid Date', () => {
+    expect(getLocalWeekMondayString(new Date('not-a-date'))).toBe('Invalid Date');
+  });
 });
 
 describe('getEntryDurationHours', () => {
@@ -77,6 +81,19 @@ describe('getEntryDurationHours', () => {
         specialization: '',
         start_date: '2026-06-18T10:00:00.000Z',
         completion_time: null,
+        user: 'u',
+      })
+    ).toBe(0);
+  });
+
+  it('returns 0 for an entry with completion_time before start_date (negative duration)', () => {
+    expect(
+      getEntryDurationHours({
+        id: '1',
+        space: 'W',
+        specialization: '',
+        start_date: '2026-06-18T12:00:00.000Z',
+        completion_time: '2026-06-18T10:00:00.000Z',
         user: 'u',
       })
     ).toBe(0);

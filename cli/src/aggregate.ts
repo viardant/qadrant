@@ -27,7 +27,7 @@ export function getLocalWeekMondayString(d: Date): string {
   const dayOfWeek = d.getDay();
   const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const monday = new Date(d);
-  monday.setDate(d.getDate() + diffToMonday);
+  monday.setDate(monday.getDate() + diffToMonday);
   return getLocalDateString(monday);
 }
 
