@@ -1088,6 +1088,15 @@ select.input {
   text-overflow: ellipsis;
 }
 
+.combo-list__specialization {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .combo-list__meta {
   font-family: var(--font-mono);
   font-size: 11px;

@@ -42,8 +42,10 @@ export function QuickReplay({ combos, total, onStart, onCreate }: Props) {
             >
               <span className="combo-list__caret" aria-hidden>▸</span>
               <div className="combo-list__main">
-                <span className="combo-list__category">{c.category}</span>
-                <span className="combo-list__name">{c.name}</span>
+                <span className="combo-list__name">{c.space}</span>
+                {c.specialization && (
+                  <span className="combo-list__specialization">{c.specialization}</span>
+                )}
               </div>
               <span className="combo-list__meta">
                 <span className="combo-list__meta-square" aria-hidden />
