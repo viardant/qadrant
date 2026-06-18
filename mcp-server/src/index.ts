@@ -8,6 +8,7 @@ import {
   GetStatsSchema,
   GetActiveTimerSchema,
   StopTimerSchema,
+  AggregateSchema,
 } from './schemas.js';
 import type {
   StartTimerInput,
@@ -15,10 +16,12 @@ import type {
   GetStatsInput,
   GetActiveTimerInput,
   StopTimerInput,
+  AggregateInput,
 } from './schemas.js';
 import { startTimer, stopTimer, getActiveTimer } from './tools/timer.js';
 import { listEntries } from './tools/entries.js';
 import { getStats } from './tools/stats.js';
+import { qadrantAggregate } from './tools/aggregate-handler.js';
 
 const server = new McpServer({
   name: 'qadrant-mcp-server',
@@ -222,16 +225,19 @@ server.registerTool(
   'qadrant_get_stats',
   {
     title: 'Get Stats',
-    description: `Calculates cumulative tracked hours and displays total time analytics.
+    description: `Calculates cumulative tracked hours and displays total time analytics. Optionally groups results by a chosen dimension.
 
-Aggregates duration across all completed time entries to compute total tracked hours.
+Aggregates duration across all completed time entries to compute total tracked hours. When 'by' is provided, returns a grouped table instead of the legacy single-number total.
 
 Args:
-  - response_format (string, optional): 'markdown' (default) or 'json'
+  - by (string, optional): "space" | "combo" | "day" | "week" | "month". Omit for the legacy single-number stats.
+  - period (string, optional): "today" | "this-week" | "this-month" | "all" (default "all").
+  - response_format (string, optional): 'markdown' (default) or 'json'.
 
 Returns:
-  For markdown: Total hours and session count.
-  For json: Structured data with total_hours, session_count, overall_count.
+  For markdown (no 'by'): Total hours and session count.
+  For markdown (with 'by'): A grouped table with KEY/HOURS/SESSIONS/SHARE.
+  For json: Structured payload (single-number or grouped depending on 'by').
 
 Note: If you have more than 1000 entries, stats are computed from the most recent 1000.
 
@@ -256,6 +262,58 @@ Error Handling:
 
     try {
       const result = await getStats(config, input);
+      return {
+        content: [{ type: 'text', text: result.text }],
+        structuredContent: result.structured,
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: handleApiError(err) }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.registerTool(
+  'qadrant_aggregate',
+  {
+    title: 'Aggregate Time Entries',
+    description: `Aggregates completed time entries by a chosen dimension over a preset time window.
+
+Useful for the agent to answer questions like "how many hours did I spend on Work this month?" or "what is my distribution across spaces this week?" without fetching raw entries and computing on the fly.
+
+Args:
+  - by (string, required): Group dimension. One of "space" | "combo" | "day" | "week" | "month".
+  - period (string, optional): Time window. One of "today" | "this-week" | "this-month" | "all". Default "all".
+  - response_format (string, optional): 'markdown' (default) or 'json'.
+
+Returns:
+  For markdown: a DIMENSION/PERIOD/WINDOW header followed by a KEY/HOURS/SESSIONS/SHARE table and a TOTAL row.
+  For json: the structured envelope { by, period, window, rows: [{key, hours, sessions, share}], total: {hours, sessions} }.
+
+Error Handling:
+  - Returns auth error if not logged in
+  - Returns API error if PocketBase is unreachable`,
+    inputSchema: AggregateSchema,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async (input: AggregateInput) => {
+    const config = await readConfig();
+    if (!config) {
+      return {
+        content: [{ type: 'text', text: 'Error: Not authenticated. Please login first: qadrant login <token>' }],
+        isError: true,
+      };
+    }
+
+    try {
+      const result = await qadrantAggregate(config, input);
       return {
         content: [{ type: 'text', text: result.text }],
         structuredContent: result.structured,
