@@ -4,6 +4,9 @@ import {
   getLocalMonthString,
   getLocalWeekMondayString,
   getEntryDurationHours,
+  filterByPeriod,
+  windowForPeriod,
+  type Period,
 } from './aggregate.js';
 
 describe('getLocalDateString', () => {
@@ -110,5 +113,93 @@ describe('getEntryDurationHours', () => {
         user: 'u',
       })
     ).toBe(0);
+  });
+});
+
+const entry = (startISO: string, completionISO: string | null = null, overrides: Partial<import('./aggregate.js').TimeEntry> = {}): import('./aggregate.js').TimeEntry => ({
+  id: '1',
+  space: 'W',
+  specialization: '',
+  start_date: startISO,
+  completion_time: completionISO,
+  user: 'u',
+  ...overrides,
+});
+
+describe('filterByPeriod', () => {
+  const now = new Date(2026, 5, 17, 14, 0, 0); // Wed June 17, 2026, 14:00 local
+
+  it('keeps entries whose start_date is today for "today"', () => {
+    const todayStart = new Date(2026, 5, 17, 9, 0, 0).toISOString();
+    const yesterdayStart = new Date(2026, 5, 16, 9, 0, 0).toISOString();
+    const result = filterByPeriod(
+      [entry(todayStart), entry(yesterdayStart)],
+      'today',
+      now
+    );
+    expect(result).toHaveLength(1);
+  });
+
+  it('keeps entries whose start_date is in the current local week for "this-week"', () => {
+    const monStart = new Date(2026, 5, 15, 9, 0, 0).toISOString();
+    const sunStart = new Date(2026, 5, 21, 9, 0, 0).toISOString();
+    const lastSunStart = new Date(2026, 5, 14, 9, 0, 0).toISOString();
+    const result = filterByPeriod(
+      [entry(monStart), entry(sunStart), entry(lastSunStart)],
+      'this-week',
+      now
+    );
+    expect(result).toHaveLength(2);
+  });
+
+  it('keeps entries whose start_date is in the current month for "this-month"', () => {
+    const inMonth = new Date(2026, 5, 1, 9, 0, 0).toISOString();
+    const lastMonth = new Date(2026, 4, 31, 9, 0, 0).toISOString();
+    const result = filterByPeriod(
+      [entry(inMonth), entry(lastMonth)],
+      'this-month',
+      now
+    );
+    expect(result).toHaveLength(1);
+  });
+
+  it('keeps every entry for "all"', () => {
+    const a = new Date(2024, 0, 1, 0, 0, 0).toISOString();
+    const b = new Date(2025, 0, 1, 0, 0, 0).toISOString();
+    const c = new Date(2026, 5, 17, 0, 0, 0).toISOString();
+    const result = filterByPeriod([entry(a), entry(b), entry(c)], 'all', now);
+    expect(result).toHaveLength(3);
+  });
+
+  it('drops entries with an invalid start_date', () => {
+    const result = filterByPeriod(
+      [entry('not-a-date'), entry(new Date(2026, 5, 17, 0, 0, 0).toISOString())],
+      'all',
+      now
+    );
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe('windowForPeriod', () => {
+  const now = new Date(2026, 5, 17, 14, 0, 0);
+
+  it('returns a single-day window for today', () => {
+    const w = windowForPeriod('today', now);
+    expect(w).toEqual({ start: '2026-06-17', end: '2026-06-17' });
+  });
+
+  it('returns a week window for this-week', () => {
+    const w = windowForPeriod('this-week', now);
+    expect(w).toEqual({ start: '2026-06-15', end: '2026-06-21' });
+  });
+
+  it('returns a month window for this-month', () => {
+    const w = windowForPeriod('this-month', now);
+    expect(w).toEqual({ start: '2026-06-01', end: '2026-06-30' });
+  });
+
+  it('returns null for all', () => {
+    expect(windowForPeriod('all', now)).toBeNull();
   });
 });

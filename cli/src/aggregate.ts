@@ -39,3 +39,59 @@ export function getEntryDurationHours(entry: TimeEntry): number {
   const ms = end.getTime() - start.getTime();
   return Math.max(0, ms / (1000 * 60 * 60));
 }
+
+export type Period = 'today' | 'this-week' | 'this-month' | 'all';
+
+export interface Window {
+  start: string;
+  end: string;
+}
+
+export function windowForPeriod(period: Period, now: Date = new Date()): Window | null {
+  if (isNaN(now.getTime())) return null;
+  if (period === 'all') return null;
+  if (period === 'today') {
+    return { start: getLocalDateString(now), end: getLocalDateString(now) };
+  }
+  if (period === 'this-week') {
+    const mondayStr = getLocalWeekMondayString(now);
+    const monday = new Date(mondayStr + 'T00:00:00');
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { start: mondayStr, end: getLocalDateString(sunday) };
+  }
+  if (period === 'this-month') {
+    const monthStr = getLocalMonthString(now);
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    return {
+      start: `${monthStr}-01`,
+      end: `${monthStr}-${String(lastDay).padStart(2, '0')}`,
+    };
+  }
+  return null;
+}
+
+export function filterByPeriod(
+  entries: TimeEntry[],
+  period: Period,
+  now: Date = new Date()
+): TimeEntry[] {
+  if (period === 'all') {
+    return entries.filter((e) => {
+      const d = new Date(e.start_date);
+      return !isNaN(d.getTime());
+    });
+  }
+
+  const window = windowForPeriod(period, now);
+  if (!window) return [];
+
+  return entries.filter((e) => {
+    const d = new Date(e.start_date);
+    if (isNaN(d.getTime())) return false;
+    const key = getLocalDateString(d);
+    return key >= window.start && key <= window.end;
+  });
+}
