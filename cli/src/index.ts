@@ -351,9 +351,14 @@ export async function main() {
     return;
   }
 
-  // aggregate is deprecated — print warning then fall through to stats
+  // aggregate is deprecated — print warning, require --by, then fall through to stats
   if (parsed.command === 'aggregate') {
     console.error('qadrant: "aggregate" is deprecated. Use "stats --by ..." instead.');
+    if (!parsed.options.by) {
+      console.error('ERROR: --by is required for aggregate');
+      process.exit(1);
+      return;
+    }
   }
 
   if (parsed.command === 'aggregate' || parsed.command === 'stats') {

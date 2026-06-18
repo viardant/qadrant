@@ -10,5 +10,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*", "../shared/src/**/*"],
-  "exclude": ["../shared/src/aggregate.test.ts"]
+  "exclude": ["../shared/src/**/*.test.ts"]
 }
