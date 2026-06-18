@@ -1,4 +1,4 @@
-import { TimeEntry } from '../components/logger/TaskLogger';
+import type { TimeEntry } from './time-entry';
 
 export interface ChartDataPoint {
   name: string;
@@ -185,4 +185,116 @@ export function getAggregateStats(entries: TimeEntry[], relativeTo: Date = new D
     todayHours: Number(todayHours.toFixed(2)),
     weekHours: Number(weekHours.toFixed(2))
   };
+}
+
+// 6. Streak: count of consecutive days ending today (or yesterday) with at least one completed entry
+export function getStreakDays(entries: TimeEntry[], relativeTo: Date = new Date()): number {
+  if (isNaN(relativeTo.getTime())) return 0;
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return 0;
+
+  const daySet = new Set<string>();
+  for (const e of completed) {
+    const d = new Date(e.start_date);
+    if (isNaN(d.getTime())) continue;
+    daySet.add(getLocalDateString(d));
+  }
+
+  let streak = 0;
+  const cursor = new Date(relativeTo);
+  // If no entry today but there is one yesterday, count from yesterday.
+  if (!daySet.has(getLocalDateString(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (!daySet.has(getLocalDateString(cursor))) return 0;
+  }
+
+  while (daySet.has(getLocalDateString(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+// 7. Session count
+export function getSessionCount(entries: TimeEntry[]): number {
+  return entries.filter((e) => e.completion_time).length;
+}
+
+// 8. Last activity relative descriptor — "LAST_XD_AGO" / "LAST_XH_AGO" / "LAST_NOW"
+export function getLastRelative(entries: TimeEntry[], relativeTo: Date = new Date()): string {
+  if (isNaN(relativeTo.getTime())) return 'NO_RECENT_ACTIVITY';
+  if (entries.length === 0) return 'NO_RECENT_ACTIVITY';
+  const sorted = [...entries].sort(
+    (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime(),
+  );
+  const lastStart = new Date(sorted[0].start_date);
+  if (isNaN(lastStart.getTime())) return 'NO_RECENT_ACTIVITY';
+  const diffMs = relativeTo.getTime() - lastStart.getTime();
+  if (diffMs < 60_000) return 'LAST_NOW';
+  if (diffMs < 60 * 60_000) {
+    const mins = Math.floor(diffMs / 60_000);
+    return `LAST_${mins}M_AGO`;
+  }
+  if (diffMs < 24 * 60 * 60_000) {
+    const hrs = Math.floor(diffMs / (60 * 60_000));
+    return `LAST_${hrs}H_AGO`;
+  }
+  const days = Math.floor(diffMs / (24 * 60 * 60_000));
+  return `LAST_${days}D_AGO`;
+}
+
+// 9. Total Mastery Index — placeholder formula until a real definition is provided.
+// Currently: completion rate * 100, capped at 100. Returns 0 with no data.
+export function getMasteryIndex(entries: TimeEntry[]): number {
+  if (entries.length === 0) return 0;
+  const completed = entries.filter((e) => e.completion_time).length;
+  return Math.min(100, Number(((completed / entries.length) * 100).toFixed(1)));
+}
+
+// 10. Best day (max hours in any single day from completed entries)
+export function getBestDayHours(entries: TimeEntry[]): number {
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return 0;
+  const byDay: Record<string, number> = {};
+  for (const e of completed) {
+    const d = new Date(e.start_date);
+    if (isNaN(d.getTime())) continue;
+    const key = getLocalDateString(d);
+    byDay[key] = (byDay[key] || 0) + getEntryDurationHours(e);
+  }
+  let max = 0;
+  for (const v of Object.values(byDay)) {
+    if (v > max) max = v;
+  }
+  return Number(max.toFixed(2));
+}
+
+// 11. Daily totals (last N days) — used by heatmap and line chart
+export function getDailyTotals(
+  entries: TimeEntry[],
+  days: number,
+  relativeTo: Date = new Date(),
+): Array<{ date: Date; dateStr: string; hours: number }> {
+  if (isNaN(relativeTo.getTime())) return [];
+  const completed = entries.filter((e) => e.completion_time);
+  const map: Record<string, number> = {};
+  for (const e of completed) {
+    const d = new Date(e.start_date);
+    if (isNaN(d.getTime())) continue;
+    const key = getLocalDateString(d);
+    map[key] = (map[key] || 0) + getEntryDurationHours(e);
+  }
+
+  const result: Array<{ date: Date; dateStr: string; hours: number }> = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(relativeTo);
+    d.setDate(relativeTo.getDate() - i);
+    const dateStr = getLocalDateString(d);
+    result.push({
+      date: d,
+      dateStr,
+      hours: Number((map[dateStr] || 0).toFixed(2)),
+    });
+  }
+  return result;
 }

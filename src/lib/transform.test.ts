@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { TimeEntry } from '../components/logger/TaskLogger';
+import type { TimeEntry } from './time-entry';
 import {
   transformToWeeklyData,
   transformToMonthlyData,
   transformToSpaceDistribution,
   transformToDailyTrend,
-  getAggregateStats
+  getAggregateStats,
+  getStreakDays,
+  getSessionCount,
+  getLastRelative,
+  getMasteryIndex,
+  getBestDayHours,
+  getDailyTotals,
 } from './transform';
 
 const mockEntries: TimeEntry[] = [
@@ -143,5 +149,69 @@ describe('qadrant analytics transformations', () => {
     const stats = getAggregateStats(invalidEntries, new Date('invalid'));
     expect(stats.todayHours).toBe(0);
     expect(stats.weekHours).toBe(0);
+  });
+
+  it('computes streak days ending today', () => {
+    const today = new Date('2026-06-18T10:00:00.000Z');
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-16T09:00:00.000Z', completion_time: '2026-06-16T09:30:00.000Z', user: 'u' },
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-17T09:00:00.000Z', completion_time: '2026-06-17T09:30:00.000Z', user: 'u' },
+      { id: '3', space: 'W', specialization: '', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T09:30:00.000Z', user: 'u' },
+    ];
+    expect(getStreakDays(entries, today)).toBe(3);
+  });
+
+  it('streak returns 0 with no completed entries', () => {
+    expect(getStreakDays([], new Date('2026-06-18T00:00:00.000Z'))).toBe(0);
+  });
+
+  it('counts only completed sessions', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T09:30:00.000Z', user: 'u' },
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-18T10:00:00.000Z', completion_time: null, user: 'u' },
+    ];
+    expect(getSessionCount(entries)).toBe(1);
+  });
+
+  it('formats last activity relative', () => {
+    const now = new Date('2026-06-18T12:00:00.000Z');
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-18T10:00:00.000Z', completion_time: null, user: 'u' },
+    ];
+    expect(getLastRelative(entries, now)).toBe('LAST_2H_AGO');
+  });
+
+  it('returns NO_RECENT_ACTIVITY when no entries', () => {
+    expect(getLastRelative([], new Date('2026-06-18T12:00:00.000Z'))).toBe('NO_RECENT_ACTIVITY');
+  });
+
+  it('computes mastery index as completion rate', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T09:30:00.000Z', user: 'u' },
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-18T10:00:00.000Z', completion_time: '2026-06-18T10:30:00.000Z', user: 'u' },
+      { id: '3', space: 'W', specialization: '', start_date: '2026-06-18T11:00:00.000Z', completion_time: null, user: 'u' },
+    ];
+    expect(getMasteryIndex(entries)).toBe(66.7);
+    expect(getMasteryIndex([])).toBe(0);
+  });
+
+  it('computes best day hours', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T11:00:00.000Z', user: 'u' },
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-16T09:00:00.000Z', completion_time: '2026-06-16T14:00:00.000Z', user: 'u' },
+    ];
+    expect(getBestDayHours(entries)).toBe(5);
+  });
+
+  it('returns N daily totals ending today', () => {
+    const today = new Date('2026-06-18T12:00:00.000Z');
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-16T09:00:00.000Z', completion_time: '2026-06-16T10:00:00.000Z', user: 'u' },
+    ];
+    const totals = getDailyTotals(entries, 3, today);
+    expect(totals).toHaveLength(3);
+    expect(totals[0].hours).toBe(1);
+    expect(totals[1].hours).toBe(0);
+    expect(totals[2].hours).toBe(0);
   });
 });

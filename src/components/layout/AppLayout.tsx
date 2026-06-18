@@ -1,13 +1,13 @@
 import { Outlet } from 'react-router-dom';
-import { AppSidebar } from './AppSidebar';
+import { TabBar } from './TabBar';
 
 export function AppLayout() {
   return (
-    <div className="min-h-screen bg-surface flex flex-col text-on-surface">
-      <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 py-8 pb-24">
+    <div className="page-shell">
+      <main className="container page">
         <Outlet />
       </main>
-      <AppSidebar />
+      <TabBar />
     </div>
   );
 }

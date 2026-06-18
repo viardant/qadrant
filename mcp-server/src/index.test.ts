@@ -132,7 +132,7 @@ describe('stopTimer', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({}),
+        json: async () => ({})
       });
 
     const result = await stopTimer(makeConfig(), { response_format: ResponseFormat.MARKDOWN });
@@ -251,6 +251,33 @@ describe('listEntries', () => {
     expect(parsed.pagination.total).toBe(1);
     expect(parsed.entries[0].space).toBe('qadrant');
   });
+
+  it('handles space and date filters', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [{ id: '1', space: 'Work', specialization: 'Test', start_date: new Date().toISOString(), completion_time: new Date().toISOString() }],
+        totalItems: 1,
+      }),
+    });
+
+    const result = await listEntries(makeConfig(), {
+      limit: 10,
+      offset: 0,
+      response_format: ResponseFormat.JSON,
+      space: 'Work',
+      from: '2026-06-01',
+      to: '2026-06-30',
+    });
+
+    const calledUrl = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain(encodeURIComponent("space='Work'"));
+    expect(calledUrl).toContain(encodeURIComponent("start_date>='2026-06-01T00:00:00'"));
+
+    const parsed = JSON.parse(result.text);
+    expect(parsed.entries).toHaveLength(1);
+    expect(parsed.status).toBe('entries_listed');
+  });
 });
 
 describe('getStats', () => {
@@ -326,25 +353,72 @@ describe('getStats', () => {
     expect(result.text).toContain('Work');
     expect(result.structured.status).toBe('stats_aggregated');
   });
-});
 
-describe('qadrantAggregate', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it('filters entries by space in the API call', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [{ id: '1', space: 'Work', specialization: '', start_date: new Date().toISOString(), completion_time: new Date().toISOString() }],
+        totalItems: 1,
+      }),
+    });
+
+    const result = await getStats(makeConfig(), { by: 'space', space: 'Work', period: 'all', response_format: ResponseFormat.JSON });
+    const calledUrl = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain(encodeURIComponent("space='Work'"));
+
+    const parsed = JSON.parse(result.text);
+    expect(parsed.aggregate.rows).toHaveLength(1);
+    expect(parsed.aggregate.rows[0].key).toBe('Work');
   });
 
-  it('aggregates by space in markdown format', async () => {
+  it('includes entries when include_entries is true', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [{ id: '1', space: 'Work', specialization: 'Code', start_date: new Date().toISOString(), completion_time: new Date().toISOString() }],
+        totalItems: 1,
+      }),
+    });
+
+    const result = await getStats(makeConfig(), { by: 'space', period: 'all', include_entries: true, response_format: ResponseFormat.JSON });
+    const parsed = JSON.parse(result.text);
+    expect(parsed.aggregate.rows[0].entries).toBeDefined();
+    expect(parsed.aggregate.rows[0].entries).toHaveLength(1);
+    expect(parsed.aggregate.rows[0].entries[0].id).toBe('1');
+  });
+
+  it('handles custom date range with from/to', async () => {
     const start = '2026-06-15T10:00:00.000Z';
     const end = '2026-06-15T12:00:00.000Z';
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        items: [
-          { id: '1', space: 'Work', specialization: 'frontend', start_date: start, completion_time: end },
-          { id: '2', space: 'Work', specialization: 'frontend', start_date: start, completion_time: end },
-          { id: '3', space: 'Piano', specialization: '', start_date: start, completion_time: end },
-        ],
-        totalItems: 3,
+        items: [{ id: '1', space: 'Work', specialization: '', start_date: start, completion_time: end }],
+        totalItems: 1,
+      }),
+    });
+
+    const result = await getStats(makeConfig(), { by: 'space', from: '2026-06-01', to: '2026-06-30', response_format: ResponseFormat.JSON });
+    const parsed = JSON.parse(result.text);
+    expect(parsed.aggregate.period).toBe('custom');
+    expect(parsed.aggregate.window).toEqual({ start: '2026-06-01', end: '2026-06-30' });
+  });
+});
+
+describe('qadrantAggregate (deprecated)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('works as deprecation alias with warning', async () => {
+    const start = '2026-06-15T10:00:00.000Z';
+    const end = '2026-06-15T12:00:00.000Z';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [{ id: '1', space: 'Work', specialization: 'frontend', start_date: start, completion_time: end }],
+        totalItems: 1,
       }),
     });
 
@@ -353,32 +427,8 @@ describe('qadrantAggregate', () => {
       period: 'all',
       response_format: ResponseFormat.MARKDOWN,
     });
+    expect(result.text).toContain('Deprecated');
     expect(result.text).toContain('DIMENSION: SPACE');
-    expect(result.text).toContain('Work');
-    expect(result.text).toContain('Piano');
     expect(result.structured.status).toBe('aggregate_computed');
-  });
-
-  it('aggregates in JSON format', async () => {
-    const start = '2026-06-15T10:00:00.000Z';
-    const end = '2026-06-15T11:00:00.000Z';
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        items: [
-          { id: '1', space: 'Work', start_date: start, completion_time: end },
-        ],
-        totalItems: 1,
-      }),
-    });
-
-    const result = await qadrantAggregate(makeConfig(), {
-      by: 'space',
-      period: 'all',
-      response_format: ResponseFormat.JSON,
-    });
-    const parsed = JSON.parse(result.text);
-    expect(parsed.by).toBe('space');
-    expect(parsed.rows[0].key).toBe('Work');
   });
 });

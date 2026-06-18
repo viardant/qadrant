@@ -5,7 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import Ledger from './Ledger';
 import { pb } from '../lib/pocketbase';
 
-// Mock PocketBase client
 vi.mock('../lib/pocketbase', () => {
   return {
     pb: {
@@ -41,7 +40,7 @@ describe('Ledger Component', () => {
     vi.resetAllMocks();
   });
 
-  test('renders historical records cleanly in a table with computed duration', async () => {
+  test('renders historical records cleanly with computed duration', async () => {
     mockGetList.mockResolvedValue({
       page: 1,
       perPage: 20,
@@ -73,15 +72,12 @@ describe('Ledger Component', () => {
       </MemoryRouter>
     );
 
-    // Verify loading state or directly table content
     await waitFor(() => {
       expect(screen.getByText('Dev')).toBeInTheDocument();
     });
     expect(screen.getByText('Ops')).toBeInTheDocument();
-    expect(screen.getByText('Frontend')).toBeInTheDocument();
-    expect(screen.getByText('Backend')).toBeInTheDocument();
-
-    // Check durations: 2.50h and 1.25h
+    expect(screen.getByText(/Frontend/i)).toBeInTheDocument();
+    expect(screen.getByText(/Backend/i)).toBeInTheDocument();
     expect(screen.getByText('2.50')).toBeInTheDocument();
     expect(screen.getByText('1.25')).toBeInTheDocument();
   });
@@ -103,24 +99,22 @@ describe('Ledger Component', () => {
             user: 'user_123',
           })),
         };
-      } else {
-        return {
-          page: 2,
-          perPage: 20,
-          totalItems: 25,
-          totalPages: 2,
-          items: Array.from({ length: 5 }, (_, i) => ({
-            id: `entry_${i + 20}`,
-            space: `Dev ${i + 20}`,
-            specialization: 'Frontend',
-            start_date: '2026-06-12T10:00:00.000Z',
-            completion_time: '2026-06-12T11:00:00.000Z',
-            user: 'user_123',
-          })),
-        };
       }
+      return {
+        page: 2,
+        perPage: 20,
+        totalItems: 25,
+        totalPages: 2,
+        items: Array.from({ length: 5 }, (_, i) => ({
+          id: `entry_${i + 20}`,
+          space: `Dev ${i + 20}`,
+          specialization: 'Frontend',
+          start_date: '2026-06-12T10:00:00.000Z',
+          completion_time: '2026-06-12T11:00:00.000Z',
+          user: 'user_123',
+        })),
+      };
     });
-
 
     render(
       <MemoryRouter>
@@ -134,7 +128,6 @@ describe('Ledger Component', () => {
 
     const nextButton = screen.getByRole('button', { name: /next/i });
     expect(nextButton).not.toBeDisabled();
-
     fireEvent.click(nextButton);
 
     await waitFor(() => {
@@ -143,7 +136,6 @@ describe('Ledger Component', () => {
 
     const prevButton = screen.getByRole('button', { name: /prev/i });
     expect(prevButton).not.toBeDisabled();
-
     fireEvent.click(prevButton);
 
     await waitFor(() => {
@@ -179,24 +171,24 @@ describe('Ledger Component', () => {
       expect(screen.getByText('Dev')).toBeInTheDocument();
     });
 
-    const editButton = screen.getByRole('button', { name: /edit/i });
+    const editButton = screen.getByRole('button', { name: /Edit Dev/i });
     fireEvent.click(editButton);
 
-    // Verify modal is open
-    expect(screen.getByLabelText(/space \*/i)).toHaveValue('Dev');
+    const spaceInput = screen.getByLabelText(/^SPACE$/i);
+    expect(spaceInput).toHaveValue('Dev');
 
-    // Edit the space field
-    fireEvent.change(screen.getByLabelText(/space \*/i), { target: { value: 'Updated Space' } });
-    
-    // Save the changes
+    fireEvent.change(spaceInput, { target: { value: 'Updated Space' } });
     mockUpdate.mockResolvedValue({ id: 'entry_1', space: 'Updated Space' });
-    const saveButton = screen.getByRole('button', { name: /save/i });
+    const saveButton = screen.getByRole('button', { name: /SAVE/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith('entry_1', expect.objectContaining({
-        space: 'Updated Space',
-      }));
+      expect(mockUpdate).toHaveBeenCalledWith(
+        'entry_1',
+        expect.objectContaining({
+          space: 'Updated Space',
+        }),
+      );
     });
   });
 
@@ -230,11 +222,11 @@ describe('Ledger Component', () => {
       expect(screen.getByText('Dev to Delete')).toBeInTheDocument();
     });
 
-    const deleteButton = screen.getByRole('button', { name: /delete/i });
+    const deleteButton = screen.getByRole('button', { name: /Delete entry/i });
     fireEvent.click(deleteButton);
 
     expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('delete'));
-    
+
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith('entry_1');
     });
@@ -270,26 +262,24 @@ describe('Ledger Component', () => {
       expect(screen.getByText('Dev')).toBeInTheDocument();
     });
 
-    const editButton = screen.getByRole('button', { name: /edit/i });
+    const editButton = screen.getByRole('button', { name: /Edit Dev/i });
     fireEvent.click(editButton);
 
-    // Test case 1: empty space name
-    fireEvent.change(screen.getByLabelText(/space \*/i), { target: { value: '   ' } });
-    const saveButton = screen.getByRole('button', { name: /save/i });
+    fireEvent.change(screen.getByLabelText(/^SPACE$/i), { target: { value: '   ' } });
+    const saveButton = screen.getByRole('button', { name: /SAVE/i });
     fireEvent.click(saveButton);
 
     expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Space name cannot be empty'));
     expect(mockUpdate).not.toHaveBeenCalled();
 
-    // Test case 2: invalid chronological order
-    fireEvent.change(screen.getByLabelText(/space \*/i), { target: { value: 'Valid Space Name' } });
-    // Date/time inputs
-    fireEvent.change(screen.getByLabelText(/start date & time/i), { target: { value: '2026-06-12T12:00' } });
-    fireEvent.change(screen.getByLabelText(/stop date & time/i), { target: { value: '2026-06-12T10:00' } });
-    
+    fireEvent.change(screen.getByLabelText(/^SPACE$/i), { target: { value: 'Valid Space Name' } });
+    fireEvent.change(screen.getByLabelText(/START_DATETIME/i), { target: { value: '2026-06-12T12:00' } });
+    fireEvent.change(screen.getByLabelText(/STOP_DATETIME/i), { target: { value: '2026-06-12T10:00' } });
     fireEvent.click(saveButton);
 
-    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Stop date and time must be chronologically after'));
+    expect(alertSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Stop date and time must be chronologically after'),
+    );
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

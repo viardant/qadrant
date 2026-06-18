@@ -74,7 +74,7 @@ describe('Login OAuth Flow', () => {
       </MemoryRouter>
     );
 
-    const button = screen.getByRole('button', { name: 'CONNECT_GOOGLE_ACCOUNT' });
+    const button = screen.getByRole('button', { name: /Connect Google account/i });
     fireEvent.click(button);
 
     await waitFor(() => {
@@ -126,7 +126,7 @@ describe('Login OAuth Flow', () => {
     );
 
     // Verify terminal-styled callback spinner is displayed
-    expect(screen.getByText('COMPLETING_SIGN_IN_PROTOCOL...')).toBeInTheDocument();
+    expect(screen.getByText(/COMPLETING_SIGN_IN_PROTOCOL/i)).toBeInTheDocument();
 
     // Verify sessionStorage parameters are cleared immediately
     expect(sessionStorage.getItem('oauth_provider')).toBeNull();
