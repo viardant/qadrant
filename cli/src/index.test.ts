@@ -49,6 +49,41 @@ describe('CLI Argument Parsing', () => {
   });
 });
 
+describe('CLI Argument Parsing - aggregation flags', () => {
+  it('parses --by, --period, --format together', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'aggregate',
+      '--by', 'space',
+      '--period', 'this-month',
+      '--format', 'json',
+    ]);
+    expect(parsed.command).toBe('aggregate');
+    expect(parsed.options.by).toBe('space');
+    expect(parsed.options.period).toBe('this-month');
+    expect(parsed.options.format).toBe('json');
+  });
+
+  it('parses --by and --format on stats', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'stats',
+      '--by', 'day',
+      '--period', 'today',
+      '--format', 'text',
+    ]);
+    expect(parsed.command).toBe('stats');
+    expect(parsed.options.by).toBe('day');
+    expect(parsed.options.period).toBe('today');
+    expect(parsed.options.format).toBe('text');
+  });
+
+  it('leaves new options undefined when omitted', () => {
+    const parsed = parseArgs(['node', 'qadrant', 'list', '--limit', '5']);
+    expect(parsed.options.by).toBeUndefined();
+    expect(parsed.options.period).toBeUndefined();
+    expect(parsed.options.format).toBeUndefined();
+  });
+});
+
 describe('Config File Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();

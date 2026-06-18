@@ -33,9 +33,17 @@ export function parseArgs(argv: string[]) {
     return { command: null, args: [], options: {} };
   }
 
-  const command = args[0] as 'login' | 'start' | 'stop' | 'status' | 'list' | 'stats' | null;
+  const command = args[0] as 'login' | 'start' | 'stop' | 'status' | 'list' | 'stats' | 'aggregate' | null;
   const remainingArgs: string[] = [];
-  const options: { url?: string; space?: string; sub?: string; limit?: number } = {};
+  const options: {
+    url?: string;
+    space?: string;
+    sub?: string;
+    limit?: number;
+    by?: string;
+    period?: string;
+    format?: string;
+  } = {};
 
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
@@ -47,6 +55,12 @@ export function parseArgs(argv: string[]) {
       options.sub = args[++i];
     } else if (arg === '--limit' && i + 1 < args.length) {
       options.limit = parseInt(args[++i], 10);
+    } else if (arg === '--by' && i + 1 < args.length) {
+      options.by = args[++i];
+    } else if (arg === '--period' && i + 1 < args.length) {
+      options.period = args[++i];
+    } else if (arg === '--format' && i + 1 < args.length) {
+      options.format = args[++i];
     } else {
       remainingArgs.push(arg);
     }
