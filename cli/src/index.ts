@@ -3,7 +3,7 @@
 import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
-import { aggregateBy, formatAggregateText, formatAggregateJson, type GroupBy, type Period } from './aggregate.js';
+import { aggregateBy, formatAggregateText, formatAggregateJson, type AggregateOptions, type GroupBy, type Period, type TimeEntry } from '../../shared/src/index.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.qadrant');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
@@ -40,10 +40,15 @@ export function parseArgs(argv: string[]) {
     url?: string;
     space?: string;
     sub?: string;
+    spec?: string;
     limit?: number;
     by?: string;
     period?: string;
     format?: string;
+    from?: string;
+    to?: string;
+    offset?: number;
+    includeEntries?: boolean;
   } = {};
 
   for (let i = 1; i < args.length; i++) {
@@ -54,6 +59,8 @@ export function parseArgs(argv: string[]) {
       options.space = args[++i];
     } else if (arg === '--sub' && i + 1 < args.length) {
       options.sub = args[++i];
+    } else if (arg === '--spec' && i + 1 < args.length) {
+      options.spec = args[++i];
     } else if (arg === '--limit' && i + 1 < args.length) {
       options.limit = parseInt(args[++i], 10);
     } else if (arg === '--by' && i + 1 < args.length) {
@@ -62,6 +69,14 @@ export function parseArgs(argv: string[]) {
       options.period = args[++i];
     } else if (arg === '--format' && i + 1 < args.length) {
       options.format = args[++i];
+    } else if (arg === '--from' && i + 1 < args.length) {
+      options.from = args[++i];
+    } else if (arg === '--to' && i + 1 < args.length) {
+      options.to = args[++i];
+    } else if (arg === '--offset' && i + 1 < args.length) {
+      options.offset = parseInt(args[++i], 10);
+    } else if (arg === '--include-entries') {
+      options.includeEntries = true;
     } else {
       remainingArgs.push(arg);
     }
@@ -91,6 +106,16 @@ async function apiCall(pbUrl: string, token: string, pathStr: string, options: R
   return res.json();
 }
 
+function durationStr(startDate: string, completionTime: string | null | undefined): string {
+  const start = new Date(startDate).getTime();
+  const end = completionTime ? new Date(completionTime).getTime() : start;
+  const diffSec = Math.floor(Math.max(0, end - start) / 1000);
+  const h = Math.floor(diffSec / 3600);
+  const m = Math.floor((diffSec % 3600) / 60);
+  const s = diffSec % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 function printHelp() {
   console.log(`
 qadrant - Qadrant Time Tracker CLI
@@ -100,9 +125,9 @@ Usage:
   qadrant start "<space>" [--sub <specialization>]
   qadrant stop
   qadrant status
-  qadrant list [--limit <n>]
-  qadrant stats [--by <space|combo|day|week|month>] [--period <today|this-week|this-month|all>] [--format <text|json>]
-  qadrant aggregate --by <space|combo|day|week|month> [--period <today|this-week|this-month|all>] [--format <text|json>]
+  qadrant list [--limit <n>] [--space <name>] [--spec <specialization>] [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--offset <n>] [--format <text|json>]
+  qadrant stats [--by <space|combo|day|week|month>] [--period <today|this-week|this-month|all>] [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--space <name>] [--spec <specialization>] [--include-entries] [--format <text|json>]
+  qadrant aggregate --by <space|combo|day|week|month> (deprecated, use "stats --by ...")
 `);
 }
 
@@ -171,7 +196,6 @@ export async function main() {
     const specialization = parsed.options.sub || '';
 
     try {
-      // Start new timer
       await apiCall(config.pb_url, config.auth_token, '/api/collections/time_entries/records', {
         method: 'POST',
         body: JSON.stringify({
@@ -256,13 +280,46 @@ export async function main() {
   if (parsed.command === 'list') {
     try {
       const limit = parsed.options.limit || 10;
-      const filter = `user='${config.user_id}' && completion_time!=""`;
-      const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&sort=-start_date&perPage=${limit}`;
-      const response = await apiCall(config.pb_url, config.auth_token, url);
+      const offset = parsed.options.offset || 0;
+      const format = parsed.options.format ?? 'text';
+
+      let filter = `user='${config.user_id}' && completion_time!=""`;
+      if (parsed.options.space) {
+        filter += ` && space='${parsed.options.space}'`;
+      }
+      if (parsed.options.spec) {
+        filter += ` && specialization='${parsed.options.spec}'`;
+      }
+      if (parsed.options.from) {
+        filter += ` && start_date>='${parsed.options.from} 00:00:00'`;
+      }
+      if (parsed.options.to) {
+        filter += ` && start_date<='${parsed.options.to} 23:59:59'`;
+      }
+
+      const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&sort=-start_date&perPage=${limit}&skipTotal=false${offset > 0 ? `&offset=${offset}` : ''}`;
+      const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: Array<{ id: string; space: string; specialization?: string; start_date: string; completion_time?: string }>; totalItems?: number };
       const entries = response.items || [];
+      const total = response.totalItems ?? 0;
 
       if (entries.length === 0) {
         console.log('No tracked sessions found.');
+        return;
+      }
+
+      if (format === 'json') {
+        console.log(JSON.stringify({
+          entries: entries.map(e => ({
+            id: e.id,
+            space: e.space,
+            specialization: e.specialization || '',
+            start_date: e.start_date,
+            completion_time: e.completion_time || null,
+          })),
+          total,
+          limit,
+          offset,
+        }, null, 2));
         return;
       }
 
@@ -271,18 +328,19 @@ export async function main() {
 
       for (const entry of entries) {
         const dateStr = new Date(entry.start_date).toLocaleDateString();
-        const start = new Date(entry.start_date).getTime();
-        const end = entry.completion_time ? new Date(entry.completion_time).getTime() : start;
-        const diffSec = Math.floor(Math.max(0, end - start) / 1000);
+        const diffSec = Math.floor(Math.max(0, (entry.completion_time ? new Date(entry.completion_time).getTime() : new Date(entry.start_date).getTime()) - new Date(entry.start_date).getTime()) / 1000);
         const h = Math.floor(diffSec / 3600);
         const m = Math.floor((diffSec % 3600) / 60);
         const s = diffSec % 60;
-        const durationStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-
+        const durationStrVal = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         const spaceStr = (entry.space || '').slice(0, 10).padEnd(10);
         const subStr = (entry.specialization || '').slice(0, 10).padEnd(10);
+        console.log(`${dateStr.padEnd(10)} | ${durationStrVal} | ${spaceStr} | ${subStr}`);
+      }
 
-        console.log(`${dateStr.padEnd(10)} | ${durationStr} | ${spaceStr} | ${subStr}`);
+      const shown = offset + entries.length;
+      if (shown < total) {
+        console.log(`\nShowing ${offset + 1}-${shown} of ${total} entries. Use --offset ${shown} to see more.`);
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -293,7 +351,12 @@ export async function main() {
     return;
   }
 
-  if (parsed.command === 'stats') {
+  // aggregate is deprecated — print warning then fall through to stats
+  if (parsed.command === 'aggregate') {
+    console.error('qadrant: "aggregate" is deprecated. Use "stats --by ..." instead.');
+  }
+
+  if (parsed.command === 'aggregate' || parsed.command === 'stats') {
     const by = parsed.options.by;
     const period = parsed.options.period;
     const format = parsed.options.format ?? 'text';
@@ -314,12 +377,46 @@ export async function main() {
       return;
     }
 
+    const hasFrom = parsed.options.from !== undefined;
+    const hasTo = parsed.options.to !== undefined;
+    if (hasFrom !== hasTo) {
+      console.error('ERROR: --from and --to must be used together');
+      process.exit(1);
+      return;
+    }
+    if (hasFrom && hasTo) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(parsed.options.from!) || !dateRegex.test(parsed.options.to!)) {
+        console.error('ERROR: --from and --to must be in YYYY-MM-DD format');
+        process.exit(1);
+        return;
+      }
+      if (parsed.options.from! > parsed.options.to!) {
+        console.error('ERROR: --from date must be before or equal to --to date');
+        process.exit(1);
+        return;
+      }
+    }
+
     try {
-      const filter = `user='${config.user_id}' && completion_time!=""`;
-      const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000`;
+      let filter = `user='${config.user_id}' && completion_time!=""`;
+      if (parsed.options.space) {
+        filter += ` && space='${parsed.options.space}'`;
+      }
+      if (parsed.options.spec) {
+        filter += ` && specialization='${parsed.options.spec}'`;
+      }
+      if (hasFrom) {
+        filter += ` && start_date>='${parsed.options.from} 00:00:00'`;
+      }
+      if (hasTo) {
+        filter += ` && start_date<='${parsed.options.to} 23:59:59'`;
+      }
+
+      const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000&sort=-start_date`;
       const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: Array<{ id: string; space: string; specialization?: string; start_date: string; completion_time?: string }> };
       const rawEntries = response.items || [];
-      const entries = rawEntries
+      const entries: TimeEntry[] = rawEntries
         .filter((e) => e.completion_time)
         .map((e) => ({
           id: e.id,
@@ -331,16 +428,32 @@ export async function main() {
         }));
 
       if (by) {
-        const result = aggregateBy(entries, { by: by as GroupBy, period: period as Period | undefined });
+        const aggOptions: AggregateOptions = {
+          by: by as GroupBy,
+          period: (period as Period) || 'all',
+          ...(parsed.options.includeEntries ? { includeEntries: true } : {}),
+        };
+        const result = aggregateBy(entries, aggOptions);
         if (format === 'json') {
           console.log(formatAggregateJson(result));
         } else {
           console.log(formatAggregateText(result));
+          if (parsed.options.includeEntries) {
+            for (const row of result.rows) {
+              if (row.entries && row.entries.length > 0) {
+                console.log(`\n  ${row.key}:`);
+                for (const entry of row.entries) {
+                  const spec = entry.specialization ? ` / ${entry.specialization}` : '';
+                  console.log(`    ${durationStr(entry.start_date, entry.completion_time)}  ${entry.space}${spec}`);
+                }
+              }
+            }
+          }
         }
         return;
       }
 
-      // Legacy no-by path: single total number, unchanged.
+      // Legacy no-by path: single total number
       let totalMs = 0;
       for (const entry of entries) {
         const start = new Date(entry.start_date).getTime();
@@ -349,62 +462,6 @@ export async function main() {
       }
       const totalHours = totalMs / (1000 * 60 * 60);
       console.log(`TOTAL_TRACKED_HOURS: ${totalHours.toFixed(2)}`);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.error(`Error: ${errMsg}`);
-      process.exit(1);
-      return;
-    }
-    return;
-  }
-
-  if (parsed.command === 'aggregate') {
-    const by = parsed.options.by;
-    const period = parsed.options.period;
-    const format = parsed.options.format ?? 'text';
-
-    if (!by) {
-      console.error('ERROR: --by is required for aggregate');
-      process.exit(1);
-      return;
-    }
-    if (!['space', 'combo', 'day', 'week', 'month'].includes(by)) {
-      console.error('ERROR: --by must be one of space|combo|day|week|month');
-      process.exit(1);
-      return;
-    }
-    if (period !== undefined && !['today', 'this-week', 'this-month', 'all'].includes(period)) {
-      console.error('ERROR: --period must be one of today|this-week|this-month|all');
-      process.exit(1);
-      return;
-    }
-    if (!['text', 'json'].includes(format)) {
-      console.error('ERROR: --format must be text|json');
-      process.exit(1);
-      return;
-    }
-
-    try {
-      const filter = `user='${config.user_id}' && completion_time!=""`;
-      const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000&sort=-start_date`;
-      const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: Array<{ id: string; space: string; specialization?: string; start_date: string; completion_time?: string }> };
-      const rawEntries = response.items || [];
-      const entries = rawEntries
-        .filter((e) => e.completion_time)
-        .map((e) => ({
-          id: e.id,
-          space: e.space || '',
-          specialization: e.specialization || '',
-          start_date: e.start_date,
-          completion_time: e.completion_time || null,
-          user: config.user_id,
-        }));
-      const result = aggregateBy(entries, { by: by as GroupBy, period: period as Period | undefined });
-      if (format === 'json') {
-        console.log(formatAggregateJson(result));
-      } else {
-        console.log(formatAggregateText(result));
-      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`Error: ${errMsg}`);

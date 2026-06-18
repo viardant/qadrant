@@ -84,6 +84,69 @@ describe('CLI Argument Parsing - aggregation flags', () => {
   });
 });
 
+describe('CLI Argument Parsing - new stats flags', () => {
+  it('parses --from and --to', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'stats',
+      '--from', '2024-01-01',
+      '--to', '2024-01-31',
+    ]);
+    expect(parsed.options.from).toBe('2024-01-01');
+    expect(parsed.options.to).toBe('2024-01-31');
+  });
+
+  it('parses --space and --spec on stats', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'stats',
+      '--space', 'engineering',
+      '--spec', 'frontend',
+    ]);
+    expect(parsed.options.space).toBe('engineering');
+    expect(parsed.options.spec).toBe('frontend');
+  });
+
+  it('parses --include-entries flag', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'stats',
+      '--by', 'space',
+      '--include-entries',
+    ]);
+    expect(parsed.options.includeEntries).toBe(true);
+  });
+});
+
+describe('CLI Argument Parsing - new list flags', () => {
+  it('parses --space and --spec on list', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'list',
+      '--space', 'engineering',
+      '--spec', 'backend',
+    ]);
+    expect(parsed.options.space).toBe('engineering');
+    expect(parsed.options.spec).toBe('backend');
+  });
+
+  it('parses --offset flag', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'list',
+      '--offset', '20',
+    ]);
+    expect(parsed.options.offset).toBe(20);
+  });
+
+  it('parses --from, --to, --format json on list', () => {
+    const parsed = parseArgs([
+      'node', 'qadrant', 'list',
+      '--from', '2024-06-01',
+      '--to', '2024-06-30',
+      '--format', 'json',
+    ]);
+    expect(parsed.options.from).toBe('2024-06-01');
+    expect(parsed.options.to).toBe('2024-06-30');
+    expect(parsed.options.format).toBe('json');
+  });
+});
+
 describe('Config File Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
