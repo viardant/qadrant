@@ -189,3 +189,75 @@ export function aggregateBy(
     },
   };
 }
+
+const MAX_KEY_WIDTH = 32;
+
+function truncate(s: string, n: number): string {
+  return s.length <= n ? s : s.slice(0, n - 1) + '…';
+}
+
+function pad(s: string, n: number): string {
+  if (s.length >= n) return s;
+  return s + ' '.repeat(n - s.length);
+}
+
+function padLeft(s: string, n: number): string {
+  if (s.length >= n) return s;
+  return ' '.repeat(n - s.length) + s;
+}
+
+export function formatAggregateText(result: AggregateResult): string {
+  const dimensionLabel = result.by.toUpperCase();
+  const periodLabel = result.period.toUpperCase();
+  const lines: string[] = [];
+  lines.push(`DIMENSION: ${dimensionLabel}`);
+  lines.push(`PERIOD:    ${periodLabel}`);
+  if (result.window) {
+    lines.push(`WINDOW:    ${result.window.start}..${result.window.end}`);
+  }
+  lines.push('');
+
+  if (result.rows.length === 0) {
+    lines.push('NO_DATA');
+    return lines.join('\n');
+  }
+
+  const keyWidth = Math.min(
+    MAX_KEY_WIDTH,
+    Math.max(3, ...result.rows.map((r) => truncate(r.key, MAX_KEY_WIDTH).length))
+  );
+  const header =
+    pad('KEY', keyWidth) +
+    '  ' +
+    padLeft('HOURS', 7) +
+    '  ' +
+    padLeft('SESSIONS', 8) +
+    '  ' +
+    padLeft('SHARE', 7);
+  const rule = '-'.repeat(header.length);
+  lines.push(rule);
+  lines.push(header);
+  lines.push(rule);
+  for (const row of result.rows) {
+    lines.push(
+      pad(truncate(row.key, MAX_KEY_WIDTH), keyWidth) +
+        '  ' +
+        padLeft(row.hours.toFixed(2), 7) +
+        '  ' +
+        padLeft(String(row.sessions), 8) +
+        '  ' +
+        padLeft((row.share * 100).toFixed(1) + '%', 7)
+    );
+  }
+  lines.push(rule);
+  lines.push(
+    pad('TOTAL', keyWidth) +
+      '  ' +
+      padLeft(result.total.hours.toFixed(2), 7) +
+      '  ' +
+      padLeft(String(result.total.sessions), 8) +
+      '  ' +
+      padLeft('100.0%', 7)
+  );
+  return lines.join('\n');
+}

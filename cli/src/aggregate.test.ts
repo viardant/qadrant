@@ -7,10 +7,11 @@ import {
   filterByPeriod,
   windowForPeriod,
   type Period,
-  groupBy,
-  comboDisplayName,
+  groupBy as gb,
+  comboDisplayName as cdn,
   aggregateBy,
-  type GroupBy,
+  formatAggregateText,
+  type GroupBy as GB,
   type AggregateResult,
 } from './aggregate.js';
 
@@ -209,7 +210,7 @@ describe('windowForPeriod', () => {
   });
 });
 
-import { groupBy as gb, comboDisplayName as cdn, type GroupBy as GB } from './aggregate.js';
+
 
 const e = (space: string, specialization: string, startISO: string, completionISO: string | null = null): import('./aggregate.js').TimeEntry => ({
   id: '1',
@@ -351,5 +352,50 @@ describe('AggregateResult type', () => {
     ], { by: 'space', period: 'all' });
     expect(result.rows[0].share).toBeDefined();
     expect(typeof result.rows[0].share).toBe('number');
+  });
+});
+
+const fixture = (): import('./aggregate.js').AggregateResult => ({
+  by: 'space',
+  period: 'this-month',
+  window: { start: '2026-06-01', end: '2026-06-30' },
+  rows: [
+    { key: 'Work',   hours: 12.34, sessions: 8, share: 0.6421 },
+    { key: 'Piano',  hours:  4.21, sessions: 5, share: 0.2193 },
+    { key: 'qadrant', hours: 2.65, sessions: 3, share: 0.1386 },
+  ],
+  total: { hours: 19.20, sessions: 16 },
+});
+
+describe('formatAggregateText', () => {
+  it('includes DIMENSION / PERIOD / WINDOW header', () => {
+    const out = formatAggregateText(fixture());
+    expect(out).toContain('DIMENSION: SPACE');
+    expect(out).toContain('PERIOD:    THIS-MONTH');
+    expect(out).toContain('WINDOW:    2026-06-01..2026-06-30');
+  });
+
+  it('renders rows in the table with hours, sessions, share%', () => {
+    const out = formatAggregateText(fixture());
+    expect(out).toContain('Work');
+    expect(out).toContain('12.34');
+    expect(out).toContain('64.2%');
+  });
+
+  it('renders a TOTAL row at the bottom', () => {
+    const out = formatAggregateText(fixture());
+    expect(out).toMatch(/TOTAL\s+19\.20\s+16\s+100\.0%/);
+  });
+
+  it('renders a NO_DATA row when there are no entries', () => {
+    const empty: import('./aggregate.js').AggregateResult = { ...fixture(), rows: [], total: { hours: 0, sessions: 0 } };
+    const out = formatAggregateText(empty);
+    expect(out).toContain('NO_DATA');
+  });
+
+  it('omits WINDOW when period is "all"', () => {
+    const all: import('./aggregate.js').AggregateResult = { ...fixture(), period: 'all', window: null };
+    const out = formatAggregateText(all);
+    expect(out).not.toContain('WINDOW:');
   });
 });
