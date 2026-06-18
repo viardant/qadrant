@@ -8,11 +8,16 @@ export async function listEntries(
   config: Config,
   input: ListEntriesInput
 ): Promise<{ text: string; structured: StructuredTimerResult }> {
-  const filter = `user='${config.user_id}' && completion_time!=""`;
+  const filters: string[] = [`user='${config.user_id}'`, `completion_time!=""`];
+  if (input.space) filters.push(`space='${input.space}'`);
+  if (input.specialization) filters.push(`specialization='${input.specialization}'`);
+  if (input.from) filters.push(`start_date>='${input.from}T00:00:00'`);
+  if (input.to) filters.push(`start_date<='${input.to}T23:59:59'`);
 
+  const filterStr = encodeURIComponent(filters.join(' && '));
   const url =
     `/api/collections/time_entries/records` +
-    `?filter=${encodeURIComponent(filter)}` +
+    `?filter=${filterStr}` +
     `&sort=-start_date` +
     `&perPage=${input.limit}` +
     `&page=${Math.floor(input.offset / input.limit) + 1}`;
