@@ -263,7 +263,7 @@ describe('getStats', () => {
       json: async () => ({ items: [], totalItems: 0 }),
     });
 
-    const result = await getStats(makeConfig(), { response_format: ResponseFormat.MARKDOWN });
+    const result = await getStats(makeConfig(), { response_format: ResponseFormat.MARKDOWN, period: 'all' });
     expect(result.text).toContain('0.00 hours');
     expect(result.structured.stats?.total_hours).toBe(0);
     expect(result.structured.stats?.session_count).toBe(0);
@@ -280,7 +280,7 @@ describe('getStats', () => {
       }),
     });
 
-    const result = await getStats(makeConfig(), { response_format: ResponseFormat.MARKDOWN });
+    const result = await getStats(makeConfig(), { response_format: ResponseFormat.MARKDOWN, period: 'all' });
     expect(result.text).toContain('2.00 hours');
     expect(result.structured.stats?.total_hours).toBeCloseTo(2.0);
     expect(result.structured.stats?.session_count).toBe(1);
@@ -297,7 +297,7 @@ describe('getStats', () => {
       }),
     });
 
-    const result = await getStats(makeConfig(), { response_format: ResponseFormat.JSON });
+    const result = await getStats(makeConfig(), { response_format: ResponseFormat.JSON, period: 'all' });
     const parsed = JSON.parse(result.text);
     expect(parsed.stats.total_hours).toBeCloseTo(1.5);
     expect(parsed.status).toBe('stats_computed');

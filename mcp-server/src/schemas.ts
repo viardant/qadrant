@@ -35,7 +35,28 @@ export const ListEntriesSchema = z.object({
     .describe("Output format: 'markdown' for human-readable or 'json' for machine-readable"),
 }).strict();
 
+export const GroupByEnum = z.enum(['space', 'combo', 'day', 'week', 'month']);
+export const PeriodEnum = z.enum(['today', 'this-week', 'this-month', 'all']);
+
 export const GetStatsSchema = z.object({
+  by: GroupByEnum
+    .optional()
+    .describe('Group results by space|combo|day|week|month. Omit for the legacy single-number stats.'),
+  period: PeriodEnum
+    .default('all')
+    .describe('Time window filter: today|this-week|this-month|all (default all)'),
+  response_format: z
+    .nativeEnum(ResponseFormat)
+    .default(ResponseFormat.MARKDOWN)
+    .describe("Output format: 'markdown' for human-readable or 'json' for machine-readable"),
+}).strict();
+
+export const AggregateSchema = z.object({
+  by: GroupByEnum
+    .describe('Group results by space|combo|day|week|month'),
+  period: PeriodEnum
+    .default('all')
+    .describe('Time window filter: today|this-week|this-month|all (default all)'),
   response_format: z
     .nativeEnum(ResponseFormat)
     .default(ResponseFormat.MARKDOWN)
@@ -59,5 +80,6 @@ export const StopTimerSchema = z.object({
 export type StartTimerInput = z.infer<typeof StartTimerSchema>;
 export type ListEntriesInput = z.infer<typeof ListEntriesSchema>;
 export type GetStatsInput = z.infer<typeof GetStatsSchema>;
+export type AggregateInput = z.infer<typeof AggregateSchema>;
 export type GetActiveTimerInput = z.infer<typeof GetActiveTimerSchema>;
 export type StopTimerInput = z.infer<typeof StopTimerSchema>;
