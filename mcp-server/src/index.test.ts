@@ -303,6 +303,29 @@ describe('getStats', () => {
     expect(parsed.stats.total_hours).toBeCloseTo(1.5);
     expect(parsed.status).toBe('stats_computed');
   });
+
+  it('returns grouped stats when by is provided', async () => {
+    const start = '2026-06-15T10:00:00.000Z';
+    const end = '2026-06-15T12:00:00.000Z';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [
+          { id: '1', space: 'Work', specialization: '', start_date: start, completion_time: end },
+        ],
+        totalItems: 1,
+      }),
+    });
+
+    const result = await getStats(makeConfig(), {
+      by: 'space',
+      period: 'all',
+      response_format: ResponseFormat.MARKDOWN,
+    });
+    expect(result.text).toContain('DIMENSION: SPACE');
+    expect(result.text).toContain('Work');
+    expect(result.structured.status).toBe('stats_aggregated');
+  });
 });
 
 describe('qadrantAggregate', () => {

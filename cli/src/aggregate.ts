@@ -54,11 +54,13 @@ export function windowForPeriod(period: Period, now: Date = new Date()): Window 
     return { start: getLocalDateString(now), end: getLocalDateString(now) };
   }
   if (period === 'this-week') {
-    const mondayStr = getLocalWeekMondayString(now);
-    const monday = new Date(mondayStr + 'T00:00:00');
+    const dayOfWeek = now.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    return { start: mondayStr, end: getLocalDateString(sunday) };
+    return { start: getLocalDateString(monday), end: getLocalDateString(sunday) };
   }
   if (period === 'this-month') {
     const monthStr = getLocalMonthString(now);
