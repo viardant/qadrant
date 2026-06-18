@@ -294,19 +294,59 @@ export async function main() {
   }
 
   if (parsed.command === 'stats') {
+    const by = parsed.options.by;
+    const period = parsed.options.period;
+    const format = parsed.options.format ?? 'text';
+
+    if (by !== undefined && !['space', 'combo', 'day', 'week', 'month'].includes(by)) {
+      console.error('ERROR: --by must be one of space|combo|day|week|month');
+      process.exit(1);
+      return;
+    }
+    if (period !== undefined && !['today', 'this-week', 'this-month', 'all'].includes(period)) {
+      console.error('ERROR: --period must be one of today|this-week|this-month|all');
+      process.exit(1);
+      return;
+    }
+    if (!['text', 'json'].includes(format)) {
+      console.error('ERROR: --format must be text|json');
+      process.exit(1);
+      return;
+    }
+
     try {
       const filter = `user='${config.user_id}' && completion_time!=""`;
       const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000`;
-      const response = await apiCall(config.pb_url, config.auth_token, url);
-      const entries = response.items || [];
+      const response = await apiCall(config.pb_url, config.auth_token, url) as { items?: Array<{ id: string; space: string; specialization?: string; start_date: string; completion_time?: string }> };
+      const rawEntries = response.items || [];
+      const entries = rawEntries
+        .filter((e) => e.completion_time)
+        .map((e) => ({
+          id: e.id,
+          space: e.space || '',
+          specialization: e.specialization || '',
+          start_date: e.start_date,
+          completion_time: e.completion_time || null,
+          user: config.user_id,
+        }));
 
+      if (by) {
+        const result = aggregateBy(entries, { by: by as GroupBy, period: period as Period | undefined });
+        if (format === 'json') {
+          console.log(formatAggregateJson(result));
+        } else {
+          console.log(formatAggregateText(result));
+        }
+        return;
+      }
+
+      // Legacy no-by path: single total number, unchanged.
       let totalMs = 0;
       for (const entry of entries) {
         const start = new Date(entry.start_date).getTime();
         const end = entry.completion_time ? new Date(entry.completion_time).getTime() : start;
         totalMs += Math.max(0, end - start);
       }
-
       const totalHours = totalMs / (1000 * 60 * 60);
       console.log(`TOTAL_TRACKED_HOURS: ${totalHours.toFixed(2)}`);
     } catch (err) {
