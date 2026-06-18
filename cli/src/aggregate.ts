@@ -95,3 +95,57 @@ export function filterByPeriod(
     return key >= window.start && key <= window.end;
   });
 }
+
+export type GroupBy = 'space' | 'combo' | 'day' | 'week' | 'month';
+
+export function comboDisplayName(space: string, specialization: string): string {
+  if (!specialization) return space || 'Untitled';
+  if (!space) return specialization;
+  return `${space} / ${specialization}`;
+}
+
+export interface AggregateRow {
+  key: string;
+  hours: number;
+  sessions: number;
+}
+
+function groupKey(entry: TimeEntry, by: GroupBy): string | null {
+  const d = new Date(entry.start_date);
+  if (isNaN(d.getTime())) return null;
+  const space = entry.space || 'No Space';
+  switch (by) {
+    case 'space':
+      return space;
+    case 'combo':
+      return comboDisplayName(entry.space || '', entry.specialization || '');
+    case 'day':
+      return getLocalDateString(d);
+    case 'week':
+      return getLocalWeekMondayString(d);
+    case 'month':
+      return getLocalMonthString(d);
+  }
+}
+
+export function groupBy(entries: TimeEntry[], by: GroupBy): AggregateRow[] {
+  const buckets = new Map<string, { hours: number; sessions: number }>();
+  for (const entry of entries) {
+    const key = groupKey(entry, by);
+    if (key === null) continue;
+    const hours = getEntryDurationHours(entry);
+    const existing = buckets.get(key) ?? { hours: 0, sessions: 0 };
+    existing.hours += hours;
+    if (entry.completion_time) existing.sessions += 1;
+    buckets.set(key, existing);
+  }
+  const rows: AggregateRow[] = [];
+  for (const [key, agg] of buckets) {
+    rows.push({
+      key,
+      hours: Number(agg.hours.toFixed(2)),
+      sessions: agg.sessions,
+    });
+  }
+  return rows;
+}
