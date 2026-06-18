@@ -16,6 +16,7 @@ import { apiCall } from './services/api-client.js';
 import { startTimer, stopTimer, getActiveTimer } from './tools/timer.js';
 import { listEntries } from './tools/entries.js';
 import { getStats } from './tools/stats.js';
+import { qadrantAggregate } from './tools/aggregate-handler.js';
 import type { Config } from './types.js';
 import { ResponseFormat } from './types.js';
 
@@ -301,5 +302,60 @@ describe('getStats', () => {
     const parsed = JSON.parse(result.text);
     expect(parsed.stats.total_hours).toBeCloseTo(1.5);
     expect(parsed.status).toBe('stats_computed');
+  });
+});
+
+describe('qadrantAggregate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('aggregates by space in markdown format', async () => {
+    const start = '2026-06-15T10:00:00.000Z';
+    const end = '2026-06-15T12:00:00.000Z';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [
+          { id: '1', space: 'Work', specialization: 'frontend', start_date: start, completion_time: end },
+          { id: '2', space: 'Work', specialization: 'frontend', start_date: start, completion_time: end },
+          { id: '3', space: 'Piano', specialization: '', start_date: start, completion_time: end },
+        ],
+        totalItems: 3,
+      }),
+    });
+
+    const result = await qadrantAggregate(makeConfig(), {
+      by: 'space',
+      period: 'all',
+      response_format: ResponseFormat.MARKDOWN,
+    });
+    expect(result.text).toContain('DIMENSION: SPACE');
+    expect(result.text).toContain('Work');
+    expect(result.text).toContain('Piano');
+    expect(result.structured.status).toBe('aggregate_computed');
+  });
+
+  it('aggregates in JSON format', async () => {
+    const start = '2026-06-15T10:00:00.000Z';
+    const end = '2026-06-15T11:00:00.000Z';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [
+          { id: '1', space: 'Work', start_date: start, completion_time: end },
+        ],
+        totalItems: 1,
+      }),
+    });
+
+    const result = await qadrantAggregate(makeConfig(), {
+      by: 'space',
+      period: 'all',
+      response_format: ResponseFormat.JSON,
+    });
+    const parsed = JSON.parse(result.text);
+    expect(parsed.by).toBe('space');
+    expect(parsed.rows[0].key).toBe('Work');
   });
 });
