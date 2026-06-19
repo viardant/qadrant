@@ -1,15 +1,19 @@
+import { useBreakpoint } from '../../hooks/useBreakpoint';
+
 interface Props {
   cells: Array<{ key: string; intensity: 0 | 1 | 2 | 3 }>;
   rowCount?: number;
 }
 
 export function Heatmap({ cells, rowCount = 7 }: Props) {
+  const { isMobile } = useBreakpoint();
+  const cellSize = isMobile ? 12 : 14;
   return (
     <div className="heatmap">
       <div className="heatmap__scroll">
         <div
           className="heatmap__grid"
-          style={{ gridTemplateRows: `repeat(${rowCount}, 14px)` }}
+          style={{ gridTemplateRows: `repeat(${rowCount}, ${cellSize}px)` }}
         >
           {cells.map((c) => {
             const cls =
@@ -25,6 +29,7 @@ export function Heatmap({ cells, rowCount = 7 }: Props) {
                 key={c.key}
                 className={`heatmap__cell ${cls}`.trim()}
                 title={c.key}
+                style={{ width: cellSize, height: cellSize }}
               />
             );
           })}
