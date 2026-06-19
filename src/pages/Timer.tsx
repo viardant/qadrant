@@ -40,7 +40,7 @@ const QUICK_REPLAY_LIMIT = 4;
 
 export default function Timer() {
   const { isMobile, isDesktop } = useBreakpoint();
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [activeSessions, setActiveSessions] = useState<TimeEntry[]>([]);
   const [query, setQuery] = useState('');
