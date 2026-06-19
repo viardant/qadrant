@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { pb } from '../lib/pocketbase';
 import type { TimeEntry } from '../lib/time-entry';
 import { TopBar } from '../components/ui/TopBar';
@@ -25,6 +26,7 @@ export default function Settings() {
   const [spaceColors, setSpaceColors] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [beatIdx, setBeatIdx] = useState(0);
+  const { isMobile } = useBreakpoint();
 
   useEffect(() => {
     async function fetchSettingsData() {
@@ -111,7 +113,7 @@ export default function Settings() {
         </div>
       ) : (
         <>
-          <section className="settings-section">
+          <section className="settings-section" style={{ padding: isMobile ? '16px' : '32px', gap: isMobile ? '12px' : '16px' }}>
             <Eyebrow>▸&nbsp;&nbsp;SPACE_THEME_MAPPINGS</Eyebrow>
             <h2 className="settings-section__title">SPACE_THEME_MAPPINGS</h2>
             <p className="settings-section__body">
@@ -124,13 +126,13 @@ export default function Settings() {
                 message="NO_SPACES_DETECTED_IN_HISTORY"
               />
             ) : (
-              <div className="color-grid">
+              <div className="color-grid" style={{ gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))' }}>
                 {spaces.map((space, idx) => (
-                  <div key={space} className="color-row">
+                  <div key={space} className="color-row" style={{ padding: isMobile ? '12px' : undefined }}>
                     <span className="color-row__label">{space}</span>
                     <label
                       className="color-row__swatch"
-                      style={{ background: getSpaceColor(space, idx) }}
+                      style={{ background: getSpaceColor(space, idx), ...(isMobile ? { width: '44px', height: '44px', minWidth: '44px', minHeight: '44px' } : {}) }}
                       aria-label={`Color for ${space}`}
                     >
                       <input
@@ -145,15 +147,15 @@ export default function Settings() {
             )}
           </section>
 
-          <section className="settings-section">
+          <section className="settings-section" style={{ padding: isMobile ? '16px' : '32px', gap: isMobile ? '12px' : '16px' }}>
             <Eyebrow>▸&nbsp;&nbsp;CLI_AND_AI_AGENT_ACCESS</Eyebrow>
             <h2 className="settings-section__title">CLI_AND_AI_AGENT_ACCESS</h2>
             <p className="settings-section__body">
               Authenticate external sessions or automated code agents with this token. Keep it
               private.
             </p>
-            <div className="token-row">
-              <div className="token-row__value" title={pb.authStore.token}>
+            <div className="token-row" style={{ flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center' }}>
+              <div className="token-row__value" title={pb.authStore.token} style={isMobile ? { width: '100%', fontSize: '13px', wordBreak: 'break-all' } : undefined}>
                 {pb.authStore.token || 'NO_ACTIVE_AUTH_TOKEN'}
               </div>
               <button
@@ -161,12 +163,13 @@ export default function Settings() {
                 className="btn"
                 onClick={handleCopyToken}
                 aria-label="Copy token"
+                style={isMobile ? { width: '100%', minHeight: '44px', justifyContent: 'center' } : undefined}
               >
                 {copied ? '✓ COPIED' : 'COPY'}
               </button>
             </div>
             <Eyebrow muted>TERMINAL_SETUP</Eyebrow>
-            <pre className="terminal-block">
+            <pre className="terminal-block" style={{ padding: isMobile ? '12px 16px' : undefined, fontSize: isMobile ? '12px' : undefined }}>
               <span className="terminal-block__prompt">npm install -g qadrant-cli</span>
               {'\n'}
               <span className="terminal-block__prompt">
@@ -175,7 +178,7 @@ export default function Settings() {
             </pre>
           </section>
 
-          <section className="settings-section">
+          <section className="settings-section" style={{ padding: isMobile ? '16px' : '32px', gap: isMobile ? '12px' : '16px' }}>
             <Eyebrow>▸&nbsp;&nbsp;TERMINATE_SESSION</Eyebrow>
             <h2 className="settings-section__title">TERMINATE_SESSION</h2>
             <p className="settings-section__body">

@@ -11,6 +11,8 @@ import {
   getEntryDurationHours,
 } from '../lib/transform';
 import { TopBar } from '../components/ui/TopBar';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useResponsiveValue } from '../hooks/useResponsiveValue';
 import { StageDrop } from '../components/ui/StageDrop';
 import { InsightCard } from '../components/ui/InsightCard';
 import { Heatmap } from '../components/ui/Heatmap';
@@ -44,6 +46,8 @@ export default function Stats() {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [beatIdx, setBeatIdx] = useState(0);
+  const { isMobile } = useBreakpoint();
+  const chartHeight = useResponsiveValue({ mobile: '160px', tablet: '220px', desktop: '220px' });
 
   useEffect(() => {
     async function fetchData() {
@@ -129,7 +133,7 @@ export default function Stats() {
 
   return (
     <>
-      <TopBar section="STATS" timestamp={loading ? null : stats.last} />
+      <TopBar section="STATS" timestamp={loading ? null : stats.last} compact={isMobile} />
       {loading ? (
         <div
           className="section"
@@ -161,16 +165,19 @@ export default function Stats() {
                 eyebrow="TODAY_PLAYTIME"
                 value={formatHours(stats.todayHours)}
                 caption={`// WEEK_TOTAL: ${formatHours(stats.weekHours)}`}
+                compact={isMobile}
               />
               <InsightCard
                 eyebrow="STREAK"
                 value={`${stats.streak}d`}
                 caption="// CONSECUTIVE_DAYS_LOGGED"
+                compact={isMobile}
               />
               <InsightCard
                 eyebrow="BEST_DAY"
                 value={formatHours(stats.bestDay)}
                 caption={`// ALL_TIME_TOTAL: ${totalHours.toFixed(1)}h`}
+                compact={isMobile}
               />
             </div>
           </section>
@@ -192,7 +199,7 @@ export default function Stats() {
                 30_DAYS
               </span>
             </div>
-            <div className="stats-chart">
+            <div className="stats-chart" style={{ height: chartHeight }}>
               {stats.trend.length === 0 ? (
                 <div
                   className="type-tech-mono"
