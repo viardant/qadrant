@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Timer, BarChart3, List, Settings as Cog } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 interface TabDef {
   to: string;
@@ -17,6 +18,7 @@ const TABS: TabDef[] = [
 ];
 
 export function TabBar() {
+  const { isMobile } = useBreakpoint();
   return (
     <nav className="tab-bar" aria-label="Primary">
       <div className="tab-bar__inner">
@@ -33,7 +35,9 @@ export function TabBar() {
               <>
                 <span className="tab-bar__indicator" aria-hidden />
                 {tab.icon}
-                <span className="tab-bar__label">{tab.label}</span>
+                <span className="tab-bar__label" style={isMobile ? { display: 'none' } : undefined}>
+  {tab.label}
+</span>
                 {isActive && <span className="sr-only">, active</span>}
               </>
             )}
