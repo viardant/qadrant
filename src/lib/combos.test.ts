@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { TimeEntry } from './time-entry';
-import { classifyCategory, comboDisplayName, deriveTopCombos, filterCombos } from './combos';
+import {
+  classifyCategory,
+  comboDisplayName,
+  deriveTopCombos,
+  filterCombos,
+  parseQueryForNewCombo,
+} from './combos';
 
 const base = (overrides: Partial<TimeEntry>): TimeEntry => ({
   id: Math.random().toString(),
@@ -81,5 +87,53 @@ describe('combos.filterCombos', () => {
   it('matches by specialization', () => {
     const matched = filterCombos(combos, 'scales');
     expect(matched).toHaveLength(1);
+  });
+});
+
+describe('combos.parseQueryForNewCombo', () => {
+  it('returns null for empty input', () => {
+    expect(parseQueryForNewCombo('')).toBeNull();
+  });
+
+  it('returns null for whitespace-only input', () => {
+    expect(parseQueryForNewCombo('   ')).toBeNull();
+  });
+
+  it('treats plain text as space with no specialization', () => {
+    expect(parseQueryForNewCombo('dev')).toEqual({ space: 'dev', specialization: '' });
+  });
+
+  it('splits text on the slash into space and specialization', () => {
+    expect(parseQueryForNewCombo('dev/frontend')).toEqual({
+      space: 'dev',
+      specialization: 'frontend',
+    });
+  });
+
+  it('splits only on the first slash', () => {
+    expect(parseQueryForNewCombo('dev/frontend/api')).toEqual({
+      space: 'dev',
+      specialization: 'frontend/api',
+    });
+  });
+
+  it('trims whitespace around the slash and on each side', () => {
+    expect(parseQueryForNewCombo('  dev  /  frontend  ')).toEqual({
+      space: 'dev',
+      specialization: 'frontend',
+    });
+  });
+
+  it('keeps the non-empty side when the other side is empty', () => {
+    expect(parseQueryForNewCombo('dev/')).toEqual({ space: 'dev', specialization: '' });
+    expect(parseQueryForNewCombo('/frontend')).toEqual({
+      space: 'frontend',
+      specialization: '',
+    });
+  });
+
+  it('returns null when both sides around the slash are empty', () => {
+    expect(parseQueryForNewCombo('/')).toBeNull();
+    expect(parseQueryForNewCombo('  /  ')).toBeNull();
   });
 });

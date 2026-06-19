@@ -124,6 +124,108 @@ describe('Timer page', () => {
     expect(within(quickReplay).getByText('Work / meeting')).toBeInTheDocument();
   });
 
+  test('caps the visible QUICK_REPLAY list at 4 when the query is empty, even with more distinct combos in history', async () => {
+    const sixDistinct = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '2', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '3', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '4', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '5', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '6', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '7', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '8', space: 'Personal', specialization: 'health' }),
+      baseEntry({ id: '9', space: 'Admin', specialization: 'review' }),
+      baseEntry({ id: '10', space: 'Reading', specialization: 'literature' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+    }));
+    renderTimer();
+    const quickReplay = screen.getByLabelText('Quick replay');
+    await within(quickReplay).findByText('Piano / scales');
+    const cells = within(quickReplay).getAllByRole('listitem');
+    expect(cells).toHaveLength(4);
+    expect(within(quickReplay).getByText('04_OF_06')).toBeInTheDocument();
+    expect(within(quickReplay).queryByText('Reading / literature')).not.toBeInTheDocument();
+  });
+
+  test('searches the full set of distinct combos, not just the visible top 4', async () => {
+    const sixDistinct = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '2', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '3', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '4', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '5', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '6', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '7', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '8', space: 'Personal', specialization: 'health' }),
+      baseEntry({ id: '9', space: 'Admin', specialization: 'review' }),
+      baseEntry({ id: '10', space: 'Reading', specialization: 'literature' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+    }));
+    renderTimer();
+    const quickReplay = screen.getByLabelText('Quick replay');
+    await within(quickReplay).findByText('Piano / scales');
+    expect(within(quickReplay).queryByText('Reading / literature')).not.toBeInTheDocument();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'reading' } });
+    expect(within(quickReplay).getByText('Reading / literature')).toBeInTheDocument();
+  });
+
+  test('renders every search match from the full set, not just the top 4', async () => {
+    const sixDistinct = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '2', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '3', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '4', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '5', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '6', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '7', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '8', space: 'Personal', specialization: 'health' }),
+      baseEntry({ id: '9', space: 'Admin', specialization: 'review' }),
+      baseEntry({ id: '10', space: 'Reading', specialization: 'literature' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+    }));
+    renderTimer();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'e' } });
+    const quickReplay = screen.getByLabelText('Quick replay');
+    await within(quickReplay).findByText('Reading / literature');
+    expect(within(quickReplay).getByText('Dev / frontend')).toBeInTheDocument();
+    expect(within(quickReplay).getByText('Work / meeting')).toBeInTheDocument();
+    expect(within(quickReplay).getByText('Piano / scales')).toBeInTheDocument();
+    expect(within(quickReplay).getByText('Reading / literature')).toBeInTheDocument();
+  });
+
+  test('does not show the START_NEW_COMBO_FROM_QUERY affordance for a query that matches a rank-5+ combo in the full set', async () => {
+    const sixDistinct = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '2', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '3', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '4', space: 'Work', specialization: 'meeting' }),
+      baseEntry({ id: '5', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '6', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '7', space: 'Piano', specialization: 'scales' }),
+      baseEntry({ id: '8', space: 'Personal', specialization: 'health' }),
+      baseEntry({ id: '9', space: 'Admin', specialization: 'review' }),
+      baseEntry({ id: '10', space: 'Reading', specialization: 'literature' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+    }));
+    renderTimer();
+    const quickReplay = screen.getByLabelText('Quick replay');
+    await within(quickReplay).findByText('Piano / scales');
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'reading' } });
+    expect(within(quickReplay).getByText('Reading / literature')).toBeInTheDocument();
+    expect(screen.queryByText('START_NEW_COMBO_FROM_QUERY')).not.toBeInTheDocument();
+  });
+
   test('Cmd+K (and Ctrl+K) focuses the search input', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
@@ -292,6 +394,157 @@ describe('Timer page', () => {
     });
     expect(within(stageDrop).getByText('Dev')).toBeInTheDocument();
 
+    unmount();
+  });
+
+  test('shows a START_NEW_COMBO_FROM_QUERY affordance when a typed query has no matches', async () => {
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: [] }),
+    }));
+    renderTimer();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'dev/frontend' } });
+    expect(await screen.findByText('START_NEW_COMBO_FROM_QUERY')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start new combo dev \/ frontend/i })).toBeInTheDocument();
+  });
+
+  test('does not show the new-combo affordance when there are matching combos', async () => {
+    const entries = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: entries }),
+    }));
+    renderTimer();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'frontend' } });
+    await screen.findAllByText('Dev / frontend');
+    expect(screen.queryByText('START_NEW_COMBO_FROM_QUERY')).not.toBeInTheDocument();
+  });
+
+  test('does not show the new-combo affordance when the query is empty or whitespace', async () => {
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: [] }),
+    }));
+    renderTimer();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(screen.queryByText('START_NEW_COMBO_FROM_QUERY')).not.toBeInTheDocument();
+  });
+
+  test('clicking the new-combo affordance creates an entry with parsed space and specialization, then clears the query', async () => {
+    const create = vi.fn().mockResolvedValue({});
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: [] }),
+      create,
+    }));
+    const { unmount } = renderTimer();
+    const input = screen.getByLabelText('Search existing combos') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'dev/frontend' } });
+    const button = await screen.findByRole('button', { name: /Start new combo dev \/ frontend/i });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ space: 'dev', specialization: 'frontend' }),
+      );
+    });
+    await waitFor(() => {
+      expect(input.value).toBe('');
+    });
+    unmount();
+  });
+
+  test('clicking the new-combo affordance treats a query without a slash as space-only', async () => {
+    const create = vi.fn().mockResolvedValue({});
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: [] }),
+      create,
+    }));
+    const { unmount } = renderTimer();
+    const input = screen.getByLabelText('Search existing combos') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'reading' } });
+    const button = await screen.findByRole('button', { name: /Start new combo reading/i });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ space: 'reading', specialization: '' }),
+      );
+    });
+    unmount();
+  });
+
+  test('pressing Enter in the search input starts the new combo when no results match', async () => {
+    const create = vi.fn().mockResolvedValue({});
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: [] }),
+      create,
+    }));
+    const { unmount } = renderTimer();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'work/review' } });
+    await screen.findByText('START_NEW_COMBO_FROM_QUERY');
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'Enter' });
+    });
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ space: 'work', specialization: 'review' }),
+      );
+    });
+    unmount();
+  });
+
+  test('pressing Enter in the search input does NOT trigger a new combo when matching combos exist', async () => {
+    const create = vi.fn().mockResolvedValue({});
+    const entries = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: entries }),
+      create,
+    }));
+    const { unmount } = renderTimer();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'frontend' } });
+    await screen.findAllByText('Dev / frontend');
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'Enter' });
+    });
+    expect(create).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  test('clicking the new-combo affordance shows SAME_PROTOCOLS_SKIP when the same combo is already running', async () => {
+    const start = new Date(Date.now() - 5_000).toISOString();
+    const entries = [
+      baseEntry({
+        id: 'active-1',
+        space: 'Dev',
+        specialization: 'frontend',
+        start_date: start,
+        completion_time: null,
+      }),
+    ];
+    const create = vi.fn().mockResolvedValue({});
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: entries }),
+      create,
+    }));
+    const { unmount } = renderTimer();
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'dev/frontend' } });
+    const button = await screen.findByRole('button', { name: /Start new combo dev \/ frontend/i });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/SAME_PROTOCOLS_SKIP/i)).toBeInTheDocument();
+    });
+    expect(create).not.toHaveBeenCalled();
     unmount();
   });
 });

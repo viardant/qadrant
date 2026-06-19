@@ -8,7 +8,7 @@ import {
   getLastRelative,
   getAggregateStats,
 } from '../lib/transform';
-import { deriveTopCombos, filterCombos, type Combo } from '../lib/combos';
+import { deriveTopCombos, filterCombos, parseQueryForNewCombo, type Combo } from '../lib/combos';
 import { TopBar } from '../components/ui/TopBar';
 import { StatsStrip } from '../components/ui/StatsStrip';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -17,7 +17,6 @@ import { ActiveTimer } from '../components/timer/ActiveTimer';
 import { ComboSearch } from '../components/timer/ComboSearch';
 import { QuickReplay } from '../components/timer/QuickReplay';
 import { RecentActivity } from '../components/timer/RecentActivity';
-import { KeyboardShortcuts } from '../components/timer/KeyboardShortcuts';
 import { NewComboSheet, type NewComboData } from '../components/timer/NewComboSheet';
 
 function formatHours(hours: number): string {
@@ -98,15 +97,27 @@ export default function Timer() {
     fetchData();
   }, []);
 
-  const allCombos = useMemo(
-    () => deriveTopCombos(entries, QUICK_REPLAY_LIMIT),
+  const allCombosDistinct = useMemo(
+    () => deriveTopCombos(entries, Infinity),
     [entries],
   );
-  const filteredCombos = useMemo(() => filterCombos(allCombos, query), [allCombos, query]);
+  const allCombos = useMemo(
+    () => allCombosDistinct.slice(0, QUICK_REPLAY_LIMIT),
+    [allCombosDistinct],
+  );
+  const filteredCombos = useMemo(
+    () => filterCombos(allCombosDistinct, query),
+    [allCombosDistinct, query],
+  );
+  const renderedCombos = query.trim() ? filteredCombos : allCombos;
+  const totalDistinct = allCombosDistinct.length;
+  const parsedQuery = useMemo(() => parseQueryForNewCombo(query), [query]);
+  const showNewFromQuery =
+    query.trim() !== '' && filteredCombos.length === 0 && parsedQuery !== null;
   const stats = useMemo(() => getAggregateStats(entries, new Date()), [entries]);
   const last = useMemo(() => getLastRelative(entries, new Date()), [entries]);
 
-  const topCombo = allCombos[0];
+  const topCombo = allCombosDistinct[0];
 
   const startCombo = async (combo: Combo) => {
     if (!pb.authStore.isValid) return;
@@ -133,6 +144,39 @@ export default function Timer() {
       await fetchData();
     } catch (err) {
       console.error('Failed to start combo:', err);
+      setError('FAILED_TO_START_COMBINATION');
+    }
+  };
+
+  const isComboRunning = (space: string, specialization: string): boolean =>
+    activeSessions.some(
+      (s) =>
+        (s.space || '').toLowerCase().trim() === space.toLowerCase().trim() &&
+        (s.specialization || '').toLowerCase().trim() === (specialization || '').toLowerCase().trim(),
+    );
+
+  const startFromQuery = async () => {
+    if (!pb.authStore.isValid || !parsedQuery) return;
+    const { space, specialization } = parsedQuery;
+    if (isComboRunning(space, specialization)) {
+      const label = specialization ? `${space} / ${specialization}` : space;
+      setStatus({
+        id: Date.now(),
+        text: `SAME_PROTOCOLS_SKIP // ${label.toUpperCase()} IS_ALREADY_RUNNING`,
+      });
+      return;
+    }
+    try {
+      await pb.collection('time_entries').create<TimeEntry>({
+        user: pb.authStore.model?.id,
+        space,
+        specialization,
+        start_date: new Date().toISOString(),
+      });
+      setQuery('');
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to start combo from query:', err);
       setError('FAILED_TO_START_COMBINATION');
     }
   };
@@ -342,16 +386,62 @@ export default function Timer() {
       )}
 
       <div className="page-stack">
-        <ComboSearch ref={searchRef} value={query} onChange={setQuery} />
-        {activeSessions.length > 0 && query.trim() && filteredCombos.length === 0 ? (
+        <ComboSearch
+          ref={searchRef}
+          value={query}
+          onChange={setQuery}
+          onEnter={showNewFromQuery ? startFromQuery : undefined}
+        />
+        {activeSessions.length > 0 && query.trim() && filteredCombos.length === 0 && !showNewFromQuery ? (
           <EmptyState
             title="NO_MATCH"
             message={`NO_COMBO_MATCHES_QUERY: ${query.toUpperCase()}`}
           />
         ) : null}
+        {showNewFromQuery && parsedQuery && (
+          <section className="section" aria-label="Start new combo from query">
+            <div className="section__head">
+              <span className="eyebrow">START_NEW_COMBO_FROM_QUERY</span>
+            </div>
+            <div className="combo-grid" role="list">
+              <div role="listitem" className="combo-grid__cell">
+                <button
+                  type="button"
+                  className="combo-card combo-card--new"
+                  onClick={() => {
+                    void startFromQuery();
+                  }}
+                  aria-label={`Start new combo ${parsedQuery.specialization ? `${parsedQuery.space} / ${parsedQuery.specialization}` : parsedQuery.space}`}
+                >
+                  <span className="combo-card__caret" aria-hidden>▸</span>
+                  <div className="combo-card__main">
+                    <span className="combo-card__name">
+                      {parsedQuery.space}
+                      {parsedQuery.specialization && (
+                        <>
+                          <span className="combo-card__sep" aria-hidden> // </span>
+                          <span className="combo-card__spec-inline">
+                            {parsedQuery.specialization}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    <span
+                      className="combo-card__meta"
+                      aria-hidden
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      &gt;&gt;&gt;&nbsp;START_NEW_COMBO
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
         <QuickReplay
-          combos={filteredCombos}
-          total={allCombos.length}
+          combos={renderedCombos}
+          total={totalDistinct}
           onStart={startCombo}
           onCreate={() => setSheetOpen(true)}
         />
@@ -379,7 +469,6 @@ export default function Timer() {
           ]}
         />
         <RecentActivity entries={entries} limit={5} />
-        <KeyboardShortcuts />
       </div>
 
       <NewComboSheet

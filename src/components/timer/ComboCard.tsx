@@ -36,21 +36,23 @@ export function ComboCard({ combo, onStart, compact = false }: Props) {
     >
       {!compact && <span className="combo-card__caret" aria-hidden>▸</span>}
       <div className="combo-card__main">
-        {!compact && <span className="combo-card__category">{combo.category}</span>}
         <span
           className="combo-card__name"
           style={compact ? { fontSize: '15px' } : undefined}
         >
           {combo.space}
+          {combo.specialization && (
+            <>
+              <span className="combo-card__sep" aria-hidden> // </span>
+              <span
+                className="combo-card__spec-inline"
+                style={compact ? { fontSize: '12px' } : undefined}
+              >
+                {combo.specialization}
+              </span>
+            </>
+          )}
         </span>
-        {combo.specialization && (
-          <span
-            className="combo-card__specialization"
-            style={compact ? { fontSize: '12px' } : undefined}
-          >
-            {combo.specialization}
-          </span>
-        )}
         <span className="sr-only">{label}</span>
       </div>
       <span

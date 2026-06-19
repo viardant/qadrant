@@ -5,10 +5,11 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 interface Props {
   value: string;
   onChange: (value: string) => void;
+  onEnter?: () => void;
 }
 
 export const ComboSearch = forwardRef<HTMLInputElement, Props>(function ComboSearch(
-  { value, onChange },
+  { value, onChange, onEnter },
   ref,
 ) {
   const { isDesktop } = useBreakpoint();
@@ -22,6 +23,7 @@ export const ComboSearch = forwardRef<HTMLInputElement, Props>(function ComboSea
         ref={ref}
         value={value}
         onChange={onChange}
+        onEnter={onEnter}
         placeholder="SEARCH"
         ariaLabel="Search existing combos"
       />

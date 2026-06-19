@@ -72,3 +72,23 @@ export function filterCombos(combos: Combo[], query: string): Combo[] {
       .includes(q),
   );
 }
+
+export interface ParsedQuery {
+  space: string;
+  specialization: string;
+}
+
+export function parseQueryForNewCombo(query: string): ParsedQuery | null {
+  const raw = query.trim();
+  if (!raw) return null;
+  const slashIndex = raw.indexOf('/');
+  if (slashIndex === -1) {
+    return { space: raw, specialization: '' };
+  }
+  const space = raw.slice(0, slashIndex).trim();
+  const specialization = raw.slice(slashIndex + 1).trim();
+  if (!space && !specialization) return null;
+  if (!space) return { space: specialization, specialization: '' };
+  if (!specialization) return { space, specialization: '' };
+  return { space, specialization };
+}

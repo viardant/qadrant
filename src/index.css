@@ -1349,20 +1349,29 @@ select.input {
   min-width: 0;
 }
 
-.combo-card__category {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--fg-subtle);
-  line-height: 1;
-}
-
 .combo-card__name {
   font-family: var(--font-body);
   font-size: 16px;
   font-weight: 500;
   color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.combo-card__sep {
+  color: var(--fg-subtle);
+  font-weight: 400;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+
+.combo-card__spec-inline {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fg-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2113,54 +2122,4 @@ select.input {
    ============================================================ */
 
 
-/* ============================================================
-   Keyboard shortcuts cheatsheet
-   ============================================================ */
-
-.shortcuts__list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-4);
-  border-top: 1px dashed var(--border-muted);
-  padding-top: var(--space-4);
-}
-
-.shortcuts__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-3) 0;
-  border-bottom: 1px dashed var(--border-muted);
-  gap: var(--space-4);
-}
-
-.shortcuts__kbd {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--fg);
-  background: var(--surface-lowest);
-  border: 1px solid var(--border);
-  border-bottom-width: 3px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.05em;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
-}
-
-.shortcuts__label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  text-align: right;
-}
 

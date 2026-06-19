@@ -7,10 +7,11 @@ interface Props {
   kbdHint?: string;
   id?: string;
   ariaLabel?: string;
+  onEnter?: () => void;
 }
 
 export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchInput(
-  { value, onChange, placeholder = 'SEARCH', kbdHint, id, ariaLabel },
+  { value, onChange, placeholder = 'SEARCH', kbdHint, id, ariaLabel, onEnter },
   ref,
 ) {
   return (
@@ -28,6 +29,12 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
         className="search-input__field"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && onEnter) {
+            e.preventDefault();
+            onEnter();
+          }
+        }}
         placeholder=""
         aria-label={ariaLabel ?? placeholder}
         autoComplete="off"
