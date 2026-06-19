@@ -18,7 +18,7 @@ function formatClock(iso: string): string {
 }
 
 export function ActiveSessionStageDrop({ session, beatIndex = -1, onStop }: Props) {
-  const { isMobile, isDesktop } = useBreakpoint();
+  const { isDesktop } = useBreakpoint();
   const [activeDuration, setActiveDuration] = useState('00:00:00');
 
   useEffect(() => {
@@ -42,7 +42,6 @@ export function ActiveSessionStageDrop({ session, beatIndex = -1, onStop }: Prop
       role="status"
       aria-live="polite"
       aria-label={`Active session ${space} ${spec}`}
-      style={isMobile ? { padding: '32px 20px' } : { padding: '48px 24px' }}
     >
       <div
         className="stage-drop__grid"
@@ -84,12 +83,6 @@ export function ActiveSessionStageDrop({ session, beatIndex = -1, onStop }: Prop
             className="stage-drop__stop"
             onClick={() => onStop(session.id)}
             aria-label="Stop session"
-            style={isMobile ? {
-              width: '100%',
-              textAlign: 'center',
-              padding: '16px',
-              fontSize: '13px',
-            } : undefined}
           >
             ▢&nbsp;STOP_SESSION
           </button>

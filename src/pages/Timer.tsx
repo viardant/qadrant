@@ -49,7 +49,14 @@ export default function Timer() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<{ id: number; text: string } | null>(null);
   const [beatIndex, setBeatIndex] = useState(0);
+  const [carouselIndex, setCarouselIndex] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (carouselIndex >= activeSessions.length && activeSessions.length > 0) {
+      setCarouselIndex(activeSessions.length - 1);
+    }
+  }, [activeSessions.length, carouselIndex]);
 
   useEffect(() => {
     if (!status) return;
@@ -268,25 +275,68 @@ export default function Timer() {
 
       {activeSessions.length > 0 && (
         <>
-          <ActiveSessionStageDrop
-            session={activeSessions[0]}
-            beatIndex={beatIndex}
-            onStop={stopSession}
-          />
-          {activeSessions.length > 1 && (
-            <section className="section" aria-label="Additional active sessions">
-              <div className="section__head">
-                <span className="eyebrow">ACTIVE_SESSIONS</span>
-                <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
-                  {(activeSessions.length - 1).toString().padStart(2, '0')}_MORE
-                </span>
-              </div>
-              <div className="section" style={{ gap: 'var(--space-3)' }}>
-                {activeSessions.slice(1).map((s) => (
-                  <ActiveTimer key={s.id} session={s} onStop={stopSession} />
-                ))}
-              </div>
-            </section>
+          {isMobile ? (
+            <div className="active-timer-carousel">
+              <ActiveSessionStageDrop
+                session={activeSessions[carouselIndex] || activeSessions[0]}
+                beatIndex={beatIndex}
+                onStop={stopSession}
+              />
+              {activeSessions.length > 1 && (
+                <div className="carousel-controls">
+                  <button
+                    type="button"
+                    className="carousel-btn"
+                    onClick={() => setCarouselIndex((i) => (i - 1 + activeSessions.length) % activeSessions.length)}
+                    aria-label="Previous active session"
+                  >
+                    ◀&nbsp;PREV
+                  </button>
+                  <div className="carousel-dots">
+                    {activeSessions.map((s, idx) => (
+                      <button
+                        type="button"
+                        key={s.id}
+                        className={`carousel-dot ${idx === carouselIndex ? 'carousel-dot--active' : ''}`}
+                        onClick={() => setCarouselIndex(idx)}
+                        aria-label={`Go to session ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="carousel-btn"
+                    onClick={() => setCarouselIndex((i) => (i + 1) % activeSessions.length)}
+                    aria-label="Next active session"
+                  >
+                    NEXT&nbsp;▶
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <ActiveSessionStageDrop
+                session={activeSessions[0]}
+                beatIndex={beatIndex}
+                onStop={stopSession}
+              />
+              {activeSessions.length > 1 && (
+                <section className="section" aria-label="Additional active sessions">
+                  <div className="section__head">
+                    <span className="eyebrow">ACTIVE_SESSIONS</span>
+                    <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
+                      {(activeSessions.length - 1).toString().padStart(2, '0')}_MORE
+                    </span>
+                  </div>
+                  <div className="section" style={{ gap: 'var(--space-3)' }}>
+                    {activeSessions.slice(1).map((s) => (
+                      <ActiveTimer key={s.id} session={s} onStop={stopSession} />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
           )}
         </>
       )}

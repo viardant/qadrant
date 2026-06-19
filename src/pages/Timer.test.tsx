@@ -5,6 +5,7 @@ import Timer from './Timer';
 import { ActiveTimer } from '../components/timer/ActiveTimer';
 import { NewComboSheet } from '../components/timer/NewComboSheet';
 import type { TimeEntry } from '../lib/time-entry';
+import { setBreakpoint } from '../test/helpers';
 
 vi.mock('../lib/pocketbase', () => {
   return {
@@ -242,6 +243,55 @@ describe('Timer page', () => {
       expect(screen.getByText(/SAME_PROTOCOLS_SKIP/i)).toBeInTheDocument();
     });
     expect(create).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  test('renders active sessions in a carousel on mobile when multiple timers are active', async () => {
+    setBreakpoint('mobile');
+    const start = new Date(Date.now() - 5_000).toISOString();
+    const entries = [
+      baseEntry({
+        id: 'active-1',
+        space: 'Dev',
+        specialization: 'frontend',
+        start_date: start,
+        completion_time: null,
+      }),
+      baseEntry({
+        id: 'active-2',
+        space: 'Design',
+        specialization: 'spec',
+        start_date: start,
+        completion_time: null,
+      }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: entries }),
+    }));
+
+    const { unmount } = renderTimer();
+    await screen.findByText('00:00:05');
+    const stageDrop = document.querySelector('.stage-drop') as HTMLElement;
+    expect(stageDrop).toBeInTheDocument();
+    expect(within(stageDrop).getByText('Dev')).toBeInTheDocument();
+    expect(within(stageDrop).queryByText('Design')).not.toBeInTheDocument();
+
+    const prevBtn = screen.getByRole('button', { name: /Previous active session/i });
+    const nextBtn = screen.getByRole('button', { name: /Next active session/i });
+    expect(prevBtn).toBeInTheDocument();
+    expect(nextBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(nextBtn);
+    });
+    expect(within(stageDrop).getByText('Design')).toBeInTheDocument();
+    expect(within(stageDrop).queryByText('Dev')).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(prevBtn);
+    });
+    expect(within(stageDrop).getByText('Dev')).toBeInTheDocument();
+
     unmount();
   });
 });
