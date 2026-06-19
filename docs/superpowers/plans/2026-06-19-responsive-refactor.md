@@ -29,30 +29,30 @@
 - `src/components/ui/Fab.tsx` — responsive sizing via hook
 - `src/components/ui/Heatmap.tsx` — cell size via hook
 - `src/components/ui/InsightCard.tsx` — `compact` prop
+- `src/components/ui/StageDrop.tsx` — responsive padding + number font via hook
 - `src/components/timer/ComboCard.tsx` — `compact` prop
 - `src/components/timer/QuickReplay.tsx` — pass `compact` to ComboCard
 - `src/components/timer/RecentActivity.tsx` — mobile layout via hook
 - `src/components/timer/ActiveTimer.tsx` — mobile restack via hook
 - `src/components/timer/ActiveSessionStageDrop.tsx` — mobile layout via hook
 - `src/components/timer/KeyboardShortcuts.tsx` — return null on non-desktop
-- `src/pages/Timer.tsx` — pass `compact` to TopBar
+- `src/pages/Timer.tsx` — pass `compact` to TopBar; apply `.fab--full` responsive style on raw button
 - `src/pages/Ledger.tsx` — mobile row layout via hook
 - `src/pages/Settings.tsx` — mobile layout via hook
+- `src/pages/Stats.tsx` — mobile layout via hook; pass `compact` to InsightCards
 
 ---
 
-## Task 1: Add matchMedia mock to test setup
+## Task 1: Verify matchMedia mock in test setup
 
 **Files:**
-- Modify: `src/test/setup.ts`
+- Verify: `src/test/setup.ts`
+
+**Note:** `matchMedia` mock already exists in `src/test/setup.ts` (lines 11-23). This task verifies it is correct and tests still pass with it.
 
 - [ ] **Step 1: Read current setup file**
 
-Read `src/test/setup.ts` to see existing content.
-
-- [ ] **Step 2: Add matchMedia mock**
-
-Add to `src/test/setup.ts`:
+Read `src/test/setup.ts` to confirm the mock exists and matches this pattern:
 
 ```ts
 import '@testing-library/jest-dom';
@@ -72,12 +72,14 @@ Object.defineProperty(window, 'matchMedia', {
 });
 ```
 
-- [ ] **Step 3: Verify tests still pass**
+(If missing or different, update to match the above.)
+
+- [ ] **Step 2: Verify tests still pass**
 
 Run: `npm run test -- --run`
 Expected: All 169 existing tests pass.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add src/test/setup.ts
@@ -1037,25 +1039,23 @@ git commit -m "refactor(ui): use JS-driven mobile sheet in Modal"
 **Files:**
 - Modify: `src/components/ui/Fab.tsx`
 
+**Note:** Fab.tsx is defined but not currently imported or used anywhere. The "NEW_COMBINATION" button on Timer.tsx is a raw `<button className="fab--full">`, not a `<Fab>` component. This task adds responsive logic to Fab for future use; the actual `fab--full` responsive style is handled in Task 19C (Timer.tsx raw button). If you prefer to use the Fab component instead, refactor Timer.tsx to use `<Fab>` and delete Task 19C.
+
 - [ ] **Step 1: Read current Fab**
 
 Read `src/components/ui/Fab.tsx`.
 
 - [ ] **Step 2: Add hook and responsive style**
 
-Add to imports:
+Add to props interface a `fullWidth?: boolean` prop. Inside the component:
 
 ```tsx
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-```
 
-Inside the component:
-
-```tsx
 const { isDesktop } = useBreakpoint();
 ```
 
-When `isDesktop` and className includes `fab--full`, apply `padding: '32px 16px'`, `fontSize: '16px'`.
+When `fullWidth` and `isDesktop`, apply `padding: '32px 16px'`, `fontSize: '16px'` via inline `style` prop. The Fab already hardcodes `className="fab btn-ripple"` — external classNames can't be passed through, so use the `fullWidth` prop instead.
 
 - [ ] **Step 3: Build to verify no errors**
 
@@ -1243,18 +1243,252 @@ git commit -m "refactor(settings): use JS-driven mobile layout"
 
 ---
 
+## Task 19A: Convert StageDrop to responsive hook
+
+**Files:**
+- Modify: `src/components/ui/StageDrop.tsx`
+
+- [ ] **Step 1: Read current StageDrop**
+
+Read `src/components/ui/StageDrop.tsx`.
+
+- [ ] **Step 2: Add hook and responsive styles**
+
+Replace contents of `src/components/ui/StageDrop.tsx`:
+
+```tsx
+import type { ReactNode } from 'react';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useResponsiveValue } from '../hooks/useResponsiveValue';
+
+interface Props {
+  eyebrow?: string;
+  children: ReactNode;
+  caption?: string;
+  size?: 'default' | 'wide';
+  as?: 'div' | 'section' | 'header';
+  className?: string;
+}
+
+export function StageDrop({ eyebrow, children, caption, size = 'default', as: Tag = 'div', className = '' }: Props) {
+  const { isMobile, isTablet } = useBreakpoint();
+  const paddingBlock = useResponsiveValue({ mobile: '24px', tablet: '48px', desktop: '96px' });
+  const paddingInline = useResponsiveValue({ mobile: '16px', tablet: '24px', desktop: '64px' });
+  const numberFontSize = useResponsiveValue({
+    mobile: 'clamp(48px, 14vw, 64px)',
+    tablet: 'clamp(40px, 6vw, 72px)',
+    desktop: 'clamp(40px, 6vw, 72px)',
+  });
+
+  const paddingClass = size === 'wide' ? 'stage-drop--wide' : '';
+  return (
+    <Tag
+      className={`stage-drop ${paddingClass} ${className}`.trim()}
+      style={{ paddingBlock, paddingInline }}
+    >
+      {eyebrow && (
+        <div className="stage-drop__eyebrow">
+          {eyebrow.startsWith('▸') || eyebrow.startsWith('>') ? (
+            <span>{eyebrow}</span>
+          ) : (
+            <span>▸&nbsp;&nbsp;{eyebrow}</span>
+          )}
+        </div>
+      )}
+      <div className="stage-drop__number" style={{ fontSize: numberFontSize }}>
+        {children}
+      </div>
+      {caption && <div className="stage-drop__caption">{caption}</div>}
+    </Tag>
+  );
+}
+```
+
+- [ ] **Step 3: Build to verify no errors**
+
+Run: `npm run build`
+Expected: Build succeeds.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/components/ui/StageDrop.tsx
+git commit -m "refactor(ui): use JS-driven responsive padding in StageDrop"
+```
+
+---
+
+## Task 19B: Convert Stats page to responsive layout
+
+**Files:**
+- Modify: `src/pages/Stats.tsx`
+
+- [ ] **Step 1: Read current Stats**
+
+Read `src/pages/Stats.tsx`.
+
+- [ ] **Step 2: Add hook and wire responsive props**
+
+Add import at top:
+
+```tsx
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useResponsiveValue } from '../hooks/useResponsiveValue';
+```
+
+Inside the `Stats` component, after existing state declarations:
+
+```tsx
+const { isMobile } = useBreakpoint();
+const chartHeight = useResponsiveValue({ mobile: '160px', tablet: '220px', desktop: '220px' });
+```
+
+Change the `<TopBar>` to pass `compact`:
+
+```tsx
+<TopBar section="STATS" timestamp={loading ? null : stats.last} compact={isMobile} />
+```
+
+Change each `<InsightCard>` to pass `compact`. Three instances, e.g.:
+
+```tsx
+<InsightCard
+  eyebrow="TODAY_PLAYTIME"
+  value={formatHours(stats.todayHours)}
+  caption={`// WEEK_TOTAL: ${formatHours(stats.weekHours)}`}
+  compact={isMobile}
+/>
+```
+
+Apply responsive chart height via inline style on the `.stats-chart` wrapper:
+
+Add `style` to the chart section's wrapping element (the one with className `stats-chart`):
+Before: `<div className="stats-chart">`
+After: `<div className="stats-chart" style={{ height: chartHeight }}>`
+
+- [ ] **Step 3: Build to verify no errors**
+
+Run: `npm run build`
+Expected: Build succeeds.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/pages/Stats.tsx
+git commit -m "refactor(stats): use JS-driven responsive layout and pass compact to InsightCards"
+```
+
+---
+
+## Task 19C: Fix Timer.tsx fab--full raw button to use responsive style
+
+**Files:**
+- Modify: `src/pages/Timer.tsx`
+
+- [ ] **Step 1: The current situation**
+
+The Timer page uses a raw `<button className="fab fab--full">+ NEW_COMBINATION</button>` (not the `<Fab>` component). The `Fab` component (`src/components/ui/Fab.tsx`) exists but is not imported or used anywhere. The `.fab--full` CSS at `min-width: 1024px` adds larger padding/font-size that will be removed in Task 20.
+
+- [ ] **Step 2: Apply inline responsive style on the raw button**
+
+Find the raw button on Timer.tsx (around line 312):
+```tsx
+<button
+  type="button"
+  className="fab fab--full"
+  onClick={() => setSheetOpen(true)}
+  aria-label="New combination"
+>
+  + NEW_COMBINATION
+</button>
+```
+
+Replace with:
+```tsx
+<button
+  type="button"
+  className="fab fab--full"
+  onClick={() => setSheetOpen(true)}
+  aria-label="New combination"
+  style={isDesktop ? { padding: '32px 16px', fontSize: '16px' } : undefined}
+>
+  + NEW_COMBINATION
+</button>
+```
+
+(`isDesktop` is already available from the `useBreakpoint()` call added in Task 7.)
+
+- [ ] **Step 3: Build to verify no errors**
+
+Run: `npm run build`
+Expected: Build succeeds.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/pages/Timer.tsx
+git commit -m "refactor(timer): inline responsive style on fab--full raw button"
+```
+
+---
+
 ## Task 20: Remove viewport-width media queries from CSS
 
 **Files:**
 - Modify: `src/index.css`
 
-- [ ] **Step 1: Identify all viewport-width media queries**
+- [ ] **Step 1: Convert `.section` padding-block to fluid `clamp()`**
 
-Search for `@media` blocks with `(max-width:` or `(min-width:` in `src/index.css`. Exclude `(hover: hover)` and `(prefers-reduced-motion: reduce)`.
+The `.section` base rule (line 1237-1243) and its `@media (max-width: 640px)` override (line 1244-1248) can be replaced with a single fluid value. This avoids per-component wiring for every `.section` across all pages.
 
-- [ ] **Step 2: Remove each viewport-width media query block**
+Change line 1241:
+```css
+/* Before */
+padding-block: var(--space-6);
 
-For each block found, delete the entire `@media (...) { ... }` including its opening and closing braces. Be careful to only remove viewport-width queries.
+/* After */
+padding-block: clamp(var(--space-4), 2.5vw, var(--space-6));
+```
+
+Delete the entire `@media (max-width: 640px)` block at lines 1244-1248:
+```css
+@media (max-width: 640px) {
+  .section {
+    padding-block: var(--space-4);
+  }
+}
+```
+
+- [ ] **Step 2: Remove remaining viewport-width media query blocks**
+
+Search for `@media` blocks with `(max-width:` or `(min-width:` in `src/index.css`. For each block found:
+
+1. Verify it is a viewport-width query (not `hover` or `prefers-reduced-motion`)
+2. Verify no JS-driven component (from Tasks 4-19C) has already been updated to handle the responsive behavior
+3. Delete the entire `@media (...) { ... }` including opening and closing braces
+
+Full list of blocks to remove (35 total):
+- Line 198-203: `max-width: 640px` — `.eyebrow` letter-spacing (minor cosmetic; safe to drop)
+- Line 250-254: `max-width: 768px` — `.container` padding-inline → handled by AppLayout (Task 4)
+- Line 469-473: `max-width: 768px` — `.stage-drop` padding → handled by StageDrop (Task 19A)
+- Line 981-1010: `max-width: 640px` — `.active-timer` layout → handled by ActiveTimer (Task 11)
+- Line 1175-1182: `max-width: 640px` — `.heatmap__grid` cell size → handled by Heatmap (Task 16)
+- Line 1244-1248: `max-width: 640px` — `.section` padding-block → already removed in Step 1
+- Line 1284-1288: `max-width: 768px` — `.page` padding-bottom → handled by AppLayout (Task 4)
+- Line 1790-1795: `max-width: 640px` — `.stats-chart` → handled by Stats (Task 19B)
+- Line 1803-1807: `max-width: 640px` — `.stage-drop__number` font-size → handled by StageDrop (Task 19A)
+- Line 1814-1971: `max-width: 640px` — compound block (top-bar, stage-drop, insight-card, ledger-*, settings-*, modal-*) → handled by Tasks 6, 14, 17, 18, 19, 19A
+- Line 1973-2027: `max-width: 768px` — compound block (combo-card, recent-row) → handled by Tasks 8, 10
+- Line 2029-2049: `max-width: 480px` — micro-breakpoint (container, stage-drop, insight-card, settings) → handled by Tasks 4, 17, 19, 19A
+- Line 2052-2064: `max-width: 360px` — icon-only tab bar → handled by TabBar (Task 5)
+- Line 2094-2106: `min-width: 1024px` — top-bar__suffix visibility → handled by TopBar (Task 6; spans removed from DOM)
+- Line 2142-2147: `min-width: 768px` — stage-drop__grid 2-column → handled by ActiveSessionStageDrop (Task 12)
+- Line 2174-2180: `min-width: 768px` — stage-drop__meta → handled by ActiveSessionStageDrop (Task 12)
+- Line 2249-2260: `max-width: 768px` — stage-drop--wide, stop button → handled by Task 12, 19A
+- Line 2273-2280: `min-width: 640px` — combo-grid → handled by QuickReplay (Task 9)
+- Line 2418-2423: `min-width: 1024px` — fab--full → handled by Timer raw button (Task 19C)
+- Line 2482-2503: `max-width: 640px` — recent-row → handled by RecentActivity (Task 10)
+- Line 2551-2554: `max-width: 1023px` — shortcuts → handled by KeyboardShortcuts (Task 13)
 
 - [ ] **Step 3: Build to verify no errors**
 

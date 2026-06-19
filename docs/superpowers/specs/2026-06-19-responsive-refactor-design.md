@@ -79,7 +79,7 @@ function useResponsiveValue<T>(values: { mobile?: T; tablet?: T; desktop: T }): 
 
 **Pattern B: Hook in component (for page-specific or single-use components)**
 - Component calls `useBreakpoint()` directly
-- Used for: `RecentActivity`, `ActiveTimer`, `ActiveSessionStageDrop`, `KeyboardShortcuts`, `Modal`, `Fab`, `Heatmap`, `TabBar`, `AppLayout`
+- Used for: `RecentActivity`, `ActiveTimer`, `ActiveSessionStageDrop`, `KeyboardShortcuts`, `Modal`, `Fab`, `Heatmap`, `TabBar`, `AppLayout`, `StageDrop`, `Stats`
 
 **Style application:**
 - Presentational values (padding, font-size, gap): inline `style` prop with values from `useResponsiveValue`
@@ -102,9 +102,10 @@ function useResponsiveValue<T>(values: { mobile?: T; tablet?: T; desktop: T }): 
 **UI chrome:**
 - `src/components/ui/TopBar.tsx` — accept `compact: boolean`; when true, skip `.top-bar__timestamp` and suffix spans; wordmark is just `QADRANT // {section}`. Apply row layout (column vs row) via inline style.
 - `src/components/ui/Modal.tsx` — when `isMobile`, top-aligned full-width sheet with stacked full-width actions
-- `src/components/ui/Fab.tsx` — apply responsive padding/font-size
-- `src/components/ui/Heatmap.tsx` — when `isMobile`, 12px cells; when desktop, 14px cells
+- `src/components/ui/Fab.tsx` — apply responsive padding/font-size (note: Fab component is currently unused; Timer page uses a raw `<button className="fab--full">` directly; fix by either using Fab on Timer or inlining responsive style on the raw button)
+- `src/components/ui/Heatmap.tsx` — when `isMobile`, 12px cells; when desktop, 14px cells (fixes existing bug where inline `style` overrides CSS media query)
 - `src/components/ui/InsightCard.tsx` — accept `compact: boolean`; apply responsive padding/font-size
+- `src/components/ui/StageDrop.tsx` — call `useBreakpoint()`; apply responsive padding per breakpoint; number font-size via `useResponsiveValue`
 
 **Timer components:**
 - `src/components/timer/ComboCard.tsx` — accept `compact: boolean`; when true, skip `.combo-card__caret` and `.combo-card__category`
@@ -118,12 +119,13 @@ function useResponsiveValue<T>(values: { mobile?: T; tablet?: T; desktop: T }): 
 - `src/pages/Timer.tsx` — pass `compact={isMobile}` to `TopBar`
 - `src/pages/Ledger.tsx` — call `useBreakpoint()`; when `isMobile`, stacked flex column with full-width action buttons and 44px touch targets
 - `src/pages/Settings.tsx` — call `useBreakpoint()`; when `isMobile`, single-column color grid, stacked token rows, full-width buttons
+- `src/pages/Stats.tsx` — call `useBreakpoint()`; pass `compact={isMobile}` to `TopBar` and each `InsightCard`; apply responsive chart height via `useResponsiveValue`
 
 **CSS:**
-- `src/index.css` — remove ALL viewport-width `@media` blocks. Keep `(hover: hover)` and `(prefers-reduced-motion: reduce)`. Keep `clamp()` and `env()` usage.
+- `src/index.css` — remove ALL viewport-width `@media` blocks. Keep `(hover: hover)` and `(prefers-reduced-motion: reduce)`. Keep `clamp()` and `env()` usage. Replace `.section` padding-block media query with a `clamp()`-based fluid value. Remove `.top-bar__suffix--desktop` / `.top-bar__suffix--mobile` visibility rules (those spans are removed from DOM).
 
 **Tests:**
-- `src/test/setup.ts` — add `window.matchMedia` mock
+- `src/test/setup.ts` — verify existing `window.matchMedia` mock (already present, lines 11-23)
 - `src/test/helpers.ts` (new) — `setBreakpoint('mobile' | 'tablet' | 'desktop')` test helper
 
 ## Responsive value table
@@ -132,11 +134,15 @@ function useResponsiveValue<T>(values: { mobile?: T; tablet?: T; desktop: T }): 
 |---|---|---|---|
 | Container padding-inline | 4px | 8px | 64px |
 | Page padding-bottom | 72 + 32 + safe-area | 72 + 32 + safe-area | 72 + 64 + safe-area |
-| Section padding-block | 16px | 24px | 24px |
+| Section padding-block | clamp(16px, 2.5vw, 24px) (CSS) | same | same |
 | TopBar row direction | column | row | row |
 | TabBar labels | hidden | shown | shown |
 | InsightCard padding | 16px | 20px | 32px |
-| Stage drop padding | 24/16 | 48/20 | 96/64 |
+| InsightCard stat font-size | clamp(20px, 2.5vw, 22px) | base | base |
+| StageDrop padding | 24px 16px | 48px 24px | 96px 64px |
+| StageDrop number font-size | clamp(48px, 14vw, 64px) | clamp(40px, 6vw, 72px) | clamp(40px, 6vw, 72px) |
+| Stats chart height | 160px | 220px | 220px |
+| Session stage-drop grid | 1-col | 2-col (1.5fr 1fr) | 2-col (1.5fr 1fr) |
 | FAB padding/font | base | base | 32/16px/16px |
 | Heatmap cell size | 12px | 14px | 14px |
 | ActiveTimer layout | column, 40-56px digit | row | row |
