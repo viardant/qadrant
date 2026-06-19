@@ -239,6 +239,8 @@ a {
   max-width: 1440px;
   margin: 0 auto;
   padding-inline: var(--space-16);
+  width: 100%;
+  min-width: 0;
 }
 
 
@@ -1074,6 +1076,171 @@ select.input {
 }
 
 /* ============================================================
+   Combo grid & Combo card (Timer view)
+   ============================================================ */
+
+.combo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  border-top: 1px solid var(--border-muted);
+  padding-top: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .combo-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
+
+.combo-grid__cell {
+  display: flex;
+}
+
+.combo-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  background: var(--surface-lowest);
+  color: var(--fg);
+  text-align: left;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  transition: background-color 180ms var(--ease-out-soft), border-color 180ms var(--ease-out-soft), transform 120ms var(--ease-out-soft);
+  position: relative;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .combo-card:hover {
+    background: var(--surface-high);
+    border-color: var(--border);
+  }
+}
+
+.combo-card:active {
+  transform: translateY(1px);
+}
+
+.combo-card__caret {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  width: 16px;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.combo-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.combo-card__category {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  line-height: 1;
+}
+
+.combo-card__name {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.combo-card__specialization {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.combo-card__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.combo-card__meta-square {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+}
+
+/* ============================================================
+   Recent activity list (Timer view)
+   ============================================================ */
+
+.recent-list {
+  border-top: 1px solid var(--border-muted);
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border-muted);
+  align-items: center;
+  transition: background-color 120ms var(--ease-out-soft);
+}
+
+.recent-row__time {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.recent-row__label {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-row__duration {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.recent-row__caret {
+  font-family: var(--font-mono);
+  color: var(--fg-subtle);
+}
+
+/* ============================================================
    Heatmap cell (DESIGN.md §6.11)
    ============================================================ */
 
@@ -1187,6 +1354,7 @@ select.input {
   flex-direction: column;
   gap: var(--space-4);
   padding-block: clamp(var(--space-4), 2.5vw, var(--space-6));
+  min-width: 0;
 }
 
 .section__head {
@@ -1213,6 +1381,9 @@ select.input {
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .page {
@@ -1221,6 +1392,8 @@ select.input {
   gap: var(--space-6);
   padding-bottom: calc(var(--tab-bar-height) + var(--space-16) + env(safe-area-inset-bottom, 0px));
   flex: 1;
+  min-width: 0;
+  width: 100%;
 }
 
 

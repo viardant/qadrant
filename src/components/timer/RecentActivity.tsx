@@ -35,6 +35,7 @@ function formatDurationUpper(ms: number): string {
 }
 
 const COMPACT_ROW_STYLE: CSSProperties = {
+  display: 'grid',
   gridTemplateColumns: '64px minmax(0, 1fr) auto',
   columnGap: '8px',
 };

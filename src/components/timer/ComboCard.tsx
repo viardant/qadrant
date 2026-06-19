@@ -18,6 +18,7 @@ function comboLabel(space: string, specialization: string): string {
 }
 
 const COMPACT_STYLE: CSSProperties = {
+  display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
   padding: '12px 16px',
   gap: '8px',
