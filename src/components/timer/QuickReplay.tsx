@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom';
 import { EmptyState } from '../ui/EmptyState';
-import { Fab } from '../ui/Fab';
+import { ComboCard } from './ComboCard';
 import type { Combo } from '../../lib/combos';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 interface Props {
   combos: Combo[];
@@ -14,6 +16,7 @@ function pad(n: number): string {
 }
 
 export function QuickReplay({ combos, total, onStart, onCreate }: Props) {
+  const { isMobile } = useBreakpoint();
   return (
     <section className="section" aria-label="Quick replay">
       <div className="section__head">
@@ -30,34 +33,19 @@ export function QuickReplay({ combos, total, onStart, onCreate }: Props) {
           onAction={onCreate}
         />
       ) : (
-        <div className="combo-list" role="list">
+        <div className="combo-grid" role="list">
           {combos.map((c) => (
-            <button
-              type="button"
-              key={c.id}
-              className="combo-list__row"
-              onClick={() => onStart(c)}
-              role="listitem"
-              aria-label={`Start ${c.name}`}
-            >
-              <span className="combo-list__caret" aria-hidden>▸</span>
-              <div className="combo-list__main">
-                <span className="combo-list__name">{c.space}</span>
-                {c.specialization && (
-                  <span className="combo-list__specialization">{c.specialization}</span>
-                )}
-              </div>
-              <span className="combo-list__meta">
-                <span className="combo-list__meta-square" aria-hidden />
-                {pad(c.useCount)}&nbsp;USES
-              </span>
-            </button>
+            <div key={c.id} role="listitem" className="combo-grid__cell">
+              <ComboCard combo={c} onStart={onStart} compact={isMobile} />
+            </div>
           ))}
         </div>
       )}
-      <Fab onClick={onCreate} ariaLabel="New combination">
-        +&nbsp;&nbsp;NEW_COMBINATION
-      </Fab>
+      <div className="view-all-row">
+        <Link to="/ledger" className="tunable">
+          &gt;&gt;&gt;&nbsp;VIEW_ALL_COMBINATIONS
+        </Link>
+      </div>
     </section>
   );
 }
