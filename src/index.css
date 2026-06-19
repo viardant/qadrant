@@ -195,12 +195,6 @@ a {
   line-height: 1.35;
 }
 
-@media (max-width: 640px) {
-  .eyebrow,
-  .eyebrow-soft {
-    letter-spacing: 0.08em;
-  }
-}
 
 /* Dashed underline — "tunable value" affordance */
 .tunable {
@@ -247,11 +241,6 @@ a {
   padding-inline: var(--space-16);
 }
 
-@media (max-width: 768px) {
-  .container {
-    padding-inline: var(--space-6);
-  }
-}
 
 /* ============================================================
    Cursor blink (DESIGN.md §3 type-as-motion)
@@ -466,11 +455,6 @@ select.input {
   max-width: 100%;
 }
 
-@media (max-width: 768px) {
-  .stage-drop {
-    padding: var(--space-12) var(--space-6);
-  }
-}
 
 /* ============================================================
    Insight card (DESIGN.md §6.3)
@@ -978,33 +962,6 @@ select.input {
 
 /* Mobile-only stage-drop re-stack of the active timer band.
    Desktop ≥ 640px is unchanged. */
-@media (max-width: 640px) {
-  .active-timer {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    padding: var(--space-8) var(--space-5);
-    gap: var(--space-4);
-  }
-  .active-timer__label {
-    justify-content: center;
-  }
-  .active-timer__digits {
-    font-size: clamp(40px, 12vw, 56px);
-    min-width: 0;
-    align-self: center;
-  }
-  .active-timer__title {
-    flex-basis: auto;
-    order: 0;
-    text-align: center;
-  }
-  .active-timer__stop {
-    width: 100%;
-    padding: var(--space-4);
-    font-size: 13px;
-  }
-}
 
 /* ============================================================
    Combo list row (QUICK_REPLAY)
@@ -1172,15 +1129,6 @@ select.input {
   gap: 2px;
 }
 
-@media (max-width: 640px) {
-  .heatmap__grid {
-    grid-template-rows: repeat(7, 12px);
-  }
-  .heatmap__cell {
-    width: 12px;
-    height: 12px;
-  }
-}
 
 /* ============================================================
    Modal (terminal modal, §6 design vocabulary)
@@ -1238,13 +1186,7 @@ select.input {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding-block: var(--space-6);
-}
-
-@media (max-width: 640px) {
-  .section {
-    padding-block: var(--space-4);
-  }
+  padding-block: clamp(var(--space-4), 2.5vw, var(--space-6));
 }
 
 .section__head {
@@ -1281,11 +1223,6 @@ select.input {
   flex: 1;
 }
 
-@media (max-width: 768px) {
-  .page {
-    padding-bottom: calc(var(--tab-bar-height) + var(--space-8) + env(safe-area-inset-bottom, 0px));
-  }
-}
 
 .sr-only {
   position: absolute;
@@ -1787,12 +1724,6 @@ select.input {
   min-width: 0;
 }
 
-@media (max-width: 640px) {
-  .stats-chart {
-    height: 160px;
-    padding: var(--space-3);
-  }
-}
 
 /* ============================================================
    Stage drop — mobile-only number bump. The default clamp
@@ -1800,8 +1731,3 @@ select.input {
    The page's hero number deserves more presence.
    ============================================================ */
 
-@media (max-width: 640px) {
-  .stage-drop__number {
-    font-size: clamp(48px, 14vw, 64px);
-  }
-}

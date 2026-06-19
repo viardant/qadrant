@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useBreakpoint, setBreakpoint } from './useBreakpoint';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { useBreakpoint } from './useBreakpoint';
+import { setBreakpoint } from '../test/helpers';
 
 describe('useBreakpoint', () => {
   beforeEach(() => {
