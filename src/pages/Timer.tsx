@@ -444,12 +444,8 @@ export default function Timer() {
           total={totalDistinct}
           onStart={startCombo}
           onCreate={() => setSheetOpen(true)}
+          lastAgo={last}
         />
-        <div className="last-row">
-          <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
-            LAST:&nbsp;{loading ? 'SYNCHRONIZING…' : last}
-          </span>
-        </div>
         <button
           type="button"
           className="fab fab--full"

@@ -9,18 +9,19 @@ interface Props {
   total: number;
   onStart: (combo: Combo) => void;
   onCreate: () => void;
+  lastAgo?: string;
 }
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
-export function QuickReplay({ combos, total, onStart, onCreate }: Props) {
+export function QuickReplay({ combos, total, onStart, onCreate, lastAgo }: Props) {
   const { isMobile } = useBreakpoint();
   return (
     <section className="section" aria-label="Quick replay">
       <div className="section__head">
-        <span className="eyebrow">QUICK_REPLAY&nbsp;//&nbsp;MOST_USED</span>
+        <span className="eyebrow">QUICK_REPLAY&nbsp;//&nbsp;{lastAgo && lastAgo !== 'NO_RECENT_ACTIVITY' ? lastAgo : 'MOST_USED'}</span>
         <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
           {pad(combos.length)}_OF_{pad(total)}
         </span>
