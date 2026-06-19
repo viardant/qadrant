@@ -9,9 +9,14 @@ export interface BreakpointInfo {
   isDesktop: boolean;
 }
 
-const MOBILE_QUERY = '(max-width: 640px)';
-const TABLET_QUERY = '(min-width: 641px) and (max-width: 1023px)';
-const DESKTOP_QUERY = '(min-width: 1024px)';
+export const MOBILE_MAX_WIDTH = 640;
+export const TABLET_MIN_WIDTH = 641;
+export const TABLET_MAX_WIDTH = 1023;
+export const DESKTOP_MIN_WIDTH = 1024;
+
+const MOBILE_QUERY = `(max-width: ${MOBILE_MAX_WIDTH}px)`;
+const TABLET_QUERY = `(min-width: ${TABLET_MIN_WIDTH}px) and (max-width: ${TABLET_MAX_WIDTH}px)`;
+const DESKTOP_QUERY = `(min-width: ${DESKTOP_MIN_WIDTH}px)`;
 
 const DESKTOP_DEFAULT: BreakpointInfo = {
   breakpoint: 'desktop',
@@ -20,16 +25,18 @@ const DESKTOP_DEFAULT: BreakpointInfo = {
   isDesktop: true,
 };
 
+function createInfo(bp: Breakpoint): BreakpointInfo {
+  if (bp === 'mobile') return { breakpoint: 'mobile', isMobile: true, isTablet: false, isDesktop: false };
+  if (bp === 'tablet') return { breakpoint: 'tablet', isMobile: false, isTablet: true, isDesktop: false };
+  return DESKTOP_DEFAULT;
+}
+
 function detectBreakpoint(): BreakpointInfo {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return DESKTOP_DEFAULT;
   }
-  if (window.matchMedia(MOBILE_QUERY).matches) {
-    return { breakpoint: 'mobile', isMobile: true, isTablet: false, isDesktop: false };
-  }
-  if (window.matchMedia(TABLET_QUERY).matches) {
-    return { breakpoint: 'tablet', isMobile: false, isTablet: true, isDesktop: false };
-  }
+  if (window.matchMedia(MOBILE_QUERY).matches) return createInfo('mobile');
+  if (window.matchMedia(TABLET_QUERY).matches) return createInfo('tablet');
   return DESKTOP_DEFAULT;
 }
 
@@ -50,12 +57,8 @@ if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
 }
 
 export function setBreakpoint(bp: Breakpoint): void {
-  const info: BreakpointInfo =
-    bp === 'mobile'
-      ? { breakpoint: 'mobile', isMobile: true, isTablet: false, isDesktop: false }
-      : bp === 'tablet'
-        ? { breakpoint: 'tablet', isMobile: false, isTablet: true, isDesktop: false }
-        : DESKTOP_DEFAULT;
+  if (process.env.NODE_ENV !== 'test') return;
+  const info = createInfo(bp);
   currentBreakpoint = info;
   listeners.forEach((fn) => fn(info));
 }
