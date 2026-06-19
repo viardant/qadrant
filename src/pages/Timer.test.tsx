@@ -115,11 +115,12 @@ describe('Timer page', () => {
       getList: vi.fn().mockResolvedValue({ items: entries }),
     }));
     renderTimer();
-    await screen.findByText('Dev / frontend');
+    const quickReplay = screen.getByLabelText('Quick replay');
+    await within(quickReplay).findByText('Dev / frontend');
     const input = screen.getByLabelText('Search existing combos');
     fireEvent.change(input, { target: { value: 'meeting' } });
-    expect(screen.queryByText('Dev / frontend')).not.toBeInTheDocument();
-    expect(screen.getByText('Work / meeting')).toBeInTheDocument();
+    expect(within(quickReplay).queryByText('Dev / frontend')).not.toBeInTheDocument();
+    expect(within(quickReplay).getByText('Work / meeting')).toBeInTheDocument();
   });
 
   test('Cmd+K (and Ctrl+K) focuses the search input', async () => {
@@ -197,7 +198,8 @@ describe('Timer page', () => {
     }));
     const { unmount } = renderTimer();
     await screen.findByText('00:00:05');
-    const card = await screen.findByText('Work / meeting');
+    const quickReplay = screen.getByLabelText('Quick replay');
+    const card = await within(quickReplay).findByText('Work / meeting');
     const cardButton = card.closest('button');
     expect(cardButton).not.toBeNull();
     await act(async () => {
@@ -229,7 +231,8 @@ describe('Timer page', () => {
     }));
     const { unmount } = renderTimer();
     await screen.findByText('00:00:05');
-    const card = await screen.findByText('Dev / frontend');
+    const quickReplay = screen.getByLabelText('Quick replay');
+    const card = await within(quickReplay).findByText('Dev / frontend');
     const cardButton = card.closest('button');
     expect(cardButton).not.toBeNull();
     await act(async () => {
