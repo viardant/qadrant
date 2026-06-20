@@ -21,7 +21,7 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Types */
-    "types": ["vitest/globals", "vite/client"]
+    "types": ["vitest/globals", "vite/client", "vite-plugin-pwa/client"]
   },
   "include": ["src"]
 }
