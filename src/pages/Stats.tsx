@@ -20,6 +20,7 @@ import {
   getRecordLog,
   getMilestones,
   getDailyTotals,
+  hoursToIntensity,
   StatsScope,
 } from '../lib/transform';
 import { TopBar } from '../components/ui/TopBar';
@@ -28,6 +29,7 @@ import { useResponsiveValue } from '../hooks/useResponsiveValue';
 import { StageDrop } from '../components/ui/StageDrop';
 import { InsightCard } from '../components/ui/InsightCard';
 import { BeatIndicator } from '../components/ui/BeatIndicator';
+import { Heatmap } from '../components/ui/Heatmap';
 import {
   ResponsiveContainer,
   BarChart,
@@ -167,6 +169,15 @@ export default function Stats() {
     const records = getRecordLog(entries, now);
     const milestoneBadges = getMilestones(entries);
 
+    // 365-day session consistency
+    const daily365 = getDailyTotals(currentFiltered, 365, now);
+    const yearHeatmapCells = daily365.map((d) => ({
+      key: d.dateStr,
+      intensity: hoursToIntensity(d.hours),
+      date: d.date,
+      hours: d.hours,
+    }));
+
     return {
       last,
       mastery,
@@ -190,6 +201,7 @@ export default function Stats() {
       rollingAvg,
       records,
       milestoneBadges,
+      yearHeatmapCells,
     };
   }, [entries, scope, spaceFilter]);
 
@@ -286,6 +298,16 @@ export default function Stats() {
           >
             {stats.mastery.toFixed(1)}%
           </StageDrop>
+
+          <section className="section" aria-label="Session consistency heatmap">
+            <div className="section__head">
+              <span className="eyebrow">SESSION_CONSISTENCY</span>
+              <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
+                365_DAYS
+              </span>
+            </div>
+            <Heatmap cells={stats.yearHeatmapCells} />
+          </section>
 
           <section className="section" aria-label="Insight cards">
             <div
