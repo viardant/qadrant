@@ -595,3 +595,43 @@ export function getSpecializationDistribution(entries: TimeEntry[], space: strin
     .sort((a, b) => b.value - a.value);
 }
 
+export function getWeekOverWeekBars(entries: TimeEntry[], relativeTo: Date = new Date()): Array<{ weekStr: string; hours: number }> {
+  const completed = entries.filter((e) => e.completion_time);
+  const result: Array<{ weekStr: string; hours: number }> = [];
+
+  // Generate 8 weeks ending with current week
+  for (let i = 7; i >= 0; i--) {
+    const targetDate = new Date(relativeTo);
+    targetDate.setDate(relativeTo.getDate() - i * 7);
+    const mondayStr = getLocalWeekMondayString(targetDate);
+    
+    // Sum hours in this week boundary
+    const nextMonday = new Date(mondayStr);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    const monTime = new Date(mondayStr).getTime();
+    const nextMonTime = nextMonday.getTime();
+
+    let hours = 0;
+    for (const e of completed) {
+      const entryTime = new Date(e.start_date).getTime();
+      if (entryTime >= monTime && entryTime < nextMonTime) {
+        hours += getEntryDurationHours(e);
+      }
+    }
+
+    result.push({
+      weekStr: mondayStr.slice(5), // MM-DD
+      hours: Number(hours.toFixed(2)),
+    });
+  }
+
+  return result;
+}
+
+export function getRolling30DAverage(trendPoints: DailyTrendPoint[]): number {
+  if (trendPoints.length === 0) return 0;
+  const sum = trendPoints.reduce((s, p) => s + p.hours, 0);
+  return Number((sum / trendPoints.length).toFixed(2));
+}
+
+

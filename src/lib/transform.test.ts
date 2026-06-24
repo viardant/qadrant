@@ -20,7 +20,10 @@ import {
   getRankedLeaderboard,
   getSpaceLeaderboard,
   getSpecializationDistribution,
+  getWeekOverWeekBars,
+  getRolling30DAverage,
 } from './transform';
+
 
 
 const mockEntries: TimeEntry[] = [
@@ -310,4 +313,29 @@ describe('Leaderboards and specialization distributions', () => {
     expect(specs).toContainEqual({ name: 'clients', value: 1 });
   });
 });
+
+describe('Rolling and Week-over-week trends', () => {
+  it('calculates week over week trends for last 8 weeks', () => {
+    const ref = new Date('2026-06-24T12:00:00.000Z');
+    const mockData: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T10:00:00.000Z', user: 'u' }, // This Week
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T12:00:00.000Z', user: 'u' }, // Last Week
+    ];
+    const wow = getWeekOverWeekBars(mockData, ref);
+    expect(wow).toHaveLength(8);
+    expect(wow[7].hours).toBe(1); // Current week
+    expect(wow[6].hours).toBe(3); // Prior week
+  });
+
+  it('calculates rolling 30 day average correctly', () => {
+    const trendPoints = [
+      { date: '2026-06-24', hours: 2.5 },
+      { date: '2026-06-23', hours: 1.5 },
+      { date: '2026-06-22', hours: 0 },
+    ];
+    expect(getRolling30DAverage(trendPoints)).toBe(1.33);
+    expect(getRolling30DAverage([])).toBe(0);
+  });
+});
+
 
