@@ -22,6 +22,9 @@ import {
   getSpecializationDistribution,
   getWeekOverWeekBars,
   getRolling30DAverage,
+  getLongestStreak,
+  getRecordLog,
+  getMilestones,
 } from './transform';
 
 
@@ -335,6 +338,31 @@ describe('Rolling and Week-over-week trends', () => {
     ];
     expect(getRolling30DAverage(trendPoints)).toBe(1.33);
     expect(getRolling30DAverage([])).toBe(0);
+  });
+});
+
+describe('Records and Milestones metrics', () => {
+  it('calculates streaks and records properly', () => {
+    const ref = new Date('2026-06-25T12:00:00.000Z');
+    const mockData: TimeEntry[] = [
+      { id: '1', space: 'Work', specialization: '', start_date: '2026-06-20T09:00:00.000Z', completion_time: '2026-06-20T10:00:00.000Z', user: 'u' }, // 1h
+      { id: '2', space: 'Work', specialization: '', start_date: '2026-06-21T09:00:00.000Z', completion_time: '2026-06-21T13:00:00.000Z', user: 'u' }, // 4h
+      { id: '3', space: 'Work', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T10:00:00.000Z', user: 'u' }, // 1h
+    ];
+    const log = getRecordLog(mockData, ref);
+    expect(log.bestDay.hours).toBe(4);
+    expect(log.bestDay.date).toBe('2026-06-21');
+    expect(log.longestStreak.days).toBe(3);
+    expect(log.topSpace.name).toBe('Work');
+  });
+
+  it('triggers milestone badges', () => {
+    const mockData: TimeEntry[] = [
+      { id: '1', space: 'Piano Practice', specialization: '', start_date: '2026-06-20T09:00:00.000Z', completion_time: '2026-06-20T21:00:00.000Z', user: 'u' }, // 12h
+    ];
+    const ms = getMilestones(mockData);
+    expect(ms).toContain('FIRST_SESSION');
+    expect(ms).toContain('10H_IN_PIANO_PRACTICE');
   });
 });
 

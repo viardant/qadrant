@@ -634,4 +634,122 @@ export function getRolling30DAverage(trendPoints: DailyTrendPoint[]): number {
   return Number((sum / trendPoints.length).toFixed(2));
 }
 
+export function getLongestStreak(entries: TimeEntry[]): number {
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return 0;
+
+  const daysSet = new Set<string>();
+  for (const e of completed) {
+    const d = new Date(e.start_date);
+    if (!isNaN(d.getTime())) {
+      daysSet.add(getLocalDateString(d));
+    }
+  }
+
+  const sortedDays = Array.from(daysSet).sort();
+  let maxStreak = 0;
+  let currentStreak = 0;
+  let prevDate: Date | null = null;
+
+  for (const dayStr of sortedDays) {
+    const currentDate = new Date(dayStr);
+    if (!prevDate) {
+      currentStreak = 1;
+    } else {
+      const diffTime = currentDate.getTime() - prevDate.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        currentStreak += 1;
+      } else {
+        if (currentStreak > maxStreak) {
+          maxStreak = currentStreak;
+        }
+        currentStreak = 1;
+      }
+    }
+    prevDate = currentDate;
+  }
+
+  return Math.max(maxStreak, currentStreak);
+}
+
+export interface RecordLog {
+  bestDay: { date: string; hours: number; daysAgo: number };
+  longestStreak: { days: number };
+  topSpace: { name: string; hours: number };
+}
+
+export function getRecordLog(entries: TimeEntry[], relativeTo: Date = new Date()): RecordLog {
+  const completed = entries.filter((e) => e.completion_time);
+  
+  // Best day calculation
+  const byDay: Record<string, number> = {};
+  for (const e of completed) {
+    const d = new Date(e.start_date);
+    if (isNaN(d.getTime())) continue;
+    const key = getLocalDateString(d);
+    byDay[key] = (byDay[key] || 0) + getEntryDurationHours(e);
+  }
+
+  let bestDate = 'NONE';
+  let bestHours = 0;
+  for (const [dateStr, val] of Object.entries(byDay)) {
+    if (val > bestHours) {
+      bestHours = val;
+      bestDate = dateStr;
+    }
+  }
+
+  let daysAgo = -1;
+  if (bestDate !== 'NONE') {
+    const diff = relativeTo.getTime() - new Date(bestDate).getTime();
+    daysAgo = Math.floor(diff / (24 * 60 * 60 * 1000));
+  }
+
+  // Top space calculation
+  const spaces = transformToSpaceDistribution(entries);
+  let topSpaceName = 'NONE';
+  let topSpaceHours = 0;
+  for (const s of spaces) {
+    if (s.value > topSpaceHours) {
+      topSpaceHours = s.value;
+      topSpaceName = s.name;
+    }
+  }
+
+  const streak = getLongestStreak(entries);
+
+  return {
+    bestDay: { date: bestDate, hours: Number(bestHours.toFixed(2)), daysAgo },
+    longestStreak: { days: streak },
+    topSpace: { name: topSpaceName, hours: Number(topSpaceHours.toFixed(2)) },
+  };
+}
+
+export function getMilestones(entries: TimeEntry[]): string[] {
+  const milestones: string[] = [];
+  const completed = entries.filter((e) => e.completion_time);
+  const totalSessions = completed.length;
+
+  if (totalSessions >= 1) milestones.push('FIRST_SESSION');
+  if (totalSessions >= 50) milestones.push('50_SESSIONS');
+  if (totalSessions >= 100) milestones.push('100_SESSIONS');
+
+  const spaces = transformToSpaceDistribution(entries);
+  for (const s of spaces) {
+    if (s.value >= 10) {
+      milestones.push(`10H_IN_${s.name.toUpperCase().replace(/\s+/g, '_')}`);
+    }
+    if (s.value >= 100) {
+      milestones.push(`100H_IN_${s.name.toUpperCase().replace(/\s+/g, '_')}`);
+    }
+  }
+
+  const longestStreak = getLongestStreak(entries);
+  if (longestStreak >= 7) milestones.push('7D_STREAK');
+  if (longestStreak >= 30) milestones.push('30D_STREAK');
+
+  return milestones;
+}
+
 
