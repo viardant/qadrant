@@ -9,7 +9,8 @@ import {
   getStreakDays,
   getSessionCount,
   getLastRelative,
-  getMasteryIndex,
+  getVelocityStats,
+  getModalStream,
   getBestDayHours,
   getDailyTotals,
   filterEntriesByScope,
@@ -200,16 +201,6 @@ describe('qadrant analytics transformations', () => {
     expect(getLastRelative([], new Date('2026-06-18T12:00:00.000Z'))).toBe('NO_RECENT_ACTIVITY');
   });
 
-  it('computes mastery index as completion rate', () => {
-    const entries: TimeEntry[] = [
-      { id: '1', space: 'W', specialization: '', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T09:30:00.000Z', user: 'u' },
-      { id: '2', space: 'W', specialization: '', start_date: '2026-06-18T10:00:00.000Z', completion_time: '2026-06-18T10:30:00.000Z', user: 'u' },
-      { id: '3', space: 'W', specialization: '', start_date: '2026-06-18T11:00:00.000Z', completion_time: null, user: 'u' },
-    ];
-    expect(getMasteryIndex(entries)).toBe(66.7);
-    expect(getMasteryIndex([])).toBe(0);
-  });
-
   it('computes best day hours', () => {
     const entries: TimeEntry[] = [
       { id: '1', space: 'W', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T11:00:00.000Z', user: 'u' },
@@ -376,6 +367,123 @@ describe('hoursToIntensity', () => {
     expect(hoursToIntensity(2.5)).toBe(2);
     expect(hoursToIntensity(3)).toBe(3);
     expect(hoursToIntensity(5)).toBe(3);
+  });
+});
+
+describe('getVelocityStats', () => {
+  const refDate = new Date('2026-06-24T12:00:00.000Z'); // Wednesday
+
+  it('returns hasPrior=false for ALL_TIME', () => {
+    const result = getVelocityStats([], 'ALL_TIME', 'ALL', refDate);
+    expect(result.hasPrior).toBe(false);
+    expect(result.priorHours).toBe(0);
+    expect(result.currentHours).toBe(0);
+  });
+
+  it('returns 0/0 when no activity in either period', () => {
+    const result = getVelocityStats([], 'THIS_WEEK', 'ALL', refDate);
+    expect(result.hasPrior).toBe(true);
+    expect(result.deltaPct).toBe(0);
+    expect(result.deltaHours).toBe(0);
+  });
+
+  it('returns deltaPct null (NEW) when prior=0 and current>0', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T10:00:00.000Z', user: 'u' },
+    ];
+    const result = getVelocityStats(entries, 'THIS_WEEK', 'ALL', refDate);
+    expect(result.hasPrior).toBe(true);
+    expect(result.priorHours).toBe(0);
+    expect(result.currentHours).toBe(1);
+    expect(result.deltaPct).toBeNull();
+    expect(result.deltaHours).toBe(1);
+  });
+
+  it('computes positive delta correctly', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T10:00:00.000Z', user: 'u' }, // current 1h
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-23T10:00:00.000Z', completion_time: '2026-06-23T14:00:00.000Z', user: 'u' }, // current 4h
+      { id: '3', space: 'W', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T13:00:00.000Z', user: 'u' }, // prior 4h
+    ];
+    const result = getVelocityStats(entries, 'THIS_WEEK', 'ALL', refDate);
+    expect(result.currentHours).toBe(5);
+    expect(result.priorHours).toBe(4);
+    expect(result.deltaHours).toBe(1);
+    expect(result.deltaPct).toBe(25);
+  });
+
+  it('computes negative delta correctly', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T13:00:00.000Z', user: 'u' }, // current 4h
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T14:00:00.000Z', user: 'u' }, // prior 5h
+    ];
+    const result = getVelocityStats(entries, 'THIS_WEEK', 'ALL', refDate);
+    expect(result.currentHours).toBe(4);
+    expect(result.priorHours).toBe(5);
+    expect(result.deltaHours).toBe(-1);
+    expect(result.deltaPct).toBe(-20);
+  });
+
+  it('honors the space filter on both periods', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'Work', specialization: '', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T10:00:00.000Z', user: 'u' }, // current work 1h
+      { id: '2', space: 'Piano', specialization: '', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T20:00:00.000Z', user: 'u' }, // current piano 11h
+      { id: '3', space: 'Work', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T11:00:00.000Z', user: 'u' }, // prior work 2h
+    ];
+    const result = getVelocityStats(entries, 'THIS_WEEK', 'Work', refDate);
+    expect(result.currentHours).toBe(1);
+    expect(result.priorHours).toBe(2);
+    expect(result.deltaHours).toBe(-1);
+  });
+
+  it('handles invalid date input by returning zeros', () => {
+    const result = getVelocityStats([], 'THIS_WEEK', 'ALL', new Date('invalid'));
+    expect(result.hasPrior).toBe(false);
+    expect(result.currentHours).toBe(0);
+  });
+});
+
+describe('getModalStream', () => {
+  it('returns null on empty entries', () => {
+    expect(getModalStream([])).toBeNull();
+  });
+
+  it('returns null when no entry has a completion_time', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: 'qadrant', start_date: '2026-06-18T09:00:00.000Z', completion_time: null, user: 'u' },
+    ];
+    expect(getModalStream(entries)).toBeNull();
+  });
+
+  it('returns the single entry with sharePct 100', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'Work', specialization: 'qadrant', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T11:00:00.000Z', user: 'u' },
+    ];
+    const result = getModalStream(entries);
+    expect(result).toEqual({ space: 'Work', specialization: 'qadrant', hours: 2, sharePct: 100 });
+  });
+
+  it('returns the (space, spec) pair with the most hours', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'Work', specialization: 'qadrant', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T11:00:00.000Z', user: 'u' }, // 2h
+      { id: '2', space: 'Work', specialization: 'clients', start_date: '2026-06-18T13:00:00.000Z', completion_time: '2026-06-18T16:00:00.000Z', user: 'u' }, // 3h
+      { id: '3', space: 'Piano', specialization: 'scales', start_date: '2026-06-18T17:00:00.000Z', completion_time: '2026-06-18T17:30:00.000Z', user: 'u' }, // 0.5h
+    ];
+    const result = getModalStream(entries);
+    expect(result?.specialization).toBe('clients');
+    expect(result?.space).toBe('Work');
+    expect(result?.hours).toBe(3);
+    // 3 / 5.5 = 54.5% → 55%
+    expect(result?.sharePct).toBe(55);
+  });
+
+  it('breaks ties deterministically by lex order of space::specialization', () => {
+    const entries: TimeEntry[] = [
+      { id: '1', space: 'Zeta', specialization: 'a', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T10:00:00.000Z', user: 'u' },
+      { id: '2', space: 'Alpha', specialization: 'a', start_date: '2026-06-18T09:00:00.000Z', completion_time: '2026-06-18T10:00:00.000Z', user: 'u' },
+    ];
+    const result = getModalStream(entries);
+    expect(result?.space).toBe('Alpha');
   });
 });
 

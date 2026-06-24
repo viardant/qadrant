@@ -254,12 +254,80 @@ export function getLastRelative(entries: TimeEntry[], relativeTo: Date = new Dat
   return `LAST_${days}D_AGO`;
 }
 
-// 9. Total Mastery Index — placeholder formula until a real definition is provided.
-// Currently: completion rate * 100, capped at 100. Returns 0 with no data.
-export function getMasteryIndex(entries: TimeEntry[]): number {
-  if (entries.length === 0) return 0;
-  const completed = entries.filter((e) => e.completion_time).length;
-  return Math.min(100, Number(((completed / entries.length) * 100).toFixed(1)));
+// 9. Velocity vector — current period hours vs the immediately prior period
+// of the same length. Surfaces a signed percentage change for the hero stage drop.
+export interface VelocityStats {
+  hasPrior: boolean; // false only for ALL_TIME
+  currentHours: number;
+  priorHours: number;
+  deltaPct: number | null; // null when prior=0 and current>0 (render as "NEW")
+  deltaHours: number; // signed
+}
+
+export function getVelocityStats(
+  entries: TimeEntry[],
+  scope: StatsScope,
+  spaceFilter: string,
+  relativeTo: Date = new Date(),
+): VelocityStats {
+  if (isNaN(relativeTo.getTime())) {
+    return { hasPrior: false, currentHours: 0, priorHours: 0, deltaPct: 0, deltaHours: 0 };
+  }
+  if (scope === 'ALL_TIME') {
+    return { hasPrior: false, currentHours: 0, priorHours: 0, deltaPct: 0, deltaHours: 0 };
+  }
+  const current = filterEntriesByScope(entries, scope, spaceFilter, relativeTo, false);
+  const prior = filterEntriesByScope(entries, scope, spaceFilter, relativeTo, true);
+  const currentHours = Number(
+    current.reduce((sum, e) => sum + getEntryDurationHours(e), 0).toFixed(1),
+  );
+  const priorHours = Number(
+    prior.reduce((sum, e) => sum + getEntryDurationHours(e), 0).toFixed(1),
+  );
+  if (priorHours === 0 && currentHours === 0) {
+    return { hasPrior: true, currentHours: 0, priorHours: 0, deltaPct: 0, deltaHours: 0 };
+  }
+  if (priorHours === 0) {
+    return { hasPrior: true, currentHours, priorHours: 0, deltaPct: null, deltaHours: currentHours };
+  }
+  const deltaHours = Number((currentHours - priorHours).toFixed(1));
+  const deltaPct = Number((((currentHours - priorHours) / priorHours) * 100).toFixed(1));
+  return { hasPrior: true, currentHours, priorHours, deltaPct, deltaHours };
+}
+
+// 9b. Modal stream — the (space, specialization) pair that defined the period.
+// Returns null when there are no completed entries.
+export interface ModalStream {
+  space: string;
+  specialization: string;
+  hours: number;
+  sharePct: number;
+}
+
+export function getModalStream(entries: TimeEntry[]): ModalStream | null {
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return null;
+  const groups: Record<string, { space: string; specialization: string; hours: number }> = {};
+  let totalHours = 0;
+  for (const e of completed) {
+    const space = e.space || 'No Space';
+    const specialization = e.specialization || 'No Specialization';
+    const key = `${space}::${specialization}`;
+    const hours = getEntryDurationHours(e);
+    totalHours += hours;
+    if (!groups[key]) {
+      groups[key] = { space, specialization, hours: 0 };
+    }
+    groups[key].hours += hours;
+  }
+  const sorted = Object.values(groups).sort((a, b) => {
+    if (b.hours !== a.hours) return b.hours - a.hours;
+    return `${a.space}::${a.specialization}`.localeCompare(`${b.space}::${b.specialization}`);
+  });
+  const top = sorted[0];
+  const hours = Number(top.hours.toFixed(1));
+  const sharePct = totalHours > 0 ? Math.round((top.hours / totalHours) * 100) : 0;
+  return { space: top.space, specialization: top.specialization, hours, sharePct };
 }
 
 // 10. Best day (max hours in any single day from completed entries)
@@ -328,26 +396,34 @@ export function getScopeBounds(scope: StatsScope, relativeTo: Date = new Date())
       start.setHours(0, 0, 0, 0);
       priorStart = new Date(start);
       priorStart.setDate(start.getDate() - 7);
-      priorEnd = new Date(start);
+      
+      const elapsedMs = relativeTo.getTime() - start.getTime();
+      priorEnd = new Date(priorStart.getTime() + elapsedMs);
       break;
     }
     case 'THIS_MONTH': {
       start = new Date(nowYear, nowMonth, 1);
       priorStart = new Date(nowYear, nowMonth - 1, 1);
-      priorEnd = new Date(nowYear, nowMonth, 1);
+      
+      const elapsedMs = relativeTo.getTime() - start.getTime();
+      priorEnd = new Date(priorStart.getTime() + elapsedMs);
       break;
     }
     case 'THIS_QUARTER': {
       const qStartMonth = Math.floor(nowMonth / 3) * 3;
       start = new Date(nowYear, qStartMonth, 1);
       priorStart = new Date(nowYear, qStartMonth - 3, 1);
-      priorEnd = new Date(nowYear, qStartMonth, 1);
+      
+      const elapsedMs = relativeTo.getTime() - start.getTime();
+      priorEnd = new Date(priorStart.getTime() + elapsedMs);
       break;
     }
     case 'THIS_YEAR': {
       start = new Date(nowYear, 0, 1);
       priorStart = new Date(nowYear - 1, 0, 1);
-      priorEnd = new Date(nowYear, 0, 1);
+      
+      const elapsedMs = relativeTo.getTime() - start.getTime();
+      priorEnd = new Date(priorStart.getTime() + elapsedMs);
       break;
     }
     case 'ALL_TIME':

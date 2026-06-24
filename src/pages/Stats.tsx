@@ -4,9 +4,11 @@ import type { TimeEntry } from '../lib/time-entry';
 import {
   getEntryDurationHours,
   getLastRelative,
-  getMasteryIndex,
+  getVelocityStats,
+  getModalStream,
   getStreakDays,
   filterEntriesByScope,
+  getScopeBounds,
   getWeekdayDistribution,
   getDaytimeHeatmap,
   getStartTimeHeatmap,
@@ -72,7 +74,6 @@ export default function Stats() {
   // Filter States
   const [scope, setScope] = useState<StatsScope>('ALL_TIME');
   const [spaceFilter, setSpaceFilter] = useState<string>('ALL');
-  const [showDelta, setShowDelta] = useState<boolean>(false);
   const [showAllSpaces, setShowAllSpaces] = useState<boolean>(false);
 
   const chartHeight = useResponsiveValue({ mobile: '160px', tablet: '220px', desktop: '220px' });
@@ -122,7 +123,8 @@ export default function Stats() {
     const priorFiltered = filterEntriesByScope(entries, scope, spaceFilter, now, true);
 
     const last = getLastRelative(entries, now);
-    const mastery = getMasteryIndex(currentFiltered);
+    const velocity = getVelocityStats(entries, scope, spaceFilter, now);
+    const modal = getModalStream(currentFiltered);
 
     // Dynamic stats aggregation
     let totalSecs = currentFiltered.reduce((sum, e) => sum + getEntryDurationHours(e), 0);
@@ -131,6 +133,14 @@ export default function Stats() {
     const todayHours = currentFiltered
       .filter((e) => new Date(e.start_date).toDateString() === now.toDateString())
       .reduce((sum, e) => sum + getEntryDurationHours(e), 0);
+
+    const bounds = getScopeBounds(scope, now);
+    let numDaysElapsed = 1;
+    if (bounds.start) {
+      const diffTime = now.getTime() - bounds.start.getTime();
+      numDaysElapsed = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    }
+    const todayDelta = todayHours - (priorTotalSecs / numDaysElapsed);
 
     const weekHours = currentFiltered
       .filter((e) => {
@@ -194,9 +204,11 @@ export default function Stats() {
 
     return {
       last,
-      mastery,
+      velocity,
+      modal,
       totalHours: totalSecs,
       todayHours,
+      todayDelta,
       weekHours,
       streak,
       deepWork,
@@ -275,16 +287,6 @@ export default function Stats() {
               ))}
             </select>
 
-            {/* Comparison toggle */}
-            <label className="type-tech-mono-sm" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', userSelect: 'none' }}>
-              <input
-                type="checkbox"
-                checked={showDelta}
-                onChange={(e) => setShowDelta(e.target.checked)}
-                style={{ accentColor: 'var(--accent)' }}
-              />
-              // DELTA_ANNOTATIONS
-            </label>
           </div>
 
         </div>
@@ -303,14 +305,41 @@ export default function Stats() {
       ) : (
         <>
           <StageDrop
-            eyebrow={
-              spaceFilter !== 'ALL' || scope !== 'ALL_TIME'
-                ? `▸ SCOPED_MASTERY_INDEX // ${spaceFilter.toUpperCase()} / ${scope.replace('_', ' ')}`
-                : '▸ TOTAL_MASTERY_INDEX // ARCHIVE_AGGREGATE'
-            }
-            caption="VERIFIED_V0.1"
+            eyebrow={(() => {
+              if (scope === 'ALL_TIME') {
+                return spaceFilter !== 'ALL'
+                  ? `▸ DOMINANT_STREAM // ${spaceFilter.toUpperCase()}`
+                  : '▸ DOMINANT_STREAM // ARCHIVE_AGGREGATE';
+              }
+              return spaceFilter !== 'ALL'
+                ? `▸ PRACTICE_VELOCITY // ${spaceFilter.toUpperCase()} / ${scope.replace('_', ' ')}`
+                : `▸ PRACTICE_VELOCITY // ${scope.replace('_', ' ')}`;
+            })()}
+            caption={(() => {
+              if (scope === 'ALL_TIME') {
+                if (!stats.modal) return 'NO_DATA_LOGGED';
+                return `${stats.modal.space.toUpperCase()} // ${stats.modal.specialization.toUpperCase()} :: ${stats.modal.sharePct}% OF PERIOD`;
+              }
+              const v = stats.velocity;
+              if (v.deltaPct === null) {
+                return `// FIRST_OCCURRENCE · ${formatHours(v.currentHours)} NOW`;
+              }
+              if (v.currentHours === 0 && v.priorHours === 0) {
+                return '// NO_ACTIVITY_IN_PERIOD';
+              }
+              return `// ${formatHours(v.currentHours)} NOW · ${formatHours(v.priorHours)} PRIOR`;
+            })()}
           >
-            {stats.mastery.toFixed(1)}%
+            {(() => {
+              if (scope === 'ALL_TIME') {
+                return stats.modal ? formatHours(stats.modal.hours) : '—';
+              }
+              const v = stats.velocity;
+              if (v.deltaPct === null) return 'NEW';
+              if (v.currentHours === 0 && v.priorHours === 0) return '0%';
+              const sign = v.deltaPct > 0 ? '+' : v.deltaPct < 0 ? '−' : '';
+              return `${sign}${v.deltaPct.toFixed(1)}%`;
+            })()}
           </StageDrop>
 
           <section className="section" aria-label="Session consistency heatmap">
@@ -335,8 +364,8 @@ export default function Stats() {
                 eyebrow="TODAY_PLAYTIME"
                 value={formatHours(stats.todayHours)}
                 caption={`// TIME_LOGGED_TODAY ${
-                  showDelta && scope !== 'ALL_TIME'
-                    ? `(Δ ${formatHours(stats.todayHours - stats.priorHours / 30)})`
+                  scope !== 'ALL_TIME'
+                    ? `(Δ ${stats.todayDelta >= 0 ? '+' : '-'}${formatHours(Math.abs(stats.todayDelta))})`
                     : ''
                 }`}
                 compact={isMobile}
@@ -345,8 +374,8 @@ export default function Stats() {
                 eyebrow="STREAK"
                 value={`${stats.streak}d`}
                 caption={`// CONSECUTIVE ${
-                  showDelta && scope !== 'ALL_TIME'
-                    ? `(Δ ${stats.streak - stats.priorStreak}d)`
+                  scope !== 'ALL_TIME'
+                    ? `(Δ ${stats.streak - stats.priorStreak >= 0 ? '+' : ''}${stats.streak - stats.priorStreak}d)`
                     : ''
                 }`}
                 compact={isMobile}
@@ -355,8 +384,8 @@ export default function Stats() {
                 eyebrow="DEEP_WORK_RATIO"
                 value={`${stats.deepWork}%`}
                 caption={`// SESSIONS >= 90m ${
-                  showDelta && scope !== 'ALL_TIME'
-                    ? `(Δ ${(stats.deepWork - stats.priorDeepWork).toFixed(1)}%)`
+                  scope !== 'ALL_TIME'
+                    ? `(Δ ${stats.deepWork - stats.priorDeepWork >= 0 ? '+' : ''}${(stats.deepWork - stats.priorDeepWork).toFixed(1)}%)`
                     : ''
                 }`}
                 compact={isMobile}
