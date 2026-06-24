@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { EmptyState } from '../ui/EmptyState';
 import { ComboCard } from './ComboCard';
 import type { Combo } from '../../lib/combos';
@@ -42,11 +41,6 @@ export function QuickReplay({ combos, total, onStart, onCreate, lastAgo }: Props
           ))}
         </div>
       )}
-      <div className="view-all-row">
-        <Link to="/ledger" className="tunable">
-          &gt;&gt;&gt;&nbsp;VIEW_ALL_COMBINATIONS
-        </Link>
-      </div>
     </section>
   );
 }
