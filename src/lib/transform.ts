@@ -386,3 +386,134 @@ export function filterEntriesByScope(
     return true;
   });
 }
+
+export interface WeekdayPoint {
+  day: string;
+  hours: number;
+}
+
+export function getWeekdayDistribution(entries: TimeEntry[]): WeekdayPoint[] {
+  const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const totals = days.map((d) => ({ day: d, hours: 0 }));
+
+  for (const e of entries) {
+    if (!e.completion_time) continue;
+    const start = new Date(e.start_date);
+    const end = new Date(e.completion_time);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+
+    let current = new Date(start);
+    while (current < end) {
+      const nextDay = new Date(current);
+      nextDay.setHours(24, 0, 0, 0);
+      const limit = nextDay < end ? nextDay : end;
+      const ms = limit.getTime() - current.getTime();
+      const hours = ms / (1000 * 60 * 60);
+
+      // Map JS Sunday (0) to index 6, Monday (1) to index 0, etc.
+      const dayIndex = current.getDay() === 0 ? 6 : current.getDay() - 1;
+      totals[dayIndex].hours += hours;
+
+      current = limit;
+    }
+  }
+
+  return totals.map((d) => ({ ...d, hours: Number(d.hours.toFixed(2)) }));
+}
+
+export interface HeatmapCell {
+  day: number; // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  hour: number; // 0..23
+  minutes: number;
+}
+
+export function getDaytimeHeatmap(entries: TimeEntry[]): HeatmapCell[] {
+  const cells: HeatmapCell[] = [];
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      cells.push({ day: d, hour: h, minutes: 0 });
+    }
+  }
+
+  for (const e of entries) {
+    if (!e.completion_time) continue;
+    const start = new Date(e.start_date);
+    const end = new Date(e.completion_time);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+
+    let current = new Date(start);
+    while (current < end) {
+      const nextHour = new Date(current);
+      nextHour.setHours(current.getHours() + 1, 0, 0, 0);
+      const limit = nextHour < end ? nextHour : end;
+      const ms = limit.getTime() - current.getTime();
+      const minutes = ms / (1000 * 60);
+
+      const day = current.getDay();
+      const hour = current.getHours();
+
+      const cell = cells.find((c) => c.day === day && c.hour === hour);
+      if (cell) {
+        cell.minutes += minutes;
+      }
+      current = limit;
+    }
+  }
+
+  return cells.map((c) => ({ ...c, minutes: Math.round(c.minutes) }));
+}
+
+export function getStartTimeHeatmap(entries: TimeEntry[]): number[] {
+  const hours = Array(24).fill(0);
+  for (const e of entries) {
+    const start = new Date(e.start_date);
+    if (isNaN(start.getTime())) continue;
+    hours[start.getHours()] += 1;
+  }
+  return hours;
+}
+
+export interface SessionBucket {
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export function getSessionLengthBuckets(entries: TimeEntry[]): SessionBucket[] {
+  const counts = [
+    { label: '0-15m', count: 0, percentage: 0 },
+    { label: '15-30m', count: 0, percentage: 0 },
+    { label: '30-60m', count: 0, percentage: 0 },
+    { label: '1-2h', count: 0, percentage: 0 },
+    { label: '2h+', count: 0, percentage: 0 },
+  ];
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return counts;
+
+  for (const e of completed) {
+    const durationMins = getEntryDurationHours(e) * 60;
+    if (durationMins <= 15) {
+      counts[0].count += 1;
+    } else if (durationMins <= 30) {
+      counts[1].count += 1;
+    } else if (durationMins < 60) {
+      counts[2].count += 1;
+    } else if (durationMins < 120) {
+      counts[3].count += 1;
+    } else {
+      counts[4].count += 1;
+    }
+  }
+
+  return counts.map((c) => ({
+    ...c,
+    percentage: Math.round((c.count / completed.length) * 100),
+  }));
+}
+
+export function getDeepWorkRatio(entries: TimeEntry[]): number {
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return 0;
+  const deepWorkSessions = completed.filter((e) => getEntryDurationHours(e) >= 1.5);
+  return Number(((deepWorkSessions.length / completed.length) * 100).toFixed(1));
+}

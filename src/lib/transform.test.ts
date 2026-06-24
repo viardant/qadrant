@@ -13,6 +13,10 @@ import {
   getBestDayHours,
   getDailyTotals,
   filterEntriesByScope,
+  getWeekdayDistribution,
+  getDaytimeHeatmap,
+  getSessionLengthBuckets,
+  getDeepWorkRatio,
 } from './transform';
 
 const mockEntries: TimeEntry[] = [
@@ -238,5 +242,38 @@ describe('getScopeBounds and filterEntriesByScope', () => {
   it('filters correctly by space', () => {
     const current = filterEntriesByScope(mockData, 'THIS_WEEK', 'Piano', refDate, false);
     expect(current).toHaveLength(0);
+  });
+});
+
+describe('Time-shape data transforms', () => {
+  const mockData: TimeEntry[] = [
+    // Monday 09:00 -> 11:00 (2h)
+    { id: '1', space: 'Work', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T11:00:00.000Z', user: 'u' },
+    // Wednesday 23:45 -> Thursday 00:15 (30m)
+    { id: '2', space: 'Work', specialization: '', start_date: '2026-06-24T23:45:00.000Z', completion_time: '2026-06-25T00:15:00.000Z', user: 'u' },
+  ];
+
+  it('calculates weekday distribution correctly', () => {
+    const dist = getWeekdayDistribution(mockData);
+    expect(dist.find((d) => d.day === 'MON')?.hours).toBe(2.0);
+    expect(dist.find((d) => d.day === 'WED')?.hours).toBe(0.25);
+  });
+
+  it('allocates daytime heatmap crossing midnight correctly', () => {
+    const cells = getDaytimeHeatmap(mockData);
+    // 2026-06-24 is Wednesday (Date.getDay() === 3)
+    const wedCell = cells.find((c) => c.day === 3 && c.hour === 23);
+    // 2026-06-25 is Thursday (Date.getDay() === 4)
+    const thuCell = cells.find((c) => c.day === 4 && c.hour === 0);
+    
+    expect(wedCell?.minutes).toBe(15);
+    expect(thuCell?.minutes).toBe(15);
+  });
+
+  it('calculates session length buckets and deep work ratio', () => {
+    const buckets = getSessionLengthBuckets(mockData);
+    expect(buckets.find((b) => b.label === '2h+')?.count).toBe(1);
+    expect(buckets.find((b) => b.label === '15-30m')?.count).toBe(1);
+    expect(getDeepWorkRatio(mockData)).toBe(50.0); // 1 out of 2 >= 90 mins
   });
 });
