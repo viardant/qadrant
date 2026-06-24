@@ -111,12 +111,28 @@ export function Heatmap({ cells }: Props) {
       }}
     >
       {/* Scrollable grid area */}
-      <div className="heatmap__scroll" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+      <div
+        className="heatmap__scroll"
+        style={{
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          width: '100%',
+          background: `
+            linear-gradient(to right, var(--surface-lowest) 30%, transparent),
+            linear-gradient(to left, var(--surface-lowest) 30%, transparent) right top,
+            radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)),
+            radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)) right center
+          `,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: '40px 100%, 40px 100%, 14px 100%, 14px 100%',
+          backgroundAttachment: 'local, local, scroll, scroll',
+        }}
+      >
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            minWidth: 'max-content',
+            width: 'max-content',
             gap: '4px',
             margin: isMobile ? '0' : '0 auto',
           }}
