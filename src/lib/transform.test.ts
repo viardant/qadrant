@@ -12,6 +12,7 @@ import {
   getMasteryIndex,
   getBestDayHours,
   getDailyTotals,
+  filterEntriesByScope,
 } from './transform';
 
 const mockEntries: TimeEntry[] = [
@@ -213,5 +214,29 @@ describe('qadrant analytics transformations', () => {
     expect(totals[0].hours).toBe(1);
     expect(totals[1].hours).toBe(0);
     expect(totals[2].hours).toBe(0);
+  });
+});
+
+describe('getScopeBounds and filterEntriesByScope', () => {
+  const refDate = new Date('2026-06-24T12:00:00.000Z'); // Wednesday
+  const mockData: TimeEntry[] = [
+    { id: '1', space: 'Work', specialization: '', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T10:00:00.000Z', user: 'u' }, // This Week
+    { id: '2', space: 'Piano', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T10:00:00.000Z', user: 'u' }, // Last Week
+    { id: '3', space: 'Work', specialization: '', start_date: '2026-05-15T09:00:00.000Z', completion_time: '2026-05-15T10:00:00.000Z', user: 'u' }, // Last Month
+  ];
+
+  it('filters correctly for THIS_WEEK', () => {
+    const current = filterEntriesByScope(mockData, 'THIS_WEEK', 'ALL', refDate, false);
+    expect(current).toHaveLength(1);
+    expect(current[0].id).toBe('1');
+
+    const prior = filterEntriesByScope(mockData, 'THIS_WEEK', 'ALL', refDate, true);
+    expect(prior).toHaveLength(1);
+    expect(prior[0].id).toBe('2');
+  });
+
+  it('filters correctly by space', () => {
+    const current = filterEntriesByScope(mockData, 'THIS_WEEK', 'Piano', refDate, false);
+    expect(current).toHaveLength(0);
   });
 });

@@ -15,6 +15,15 @@ export interface DailyTrendPoint {
   hours: number;
 }
 
+export type StatsScope = 'ALL_TIME' | 'THIS_YEAR' | 'THIS_QUARTER' | 'THIS_MONTH' | 'THIS_WEEK';
+
+export interface ScopeBounds {
+  start: Date | null;
+  end: Date;
+  priorStart: Date | null;
+  priorEnd: Date | null;
+}
+
 // Get local date string 'YYYY-MM-DD' from Date object
 export function getLocalDateString(d: Date): string {
   if (isNaN(d.getTime())) return 'Invalid Date';
@@ -297,4 +306,83 @@ export function getDailyTotals(
     });
   }
   return result;
+}
+
+export function getScopeBounds(scope: StatsScope, relativeTo: Date = new Date()): ScopeBounds {
+  const end = new Date(relativeTo);
+  const nowYear = relativeTo.getFullYear();
+  const nowMonth = relativeTo.getMonth();
+  const nowDate = relativeTo.getDate();
+
+  let start: Date | null = null;
+  let priorStart: Date | null = null;
+  let priorEnd: Date | null = null;
+
+  switch (scope) {
+    case 'THIS_WEEK': {
+      const day = relativeTo.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      start = new Date(nowYear, nowMonth, nowDate + diffToMonday);
+      start.setHours(0, 0, 0, 0);
+      priorStart = new Date(start);
+      priorStart.setDate(start.getDate() - 7);
+      priorEnd = new Date(start);
+      break;
+    }
+    case 'THIS_MONTH': {
+      start = new Date(nowYear, nowMonth, 1);
+      priorStart = new Date(nowYear, nowMonth - 1, 1);
+      priorEnd = new Date(nowYear, nowMonth, 1);
+      break;
+    }
+    case 'THIS_QUARTER': {
+      const qStartMonth = Math.floor(nowMonth / 3) * 3;
+      start = new Date(nowYear, qStartMonth, 1);
+      priorStart = new Date(nowYear, qStartMonth - 3, 1);
+      priorEnd = new Date(nowYear, qStartMonth, 1);
+      break;
+    }
+    case 'THIS_YEAR': {
+      start = new Date(nowYear, 0, 1);
+      priorStart = new Date(nowYear - 1, 0, 1);
+      priorEnd = new Date(nowYear, 0, 1);
+      break;
+    }
+    case 'ALL_TIME':
+    default:
+      start = null;
+      break;
+  }
+
+  return { start, end, priorStart, priorEnd };
+}
+
+export function filterEntriesByScope(
+  entries: TimeEntry[],
+  scope: StatsScope,
+  spaceFilter: string,
+  relativeTo: Date = new Date(),
+  usePriorPeriod = false
+): TimeEntry[] {
+  const completed = entries.filter((e) => e.completion_time);
+  const bounds = getScopeBounds(scope, relativeTo);
+
+  const startBound = usePriorPeriod ? bounds.priorStart : bounds.start;
+  const endBound = usePriorPeriod ? bounds.priorEnd : bounds.end;
+
+  return completed.filter((e) => {
+    const entryDate = new Date(e.start_date);
+    if (isNaN(entryDate.getTime())) return false;
+    
+    // Space filter
+    if (spaceFilter !== 'ALL' && e.space !== spaceFilter) {
+      return false;
+    }
+
+    // Timeframe filter
+    if (startBound && entryDate < startBound) return false;
+    if (endBound && entryDate > endBound) return false;
+
+    return true;
+  });
 }
