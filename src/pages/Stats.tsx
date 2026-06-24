@@ -40,6 +40,10 @@ import {
   CartesianGrid,
   Line,
   ComposedChart,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts';
 
 function formatHours(h: number): string {
@@ -49,6 +53,15 @@ function formatHours(h: number): string {
   const mm = Math.round((h - hh) * 60);
   return mm === 0 ? `${hh}h` : `${hh}h ${mm}m`;
 }
+
+const DONUT_COLORS = [
+  'var(--accent)',
+  'var(--accent-soft)',
+  'var(--accent-mute)',
+  'var(--warn)',
+  'var(--fg-muted)',
+  'var(--fg-subtle)',
+];
 
 export default function Stats() {
   const [loading, setLoading] = useState(true);
@@ -60,6 +73,7 @@ export default function Stats() {
   const [scope, setScope] = useState<StatsScope>('ALL_TIME');
   const [spaceFilter, setSpaceFilter] = useState<string>('ALL');
   const [showDelta, setShowDelta] = useState<boolean>(false);
+  const [showAllSpaces, setShowAllSpaces] = useState<boolean>(false);
 
   const chartHeight = useResponsiveValue({ mobile: '160px', tablet: '220px', desktop: '220px' });
 
@@ -532,51 +546,70 @@ export default function Stats() {
             </div>
           </section>
 
-          {/* Space Breakdowns & Leaderboard */}
+          {/* Space Breakdowns & Donut Chart */}
           <section className="section">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-8)' }}>
               
-              {/* Space Distribution Progress Bars */}
+              {/* Left Column: Progress Bars */}
               <div>
                 <div className="section__head" style={{ paddingLeft: 0 }}>
-                  <span className="eyebrow">SPACE_TIME_ALLOCATION</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                  {stats.spaceList.length === 0 ? (
-                    <div className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>
-                      NO_SPACES_LOGGED
-                    </div>
-                  ) : (
-                    stats.spaceList.map((space) => (
-                      <div
-                        key={space.name}
-                        onClick={() => setSpaceFilter(space.name)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span className="type-tech-mono">{space.name}</span>
-                          <span className="type-tech-mono" style={{ fontWeight: 'bold' }}>{formatHours(space.value)}</span>
-                        </div>
-                        <div style={{ height: '8px', background: 'var(--surface-high)', borderRadius: 'var(--radius-xs)', overflow: 'hidden' }}>
-                          <div
-                            style={{
-                              height: '100%',
-                              background: spaceFilter === space.name ? 'var(--accent)' : 'var(--accent-soft)',
-                              width: `${space.percentage}%`,
-                              transition: 'width 280ms var(--ease-out-soft)',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  <span className="eyebrow">
+                    {spaceFilter === 'ALL' ? 'SPACE_TIME_ALLOCATION' : `SPECIALIZATION_ALLOCATION // ${spaceFilter.toUpperCase()}`}
+                  </span>
                 </div>
 
-                {/* Drilldown inside active space */}
-                {spaceFilter !== 'ALL' && (
-                  <div style={{ marginTop: 'var(--space-6)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--space-3)' }}>
-                      <span className="eyebrow-soft">DRILLDOWN: {spaceFilter.toUpperCase()}</span>
+                {spaceFilter === 'ALL' ? (
+                  // All Spaces view
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    {stats.spaceList.length === 0 ? (
+                      <div className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>
+                        NO_SPACES_LOGGED
+                      </div>
+                    ) : (
+                      <>
+                        {(showAllSpaces ? stats.spaceList : stats.spaceList.slice(0, 5)).map((space) => (
+                          <div
+                            key={space.name}
+                            onClick={() => setSpaceFilter(space.name)}
+                            style={{ cursor: 'pointer' }}
+                            title="Click to drill down into specializations"
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span className="type-tech-mono">{space.name}</span>
+                              <span className="type-tech-mono" style={{ fontWeight: 'bold' }}>{formatHours(space.value)}</span>
+                            </div>
+                            <div style={{ height: '8px', background: 'var(--surface-high)', borderRadius: 'var(--radius-xs)', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  height: '100%',
+                                  background: 'var(--accent-soft)',
+                                  width: `${space.percentage}%`,
+                                  transition: 'width 280ms var(--ease-out-soft)',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+
+                        {stats.spaceList.length > 5 && (
+                          <button
+                            className="btn btn--ghost"
+                            style={{ alignSelf: 'flex-start', padding: 0, fontSize: '11px', height: 'auto', textDecoration: 'underline' }}
+                            onClick={() => setShowAllSpaces(!showAllSpaces)}
+                          >
+                            {showAllSpaces ? '// COLLAPSE' : `// VIEW_ALL_SPACES (${stats.spaceList.length})`}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  // Drilldown view for Specializations in selected Space
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--space-1)' }}>
+                      <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
+                        DRILLDOWN ACTIVE
+                      </span>
                       <button
                         className="btn btn--ghost"
                         style={{ padding: 0, fontSize: '11px', height: 'auto', textDecoration: 'underline' }}
@@ -585,61 +618,93 @@ export default function Stats() {
                         CLEAR_DRILLDOWN
                       </button>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                      {stats.specList.map((spec) => (
-                        <div key={spec.name} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-muted)', paddingBottom: '2px' }}>
-                          <span className="type-tech-mono-sm" style={{ color: 'var(--fg)' }}>{spec.name}</span>
-                          <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>{formatHours(spec.value)}</span>
-                        </div>
-                      ))}
-                    </div>
+
+                    {stats.specList.length === 0 ? (
+                      <div className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>
+                        NO_SPECIALIZATIONS_LOGGED
+                      </div>
+                    ) : (
+                      stats.specList.map((spec) => {
+                        const totalSpaceHours = stats.spaceList.find((s) => s.name === spaceFilter)?.value || 1;
+                        const percentage = Math.round((spec.value / totalSpaceHours) * 100);
+                        return (
+                          <div key={spec.name}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span className="type-tech-mono">{spec.name}</span>
+                              <span className="type-tech-mono" style={{ fontWeight: 'bold' }}>{formatHours(spec.value)}</span>
+                            </div>
+                            <div style={{ height: '8px', background: 'var(--surface-high)', borderRadius: 'var(--radius-xs)', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  height: '100%',
+                                  background: 'var(--accent)',
+                                  width: `${percentage}%`,
+                                  transition: 'width 280ms var(--ease-out-soft)',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Ranked Specializations Leaderboard */}
+              {/* Right Column: Donut Chart */}
               <div>
                 <div className="section__head" style={{ paddingLeft: 0 }}>
-                  <span className="eyebrow">RANKED_SPECIALIZATIONS</span>
+                  <span className="eyebrow">
+                    {spaceFilter === 'ALL' ? 'DISTRIBUTION_FLOW // SPACES' : `DISTRIBUTION_FLOW // ${spaceFilter.toUpperCase()}_SPECIALIZATIONS`}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {stats.leaderboard.length === 0 ? (
+                
+                <div style={{ height: '240px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  {((spaceFilter === 'ALL' ? stats.spaceList.length : stats.specList.length) === 0) ? (
                     <div className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>
-                      NO_SPECIALIZATIONS_LOGGED
+                      NO_DISTRIBUTION_DATA
                     </div>
                   ) : (
-                    <>
-                      {/* Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px', borderBottom: '1px solid var(--border)' }}>
-                        <span className="type-tech-mono-sm" style={{ fontWeight: 'bold' }}>SPECIALIZATION // SPACE</span>
-                        <span className="type-tech-mono-sm" style={{ fontWeight: 'bold' }}>TOTAL // LAST</span>
-                      </div>
-                      {/* Rows */}
-                      {stats.leaderboard.map((row, index) => (
-                        <div
-                          key={`${row.space}-${row.specialization}`}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '6px 0',
-                            borderBottom: '1px solid var(--border-muted)',
-                          }}
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={spaceFilter === 'ALL' ? stats.spaceList : stats.specList}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={2}
                         >
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span className="type-tech-mono" style={{ fontSize: '13px' }}>
-                              {(index + 1).toString().padStart(2, '0')}. {row.specialization}
-                            </span>
-                            <span className="type-tech-mono-sm" style={{ color: 'var(--fg-subtle)', fontSize: '10px' }}>
-                              {row.space}
-                            </span>
-                          </div>
-                          <span className="type-tech-mono" style={{ fontSize: '12px', textAlign: 'right' }}>
-                            {formatHours(row.hours)} // <span style={{ color: 'var(--fg-muted)' }}>{row.lastActive}</span>
-                          </span>
-                        </div>
-                      ))}
-                    </>
+                          {(spaceFilter === 'ALL' ? stats.spaceList : stats.specList).map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: 'var(--bg)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 11,
+                          }}
+                          formatter={(val: number) => [`${val.toFixed(1)}h`, 'Time']}
+                        />
+                        <Legend
+                          layout="vertical"
+                          align="right"
+                          verticalAlign="middle"
+                          iconType="circle"
+                          iconSize={8}
+                          wrapperStyle={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '11px',
+                            textTransform: 'uppercase',
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
                   )}
                 </div>
               </div>
