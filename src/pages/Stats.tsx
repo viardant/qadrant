@@ -689,7 +689,13 @@ export default function Stats() {
                             fontFamily: 'var(--font-mono)',
                             fontSize: 11,
                           }}
-                          formatter={(val: number) => [`${val.toFixed(1)}h`, 'Time']}
+                          formatter={(val: number, name: string) => {
+                            const formattedName =
+                              spaceFilter === 'ALL'
+                                ? `SPACE // ${name.toUpperCase()}`
+                                : `${spaceFilter.toUpperCase()} // ${name.toUpperCase()}`;
+                            return [`${val.toFixed(1)}h`, formattedName];
+                          }}
                         />
                         <Legend
                           layout="vertical"
