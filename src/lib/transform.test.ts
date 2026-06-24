@@ -24,6 +24,7 @@ import {
   getRolling30DAverage,
   getRecordLog,
   getMilestones,
+  hoursToIntensity,
 } from './transform';
 
 
@@ -364,5 +365,19 @@ describe('Records and Milestones metrics', () => {
     expect(ms).toContain('10H_IN_PIANO_PRACTICE');
   });
 });
+
+describe('hoursToIntensity', () => {
+  it('maps hours to intensity levels correctly', () => {
+    expect(hoursToIntensity(0)).toBe(0);
+    expect(hoursToIntensity(-1)).toBe(0);
+    expect(hoursToIntensity(0.5)).toBe(1);
+    expect(hoursToIntensity(0.9)).toBe(1);
+    expect(hoursToIntensity(1)).toBe(2);
+    expect(hoursToIntensity(2.5)).toBe(2);
+    expect(hoursToIntensity(3)).toBe(3);
+    expect(hoursToIntensity(5)).toBe(3);
+  });
+});
+
 
 

@@ -752,4 +752,12 @@ export function getMilestones(entries: TimeEntry[]): string[] {
   return milestones;
 }
 
+export function hoursToIntensity(h: number): 0 | 1 | 2 | 3 {
+  if (h <= 0) return 0;
+  if (h < 1) return 1;
+  if (h < 3) return 2;
+  return 3;
+}
+
+
 
