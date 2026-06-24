@@ -8,6 +8,8 @@ export interface ChartDataPoint {
 export interface SpaceDistribution {
   name: string;
   value: number;
+  percentage?: number;
+  cumulativePercentage?: number;
 }
 
 export interface DailyTrendPoint {
@@ -517,3 +519,79 @@ export function getDeepWorkRatio(entries: TimeEntry[]): number {
   const deepWorkSessions = completed.filter((e) => getEntryDurationHours(e) >= 1.5);
   return Number(((deepWorkSessions.length / completed.length) * 100).toFixed(1));
 }
+
+export interface SpecializationRow {
+  specialization: string;
+  space: string;
+  hours: number;
+  lastActive: string;
+}
+
+export function getRankedLeaderboard(entries: TimeEntry[], relativeTo: Date = new Date()): SpecializationRow[] {
+  const completed = entries.filter((e) => e.completion_time);
+  const groups: Record<string, { space: string; hours: number; lastDate: Date }> = {};
+
+  for (const e of completed) {
+    const spec = e.specialization || 'No Specialization';
+    const hours = getEntryDurationHours(e);
+    const date = new Date(e.start_date);
+
+    const key = `${e.space}::${spec}`;
+    if (!groups[key]) {
+      groups[key] = { space: e.space || 'No Space', hours: 0, lastDate: date };
+    }
+    groups[key].hours += hours;
+    if (date > groups[key].lastDate) {
+      groups[key].lastDate = date;
+    }
+  }
+
+  return Object.entries(groups)
+    .map(([key, data]) => {
+      const specialization = key.split('::')[1];
+      
+      const diffMs = relativeTo.getTime() - data.lastDate.getTime();
+      const daysAgo = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+      const lastActive = daysAgo <= 0 ? 'TODAY' : `${daysAgo}d_AGO`;
+
+      return {
+        specialization,
+        space: data.space,
+        hours: Number(data.hours.toFixed(2)),
+        lastActive,
+      };
+    })
+    .sort((a, b) => b.hours - a.hours)
+    .slice(0, 10);
+}
+
+export function getSpaceLeaderboard(entries: TimeEntry[]): SpaceDistribution[] {
+  const list = transformToSpaceDistribution(entries).sort((a, b) => b.value - a.value);
+  const total = list.reduce((sum, item) => sum + item.value, 0);
+  
+  let accumulated = 0;
+  return list.map((item) => {
+    accumulated += item.value;
+    const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
+    const cumulativePercentage = total > 0 ? Math.round((accumulated / total) * 100) : 0;
+    return {
+      name: item.name,
+      value: item.value,
+      percentage,
+      cumulativePercentage,
+    };
+  });
+}
+
+export function getSpecializationDistribution(entries: TimeEntry[], space: string): Array<{ name: string; value: number }> {
+  const completed = entries.filter((e) => e.completion_time && e.space === space);
+  const map: Record<string, number> = {};
+  for (const e of completed) {
+    const spec = e.specialization || 'No Specialization';
+    map[spec] = (map[spec] || 0) + getEntryDurationHours(e);
+  }
+  return Object.entries(map)
+    .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+    .sort((a, b) => b.value - a.value);
+}
+

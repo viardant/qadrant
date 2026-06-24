@@ -17,7 +17,11 @@ import {
   getDaytimeHeatmap,
   getSessionLengthBuckets,
   getDeepWorkRatio,
+  getRankedLeaderboard,
+  getSpaceLeaderboard,
+  getSpecializationDistribution,
 } from './transform';
+
 
 const mockEntries: TimeEntry[] = [
   {
@@ -277,3 +281,33 @@ describe('Time-shape data transforms', () => {
     expect(getDeepWorkRatio(mockData)).toBe(50.0); // 1 out of 2 >= 90 mins
   });
 });
+
+describe('Leaderboards and specialization distributions', () => {
+  const refDate = new Date('2026-06-24T12:00:00.000Z');
+  const mockData: TimeEntry[] = [
+    { id: '1', space: 'Work', specialization: 'qadrant', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T11:00:00.000Z', user: 'u' }, // 2h
+    { id: '2', space: 'Work', specialization: 'clients', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T10:00:00.000Z', user: 'u' }, // 1h
+    { id: '3', space: 'Piano', specialization: 'scales', start_date: '2026-06-24T09:00:00.000Z', completion_time: '2026-06-24T10:00:00.000Z', user: 'u' }, // 1h
+  ];
+
+  it('builds ranked leaderboard correctly', () => {
+    const leaderboard = getRankedLeaderboard(mockData, refDate);
+    expect(leaderboard[0].specialization).toBe('qadrant');
+    expect(leaderboard[0].hours).toBe(2);
+    expect(leaderboard[0].lastActive).toBe('1d_AGO');
+  });
+
+  it('builds space leaderboard with cumulative percentage', () => {
+    const spaces = getSpaceLeaderboard(mockData);
+    expect(spaces[0].name).toBe('Work');
+    expect(spaces[0].value).toBe(3);
+    expect(spaces[0].cumulativePercentage).toBe(75); // 3 / 4 total
+  });
+
+  it('builds specialization distribution inside a space', () => {
+    const specs = getSpecializationDistribution(mockData, 'Work');
+    expect(specs).toContainEqual({ name: 'qadrant', value: 2 });
+    expect(specs).toContainEqual({ name: 'clients', value: 1 });
+  });
+});
+
