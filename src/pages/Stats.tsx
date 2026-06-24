@@ -692,7 +692,7 @@ export default function Stats() {
                           formatter={(val: number, name: string) => {
                             const formattedName =
                               spaceFilter === 'ALL'
-                                ? `SPACE // ${name.toUpperCase()}`
+                                ? name.toUpperCase()
                                 : `${spaceFilter.toUpperCase()} // ${name.toUpperCase()}`;
                             return [`${val.toFixed(1)}h`, formattedName];
                           }}
