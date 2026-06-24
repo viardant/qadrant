@@ -87,35 +87,69 @@ export function Heatmap({ cells }: Props) {
     return 'heatmap-cell--high';
   };
 
+  const monthLabelsRow = useMemo(() => {
+    const row = Array(colCount).fill('');
+    monthLabels.forEach((lbl) => {
+      if (lbl.col < colCount) {
+        row[lbl.col] = lbl.text;
+      }
+    });
+    return row;
+  }, [monthLabels, colCount]);
+
   return (
-    <div className="heatmap" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-      
+    <div
+      className="insight-card"
+      style={{
+        background: 'var(--surface-lowest)',
+        border: '1px solid var(--border-muted)',
+        padding: 'var(--space-5)',
+        borderRadius: 'var(--radius-sm)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-3)',
+      }}
+    >
       {/* Scrollable grid area */}
       <div className="heatmap__scroll" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 'max-content', gap: '4px' }}>
-          
-          {/* Month labels header */}
-          <div style={{ position: 'relative', height: '16px', marginLeft: '32px', marginBottom: '2px' }}>
-            {monthLabels.map((lbl, idx) => (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 'max-content',
+            gap: '4px',
+            margin: isMobile ? '0' : '0 auto',
+          }}
+        >
+          {/* Month labels grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${colCount}, ${cellSize}px)`,
+              gap: `${gapSize}px`,
+              marginLeft: '32px',
+              height: '16px',
+              marginBottom: '2px',
+            }}
+          >
+            {monthLabelsRow.map((text, colIdx) => (
               <span
-                key={idx}
+                key={colIdx}
                 className="type-tech-mono-sm"
                 style={{
-                  position: 'absolute',
-                  left: `${lbl.col * (cellSize + gapSize)}px`,
                   fontSize: '9px',
                   color: 'var(--fg-subtle)',
                   whiteSpace: 'nowrap',
+                  gridColumnStart: colIdx + 1,
                 }}
               >
-                {lbl.text}
+                {text}
               </span>
             ))}
           </div>
 
           {/* Grid with left labels */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-            
             {/* Weekday labels (subset MON, WED, FRI) */}
             <div
               style={{
@@ -128,9 +162,15 @@ export function Heatmap({ cells }: Props) {
                 paddingBottom: `${cellSize + gapSize}px`, // align FRI
               }}
             >
-              <span className="type-tech-mono-sm" style={{ fontSize: '9px', lineHeight: 1, color: 'var(--fg-muted)' }}>MON</span>
-              <span className="type-tech-mono-sm" style={{ fontSize: '9px', lineHeight: 1, color: 'var(--fg-muted)' }}>WED</span>
-              <span className="type-tech-mono-sm" style={{ fontSize: '9px', lineHeight: 1, color: 'var(--fg-muted)' }}>FRI</span>
+              <span className="type-tech-mono-sm" style={{ fontSize: '9px', lineHeight: 1, color: 'var(--fg-muted)' }}>
+                MON
+              </span>
+              <span className="type-tech-mono-sm" style={{ fontSize: '9px', lineHeight: 1, color: 'var(--fg-muted)' }}>
+                WED
+              </span>
+              <span className="type-tech-mono-sm" style={{ fontSize: '9px', lineHeight: 1, color: 'var(--fg-muted)' }}>
+                FRI
+              </span>
             </div>
 
             {/* GitHub-style cells grid */}
@@ -175,24 +215,51 @@ export function Heatmap({ cells }: Props) {
                 );
               })}
             </div>
-
           </div>
 
+          {/* Legend aligned to the right of the grid inside the centered block */}
+          <div
+            className="heatmap__legend"
+            style={{
+              alignSelf: 'flex-end',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              marginTop: 'var(--space-2)',
+            }}
+          >
+            <span className="type-tech-mono-sm" style={{ color: 'var(--fg-subtle)', fontSize: '10px' }}>
+              LESS
+            </span>
+            <div style={{ display: 'flex', gap: '2px' }}>
+              <div
+                className="heatmap-cell heatmap-cell--empty"
+                style={{
+                  width: cellSize,
+                  height: cellSize,
+                  border: '1px solid var(--border-muted)',
+                  borderRadius: '1px',
+                }}
+              />
+              <div
+                className="heatmap-cell heatmap-cell--low"
+                style={{ width: cellSize, height: cellSize, borderRadius: '1px' }}
+              />
+              <div
+                className="heatmap-cell heatmap-cell--medium"
+                style={{ width: cellSize, height: cellSize, borderRadius: '1px' }}
+              />
+              <div
+                className="heatmap-cell heatmap-cell--high"
+                style={{ width: cellSize, height: cellSize, borderRadius: '1px' }}
+              />
+            </div>
+            <span className="type-tech-mono-sm" style={{ color: 'var(--fg-subtle)', fontSize: '10px' }}>
+              MORE
+            </span>
+          </div>
         </div>
       </div>
-
-      {/* Legend */}
-      <div className="heatmap__legend" style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <span className="type-tech-mono-sm" style={{ color: 'var(--fg-subtle)', fontSize: '10px' }}>LESS</span>
-        <div style={{ display: 'flex', gap: '2px' }}>
-          <div className="heatmap-cell heatmap-cell--empty" style={{ width: cellSize, height: cellSize, border: '1px solid var(--border-muted)', borderRadius: '1px' }} />
-          <div className="heatmap-cell heatmap-cell--low" style={{ width: cellSize, height: cellSize, borderRadius: '1px' }} />
-          <div className="heatmap-cell heatmap-cell--medium" style={{ width: cellSize, height: cellSize, borderRadius: '1px' }} />
-          <div className="heatmap-cell heatmap-cell--high" style={{ width: cellSize, height: cellSize, borderRadius: '1px' }} />
-        </div>
-        <span className="type-tech-mono-sm" style={{ color: 'var(--fg-subtle)', fontSize: '10px' }}>MORE</span>
-      </div>
-
     </div>
   );
 }
