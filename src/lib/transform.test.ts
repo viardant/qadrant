@@ -22,7 +22,6 @@ import {
   getSpecializationDistribution,
   getWeekOverWeekBars,
   getRolling30DAverage,
-  getLongestStreak,
   getRecordLog,
   getMilestones,
 } from './transform';

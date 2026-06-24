@@ -1,3 +1,771 @@
+# Enriched Stats Page Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Enrich the stats page with time-shape insights (weekday distribution, hour-of-week daytime heatmap, start time heatmap, session duration buckets, deep work ratio), space/specialization drill-downs, period-over-period comparison deltas, rolling average baseline, and archive milestone logs.
+
+**Architecture:** Functional data processing in `src/lib/transform.ts` with 100% test coverage in `src/lib/transform.test.ts`. State management for timeframe scope, space filter, and comparisons resides in `src/pages/Stats.tsx` with dynamic rendering of charts, grid heatmaps, and text histograms.
+
+**Tech Stack:** React 19, TypeScript, Recharts (v2), Vitest.
+
+---
+
+## File Structure
+
+- Modify: `src/lib/transform.ts` (Implement all helper calculations and aggregation functions)
+- Modify: `src/lib/transform.test.ts` (Add unit tests verifying calculations, timezone boundaries, and edge cases)
+- Modify: `src/pages/Stats.tsx` (Enrich UI layout, filters, heatmaps, charts, lists, and milestones)
+
+---
+
+### Task 1: Scopes, Filtering & Comparison Deltas
+
+Implement the core filter engine and period comparison logic.
+
+**Files:**
+- Modify: `src/lib/transform.ts`
+- Modify: `src/lib/transform.test.ts`
+
+- [ ] **Step 1: Define StatsScope and bounds helper**
+
+Add types and logic to calculate start and end dates for the current and prior comparison period in `src/lib/transform.ts`:
+
+```typescript
+export type StatsScope = 'ALL_TIME' | 'THIS_YEAR' | 'THIS_QUARTER' | 'THIS_MONTH' | 'THIS_WEEK';
+
+export interface ScopeBounds {
+  start: Date | null;
+  end: Date;
+  priorStart: Date | null;
+  priorEnd: Date | null;
+}
+
+export function getScopeBounds(scope: StatsScope, relativeTo: Date = new Date()): ScopeBounds {
+  const end = new Date(relativeTo);
+  const nowYear = relativeTo.getFullYear();
+  const nowMonth = relativeTo.getMonth();
+  const nowDate = relativeTo.getDate();
+
+  let start: Date | null = null;
+  let priorStart: Date | null = null;
+  let priorEnd: Date | null = null;
+
+  switch (scope) {
+    case 'THIS_WEEK': {
+      const day = relativeTo.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      start = new Date(nowYear, nowMonth, nowDate + diffToMonday);
+      start.setHours(0, 0, 0, 0);
+      priorStart = new Date(start);
+      priorStart.setDate(start.getDate() - 7);
+      priorEnd = new Date(start);
+      break;
+    }
+    case 'THIS_MONTH': {
+      start = new Date(nowYear, nowMonth, 1);
+      priorStart = new Date(nowYear, nowMonth - 1, 1);
+      priorEnd = new Date(nowYear, nowMonth, 1);
+      break;
+    }
+    case 'THIS_QUARTER': {
+      const qStartMonth = Math.floor(nowMonth / 3) * 3;
+      start = new Date(nowYear, qStartMonth, 1);
+      priorStart = new Date(nowYear, qStartMonth - 3, 1);
+      priorEnd = new Date(nowYear, qStartMonth, 1);
+      break;
+    }
+    case 'THIS_YEAR': {
+      start = new Date(nowYear, 0, 1);
+      priorStart = new Date(nowYear - 1, 0, 1);
+      priorEnd = new Date(nowYear, 0, 1);
+      break;
+    }
+    case 'ALL_TIME':
+    default:
+      start = null;
+      break;
+  }
+
+  return { start, end, priorStart, priorEnd };
+}
+
+export function filterEntriesByScope(
+  entries: TimeEntry[],
+  scope: StatsScope,
+  spaceFilter: string,
+  relativeTo: Date = new Date(),
+  usePriorPeriod = false
+): TimeEntry[] {
+  const completed = entries.filter((e) => e.completion_time);
+  const bounds = getScopeBounds(scope, relativeTo);
+
+  const startBound = usePriorPeriod ? bounds.priorStart : bounds.start;
+  const endBound = usePriorPeriod ? bounds.priorEnd : bounds.end;
+
+  return completed.filter((e) => {
+    const entryDate = new Date(e.start_date);
+    if (isNaN(entryDate.getTime())) return false;
+    
+    // Space filter
+    if (spaceFilter !== 'ALL' && e.space !== spaceFilter) {
+      return false;
+    }
+
+    // Timeframe filter
+    if (startBound && entryDate < startBound) return false;
+    if (endBound && entryDate > endBound) return false;
+
+    return true;
+  });
+}
+```
+
+- [ ] **Step 2: Add failing tests for filtering and bounds**
+
+In `src/lib/transform.test.ts`, add the tests:
+
+```typescript
+describe('getScopeBounds and filterEntriesByScope', () => {
+  const refDate = new Date('2026-06-24T12:00:00.000Z'); // Wednesday
+  const mockData: TimeEntry[] = [
+    { id: '1', space: 'Work', specialization: '', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T10:00:00.000Z', user: 'u' }, // This Week
+    { id: '2', space: 'Piano', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T10:00:00.000Z', user: 'u' }, // Last Week
+    { id: '3', space: 'Work', specialization: '', start_date: '2026-05-15T09:00:00.000Z', completion_time: '2026-05-15T10:00:00.000Z', user: 'u' }, // Last Month
+  ];
+
+  it('filters correctly for THIS_WEEK', () => {
+    const current = filterEntriesByScope(mockData, 'THIS_WEEK', 'ALL', refDate, false);
+    expect(current).toHaveLength(1);
+    expect(current[0].id).toBe('1');
+
+    const prior = filterEntriesByScope(mockData, 'THIS_WEEK', 'ALL', refDate, true);
+    expect(prior).toHaveLength(1);
+    expect(prior[0].id).toBe('2');
+  });
+
+  it('filters correctly by space', () => {
+    const current = filterEntriesByScope(mockData, 'THIS_WEEK', 'Piano', refDate, false);
+    expect(current).toHaveLength(0);
+  });
+});
+```
+
+- [ ] **Step 3: Run Vitest and check failure/success**
+
+Run: `npm run test`
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/lib/transform.ts src/lib/transform.test.ts
+git commit -m "feat: add scope filtering and time bounds engine"
+```
+
+---
+
+### Task 2: Time-Shape Data Transforms
+
+Implement day of week, hour grids, session buckets, and deep work transformations.
+
+**Files:**
+- Modify: `src/lib/transform.ts`
+- Modify: `src/lib/transform.test.ts`
+
+- [ ] **Step 1: Write weekday distribution, heatmaps, buckets, and deep work ratio**
+
+In `src/lib/transform.ts`, append:
+
+```typescript
+export interface WeekdayPoint {
+  day: string;
+  hours: number;
+}
+
+export function getWeekdayDistribution(entries: TimeEntry[]): WeekdayPoint[] {
+  const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const totals = days.map((d) => ({ day: d, hours: 0 }));
+
+  for (const e of entries) {
+    const start = new Date(e.start_date);
+    if (isNaN(start.getTime())) continue;
+    // Map JS Sunday (0) to index 6, Monday (1) to index 0, etc.
+    const dayIndex = start.getDay() === 0 ? 6 : start.getDay() - 1;
+    totals[dayIndex].hours += getEntryDurationHours(e);
+  }
+
+  return totals.map((d) => ({ ...d, hours: Number(d.hours.toFixed(2)) }));
+}
+
+export interface HeatmapCell {
+  day: number; // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  hour: number; // 0..23
+  minutes: number;
+}
+
+export function getDaytimeHeatmap(entries: TimeEntry[]): HeatmapCell[] {
+  const cells: HeatmapCell[] = [];
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      cells.push({ day: d, hour: h, minutes: 0 });
+    }
+  }
+
+  for (const e of entries) {
+    if (!e.completion_time) continue;
+    const start = new Date(e.start_date);
+    const end = new Date(e.completion_time);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+
+    let current = new Date(start);
+    while (current < end) {
+      const nextHour = new Date(current);
+      nextHour.setHours(current.getHours() + 1, 0, 0, 0);
+      const limit = nextHour < end ? nextHour : end;
+      const ms = limit.getTime() - current.getTime();
+      const minutes = ms / (1000 * 60);
+
+      const day = current.getDay();
+      const hour = current.getHours();
+
+      const cell = cells.find((c) => c.day === day && c.hour === hour);
+      if (cell) {
+        cell.minutes += minutes;
+      }
+      current = limit;
+    }
+  }
+
+  return cells.map((c) => ({ ...c, minutes: Math.round(c.minutes) }));
+}
+
+export function getStartTimeHeatmap(entries: TimeEntry[]): number[] {
+  const hours = Array(24).fill(0);
+  for (const e of entries) {
+    const start = new Date(e.start_date);
+    if (isNaN(start.getTime())) continue;
+    hours[start.getHours()] += 1;
+  }
+  return hours;
+}
+
+export interface SessionBucket {
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export function getSessionLengthBuckets(entries: TimeEntry[]): SessionBucket[] {
+  const buckets = [
+    { label: '0-15m', min: 0, max: 15 },
+    { label: '15-30m', min: 15, max: 30 },
+    { label: '30-60m', min: 30, max: 60 },
+    { label: '1-2h', min: 60, max: 120 },
+    { label: '2h+', min: 120, max: Infinity },
+  ];
+
+  const counts = buckets.map((b) => ({ label: b.label, count: 0, percentage: 0 }));
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return counts;
+
+  for (const e of completed) {
+    const durationMins = getEntryDurationHours(e) * 60;
+    for (let i = 0; i < buckets.length; i++) {
+      if (durationMins >= buckets[i].min && durationMins < buckets[i].max) {
+        counts[i].count += 1;
+        break;
+      }
+    }
+  }
+
+  return counts.map((c) => ({
+    ...c,
+    percentage: Math.round((c.count / completed.length) * 100),
+  }));
+}
+
+export function getDeepWorkRatio(entries: TimeEntry[]): number {
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return 0;
+  const deepWorkSessions = completed.filter((e) => getEntryDurationHours(e) >= 1.5);
+  return Number(((deepWorkSessions.length / completed.length) * 100).toFixed(1));
+}
+```
+
+- [ ] **Step 2: Add tests for time shape transforms**
+
+In `src/lib/transform.test.ts`, add the tests:
+
+```typescript
+describe('Time-shape data transforms', () => {
+  const mockData: TimeEntry[] = [
+    // Monday 09:00 -> 11:00 (2h)
+    { id: '1', space: 'Work', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T11:00:00.000Z', user: 'u' },
+    // Wednesday 23:45 -> Thursday 00:15 (30m)
+    { id: '2', space: 'Work', specialization: '', start_date: '2026-06-24T23:45:00.000Z', completion_time: '2026-06-25T00:15:00.000Z', user: 'u' },
+  ];
+
+  it('calculates weekday distribution correctly', () => {
+    const dist = getWeekdayDistribution(mockData);
+    expect(dist.find((d) => d.day === 'MON')?.hours).toBe(2.0);
+    expect(dist.find((d) => d.day === 'WED')?.hours).toBe(0.25);
+  });
+
+  it('allocates daytime heatmap crossing midnight correctly', () => {
+    const cells = getDaytimeHeatmap(mockData);
+    // 2026-06-24 is Wednesday (Date.getDay() === 3)
+    const wedCell = cells.find((c) => c.day === 3 && c.hour === 23);
+    // 2026-06-25 is Thursday (Date.getDay() === 4)
+    const thuCell = cells.find((c) => c.day === 4 && c.hour === 0);
+    
+    expect(wedCell?.minutes).toBe(15);
+    expect(thuCell?.minutes).toBe(15);
+  });
+
+  it('calculates session length buckets and deep work ratio', () => {
+    const buckets = getSessionLengthBuckets(mockData);
+    expect(buckets.find((b) => b.label === '2h+')?.count).toBe(1);
+    expect(buckets.find((b) => b.label === '15-30m')?.count).toBe(1);
+    expect(getDeepWorkRatio(mockData)).toBe(50.0); // 1 out of 2 >= 90 mins
+  });
+});
+```
+
+- [ ] **Step 3: Run Vitest**
+
+Run: `npm run test`
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/lib/transform.ts src/lib/transform.test.ts
+git commit -m "feat: implement time-shape calculations and unit tests"
+```
+
+---
+
+### Task 3: Specialization Distributions & Leaderboards
+
+Implement space details and ranking leaderboard calculations.
+
+**Files:**
+- Modify: `src/lib/transform.ts`
+- Modify: `src/lib/transform.test.ts`
+
+- [ ] **Step 1: Write logic for specialization distribution and leaderboard**
+
+In `src/lib/transform.ts`, append:
+
+```typescript
+export interface SpecializationRow {
+  specialization: string;
+  space: string;
+  hours: number;
+  lastActive: string;
+}
+
+export function getRankedLeaderboard(entries: TimeEntry[], relativeTo: Date = new Date()): SpecializationRow[] {
+  const completed = entries.filter((e) => e.completion_time);
+  const groups: Record<string, { space: string; hours: number; lastDate: Date }> = {};
+
+  for (const e of completed) {
+    const spec = e.specialization || 'No Specialization';
+    const hours = getEntryDurationHours(e);
+    const date = new Date(e.start_date);
+
+    const key = `${e.space}::${spec}`;
+    if (!groups[key]) {
+      groups[key] = { space: e.space || 'No Space', hours: 0, lastDate: date };
+    }
+    groups[key].hours += hours;
+    if (date > groups[key].lastDate) {
+      groups[key].lastDate = date;
+    }
+  }
+
+  return Object.entries(groups)
+    .map(([key, data]) => {
+      const specialization = key.split('::')[1];
+      
+      const diffMs = relativeTo.getTime() - data.lastDate.getTime();
+      const daysAgo = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+      const lastActive = daysAgo <= 0 ? 'TODAY' : `${daysAgo}d_AGO`;
+
+      return {
+        specialization,
+        space: data.space,
+        hours: Number(data.hours.toFixed(2)),
+        lastActive,
+      };
+    })
+    .sort((a, b) => b.hours - a.hours)
+    .slice(0, 10);
+}
+
+export interface SpaceDistribution {
+  name: string;
+  value: number;
+  percentage: number;
+  cumulativePercentage: number;
+}
+
+export function getSpaceLeaderboard(entries: TimeEntry[]): SpaceDistribution[] {
+  const list = transformToSpaceDistribution(entries).sort((a, b) => b.value - a.value);
+  const total = list.reduce((sum, item) => sum + item.value, 0);
+  
+  let accumulated = 0;
+  return list.map((item) => {
+    accumulated += item.value;
+    const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
+    const cumulativePercentage = total > 0 ? Math.round((accumulated / total) * 100) : 0;
+    return {
+      name: item.name,
+      value: item.value,
+      percentage,
+      cumulativePercentage,
+    };
+  });
+}
+
+export function getSpecializationDistribution(entries: TimeEntry[], space: string): Array<{ name: string; value: number }> {
+  const completed = entries.filter((e) => e.completion_time && e.space === space);
+  const map: Record<string, number> = {};
+  for (const e of completed) {
+    const spec = e.specialization || 'No Specialization';
+    map[spec] = (map[spec] || 0) + getEntryDurationHours(e);
+  }
+  return Object.entries(map)
+    .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }))
+    .sort((a, b) => b.value - a.value);
+}
+```
+
+- [ ] **Step 2: Add leaderboard and distribution tests**
+
+In `src/lib/transform.test.ts`, add the tests:
+
+```typescript
+describe('Leaderboards and specialization distributions', () => {
+  const refDate = new Date('2026-06-24T12:00:00.000Z');
+  const mockData: TimeEntry[] = [
+    { id: '1', space: 'Work', specialization: 'qadrant', start_date: '2026-06-23T09:00:00.000Z', completion_time: '2026-06-23T11:00:00.000Z', user: 'u' }, // 2h
+    { id: '2', space: 'Work', specialization: 'clients', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T10:00:00.000Z', user: 'u' }, // 1h
+    { id: '3', space: 'Piano', specialization: 'scales', start_date: '2026-06-24T09:00:00.000Z', completion_time: '2026-06-24T10:00:00.000Z', user: 'u' }, // 1h
+  ];
+
+  it('builds ranked leaderboard correctly', () => {
+    const leaderboard = getRankedLeaderboard(mockData, refDate);
+    expect(leaderboard[0].specialization).toBe('qadrant');
+    expect(leaderboard[0].hours).toBe(2);
+    expect(leaderboard[0].lastActive).toBe('1d_AGO');
+  });
+
+  it('builds space leaderboard with cumulative percentage', () => {
+    const spaces = getSpaceLeaderboard(mockData);
+    expect(spaces[0].name).toBe('Work');
+    expect(spaces[0].value).toBe(3);
+    expect(spaces[0].cumulativePercentage).toBe(75); // 3 / 4 total
+  });
+
+  it('builds specialization distribution inside a space', () => {
+    const specs = getSpecializationDistribution(mockData, 'Work');
+    expect(specs).toContainEqual({ name: 'qadrant', value: 2 });
+    expect(specs).toContainEqual({ name: 'clients', value: 1 });
+  });
+});
+```
+
+- [ ] **Step 3: Run Vitest**
+
+Run: `npm run test`
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/lib/transform.ts src/lib/transform.test.ts
+git commit -m "feat: implement ranked specialization leaderboard calculations"
+```
+
+---
+
+### Task 4: Week-Over-Week & Rolling Baselines
+
+Implement rolling 30-day baseline and 8-week comparative totals.
+
+**Files:**
+- Modify: `src/lib/transform.ts`
+- Modify: `src/lib/transform.test.ts`
+
+- [ ] **Step 1: Write rolling average and week over week trend calculations**
+
+In `src/lib/transform.ts`, append:
+
+```typescript
+export function getWeekOverWeekBars(entries: TimeEntry[], relativeTo: Date = new Date()): Array<{ weekStr: string; hours: number }> {
+  const completed = entries.filter((e) => e.completion_time);
+  const result: Array<{ weekStr: string; hours: number }> = [];
+
+  // Generate 8 weeks ending with current week
+  for (let i = 7; i >= 0; i--) {
+    const targetDate = new Date(relativeTo);
+    targetDate.setDate(relativeTo.getDate() - i * 7);
+    const mondayStr = getLocalWeekMondayString(targetDate);
+    
+    // Sum hours in this week boundary
+    const nextMonday = new Date(mondayStr);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    const monTime = new Date(mondayStr).getTime();
+    const nextMonTime = nextMonday.getTime();
+
+    let hours = 0;
+    for (const e of completed) {
+      const entryTime = new Date(e.start_date).getTime();
+      if (entryTime >= monTime && entryTime < nextMonTime) {
+        hours += getEntryDurationHours(e);
+      }
+    }
+
+    result.push({
+      weekStr: mondayStr.slice(5), // MM-DD
+      hours: Number(hours.toFixed(2)),
+    });
+  }
+
+  return result;
+}
+
+export function getRolling30DAverage(trendPoints: DailyTrendPoint[]): number {
+  if (trendPoints.length === 0) return 0;
+  const sum = trendPoints.reduce((s, p) => s + p.hours, 0);
+  return Number((sum / trendPoints.length).toFixed(2));
+}
+```
+
+- [ ] **Step 2: Add tests for baseline functions**
+
+In `src/lib/transform.test.ts`, add the tests:
+
+```typescript
+describe('Rolling and Week-over-week trends', () => {
+  it('calculates week over week trends for last 8 weeks', () => {
+    const ref = new Date('2026-06-24T12:00:00.000Z');
+    const mockData: TimeEntry[] = [
+      { id: '1', space: 'W', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T10:00:00.000Z', user: 'u' }, // This Week
+      { id: '2', space: 'W', specialization: '', start_date: '2026-06-15T09:00:00.000Z', completion_time: '2026-06-15T12:00:00.000Z', user: 'u' }, // Last Week
+    ];
+    const wow = getWeekOverWeekBars(mockData, ref);
+    expect(wow).toHaveLength(8);
+    expect(wow[7].hours).toBe(1); // Current week
+    expect(wow[6].hours).toBe(3); // Prior week
+  });
+});
+```
+
+- [ ] **Step 3: Run Vitest**
+
+Run: `npm run test`
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/lib/transform.ts src/lib/transform.test.ts
+git commit -m "feat: implement rolling average and WoW practice volume transforms"
+```
+
+---
+
+### Task 5: Archival Records & Milestones
+
+Implement all-time best records tracker and milestone triggers.
+
+**Files:**
+- Modify: `src/lib/transform.ts`
+- Modify: `src/lib/transform.test.ts`
+
+- [ ] **Step 1: Write streak calculations, best records, and milestones list**
+
+In `src/lib/transform.ts`, append:
+
+```typescript
+export function getLongestStreak(entries: TimeEntry[]): number {
+  const completed = entries.filter((e) => e.completion_time);
+  if (completed.length === 0) return 0;
+
+  const daysSet = new Set<string>();
+  for (const e of completed) {
+    const d = new Date(e.start_date);
+    if (!isNaN(d.getTime())) {
+      daysSet.add(getLocalDateString(d));
+    }
+  }
+
+  const sortedDays = Array.from(daysSet).sort();
+  let maxStreak = 0;
+  let currentStreak = 0;
+  let prevDate: Date | null = null;
+
+  for (const dayStr of sortedDays) {
+    const currentDate = new Date(dayStr);
+    if (!prevDate) {
+      currentStreak = 1;
+    } else {
+      const diffTime = currentDate.getTime() - prevDate.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        currentStreak += 1;
+      } else {
+        if (currentStreak > maxStreak) {
+          maxStreak = currentStreak;
+        }
+        currentStreak = 1;
+      }
+    }
+    prevDate = currentDate;
+  }
+
+  return Math.max(maxStreak, currentStreak);
+}
+
+export interface RecordLog {
+  bestDay: { date: string; hours: number; daysAgo: number };
+  longestStreak: { days: number };
+  topSpace: { name: string; hours: number };
+}
+
+export function getRecordLog(entries: TimeEntry[], relativeTo: Date = new Date()): RecordLog {
+  const completed = entries.filter((e) => e.completion_time);
+  
+  // Best day calculation
+  const byDay: Record<string, number> = {};
+  for (const e of completed) {
+    const d = new Date(e.start_date);
+    if (isNaN(d.getTime())) continue;
+    const key = getLocalDateString(d);
+    byDay[key] = (byDay[key] || 0) + getEntryDurationHours(e);
+  }
+
+  let bestDate = 'NONE';
+  let bestHours = 0;
+  for (const [dateStr, val] of Object.entries(byDay)) {
+    if (val > bestHours) {
+      bestHours = val;
+      bestDate = dateStr;
+    }
+  }
+
+  let daysAgo = -1;
+  if (bestDate !== 'NONE') {
+    const diff = relativeTo.getTime() - new Date(bestDate).getTime();
+    daysAgo = Math.floor(diff / (24 * 60 * 60 * 1000));
+  }
+
+  // Top space calculation
+  const spaces = transformToSpaceDistribution(entries);
+  let topSpaceName = 'NONE';
+  let topSpaceHours = 0;
+  for (const s of spaces) {
+    if (s.value > topSpaceHours) {
+      topSpaceHours = s.value;
+      topSpaceName = s.name;
+    }
+  }
+
+  const streak = getLongestStreak(entries);
+
+  return {
+    bestDay: { date: bestDate, hours: Number(bestHours.toFixed(2)), daysAgo },
+    longestStreak: { days: streak },
+    topSpace: { name: topSpaceName, hours: Number(topSpaceHours.toFixed(2)) },
+  };
+}
+
+export function getMilestones(entries: TimeEntry[]): string[] {
+  const milestones: string[] = [];
+  const completed = entries.filter((e) => e.completion_time);
+  const totalSessions = completed.length;
+
+  if (totalSessions >= 1) milestones.push('FIRST_SESSION');
+  if (totalSessions >= 50) milestones.push('50_SESSIONS');
+  if (totalSessions >= 100) milestones.push('100_SESSIONS');
+
+  const spaces = transformToSpaceDistribution(entries);
+  for (const s of spaces) {
+    if (s.value >= 10) {
+      milestones.push(`10H_IN_${s.name.toUpperCase().replace(/\s+/g, '_')}`);
+    }
+    if (s.value >= 100) {
+      milestones.push(`100H_IN_${s.name.toUpperCase().replace(/\s+/g, '_')}`);
+    }
+  }
+
+  const longestStreak = getLongestStreak(entries);
+  if (longestStreak >= 7) milestones.push('7D_STREAK');
+  if (longestStreak >= 30) milestones.push('30D_STREAK');
+
+  return milestones;
+}
+```
+
+- [ ] **Step 2: Add records and milestones tests**
+
+In `src/lib/transform.test.ts`, add the tests:
+
+```typescript
+describe('Records and Milestones metrics', () => {
+  it('calculates streaks and records properly', () => {
+    const ref = new Date('2026-06-25T12:00:00.000Z');
+    const mockData: TimeEntry[] = [
+      { id: '1', space: 'Work', specialization: '', start_date: '2026-06-20T09:00:00.000Z', completion_time: '2026-06-20T10:00:00.000Z', user: 'u' }, // 1h
+      { id: '2', space: 'Work', specialization: '', start_date: '2026-06-21T09:00:00.000Z', completion_time: '2026-06-21T13:00:00.000Z', user: 'u' }, // 4h
+      { id: '3', space: 'Work', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T10:00:00.000Z', user: 'u' }, // 1h
+    ];
+    const log = getRecordLog(mockData, ref);
+    expect(log.bestDay.hours).toBe(4);
+    expect(log.bestDay.date).toBe('2026-06-21');
+    expect(log.longestStreak.days).toBe(3);
+    expect(log.topSpace.name).toBe('Work');
+  });
+
+  it('triggers milestone badges', () => {
+    const mockData: TimeEntry[] = [
+      { id: '1', space: 'Piano Practice', specialization: '', start_date: '2026-06-20T09:00:00.000Z', completion_time: '2026-06-20T21:00:00.000Z', user: 'u' }, // 12h
+    ];
+    const ms = getMilestones(mockData);
+    expect(ms).toContain('FIRST_SESSION');
+    expect(ms).toContain('10H_IN_PIANO_PRACTICE');
+  });
+});
+```
+
+- [ ] **Step 3: Run Vitest**
+
+Run: `npm run test`
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/lib/transform.ts src/lib/transform.test.ts
+git commit -m "feat: implement longest streak, records watch, and milestones"
+```
+
+---
+
+### Task 6: UI Enhancements & Filter Scope Panel
+
+Enrich the UI template inside `Stats.tsx` with all filters, cards, heatmaps, lists, and visual charts.
+
+**Files:**
+- Modify: `src/pages/Stats.tsx`
+
+- [ ] **Step 1: Rewrite component code in Stats.tsx**
+
+Update imports and rewrite the component body of `src/pages/Stats.tsx` to mount the filters, charts, progress lists, heatmap grids, records log, and milestones:
+
+```tsx
 import { useEffect, useState, useMemo } from 'react';
 import { pb } from '../lib/pocketbase';
 import type { TimeEntry } from '../lib/time-entry';
@@ -30,13 +798,15 @@ import { InsightCard } from '../components/ui/InsightCard';
 import { BeatIndicator } from '../components/ui/BeatIndicator';
 import {
   ResponsiveContainer,
+  LineChart,
+  Line,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
-  Line,
+  Cell,
   ComposedChart,
 } from 'recharts';
 
@@ -723,7 +1493,7 @@ export default function Stats() {
                     color: 'var(--fg)',
                   }}
                 >
-                  <div>BEST_DAY: {stats.records.bestDay.date} // {formatHours(stats.records.bestDay.hours)} ({stats.records.bestDay.daysAgo >= 0 ? `${stats.records.bestDay.daysAgo}d_AGO` : 'N/A'})</div>
+                  <div>BEST_DAY: {stats.records.bestDay.date} // {formatHours(stats.records.bestDay.hours)} ({stats.records.bestDay.daysAgo}d_AGO)</div>
                   <div>LONGEST_STREAK: {stats.records.longestStreak.days}d // ALL_TIME_PEAK</div>
                   <div>TOP_SPACE: {stats.records.topSpace.name} // {formatHours(stats.records.topSpace.hours)}</div>
                 </div>
@@ -765,3 +1535,9 @@ export default function Stats() {
     </>
   );
 }
+```
+
+- [ ] **Step 2: Verify compiling and formatting**
+
+Run: `npm run build`
+Expected: Compile success with no TypeScript errors.

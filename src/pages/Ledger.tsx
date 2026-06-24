@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useBreakpoint } from '../hooks/useBreakpoint';
 import { pb } from '../lib/pocketbase';
 import type { TimeEntry } from '../lib/time-entry';
 import { TopBar } from '../components/ui/TopBar';
@@ -21,7 +20,6 @@ export default function Ledger() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [beatIdx, setBeatIdx] = useState(0);
-  const { isMobile } = useBreakpoint();
 
   const [editing, setEditing] = useState<TimeEntry | null>(null);
   const [editSpace, setEditSpace] = useState('');
@@ -182,34 +180,27 @@ export default function Ledger() {
             {entries.map((e) => {
               const hours = getEntryDurationHours(e);
               return (
-                <div key={e.id} className="ledger-row" style={isMobile ? { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '12px', padding: '16px 0' } : undefined}>
-                  <div className="ledger-row__main" style={isMobile ? { gap: '8px' } : undefined}>
+                <div key={e.id} className="ledger-row">
+                  <div className="ledger-row__main">
                     <button
                       type="button"
                       className="ledger-row__title ledger-row__title--tunable"
                       onClick={() => openEdit(e)}
                       aria-label={`Edit ${e.space}`}
-                      style={{
-                        textAlign: 'left',
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        ...(isMobile ? { whiteSpace: 'normal', overflowWrap: 'break-word', fontSize: '15px', lineHeight: '1.35' } : {}),
-                      }}
                     >
                       {e.space || 'Untitled'}
                       {e.specialization && (
-                        <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}>
+                        <span className="ledger-row__spec">
                           &nbsp;//&nbsp;{e.specialization}
                         </span>
                       )}
                     </button>
-                    <div className="ledger-row__meta" style={isMobile ? { flexDirection: 'column', alignItems: 'flex-start', gap: '4px' } : undefined}>
+                    <div className="ledger-row__meta">
                       <span>START: {formatDate(e.start_date)}</span>
                       <span>STOP: {formatDate(e.completion_time)}</span>
                     </div>
                   </div>
-                  <div className="ledger-row__actions" style={isMobile ? { justifyContent: 'space-between', width: '100%', paddingTop: '8px', borderTop: '1px solid var(--border-muted)' } : undefined}>
+                  <div className="ledger-row__actions">
                     <span className="ledger-stat">
                       {hours.toFixed(2)}<span className="ledger-stat__unit">h</span>
                     </span>
@@ -218,7 +209,6 @@ export default function Ledger() {
                       className="btn btn--danger"
                       onClick={() => handleDelete(e.id)}
                       aria-label="Delete entry"
-                      style={isMobile ? { minWidth: '44px', minHeight: '44px' } : undefined}
                     >
                       ✕
                     </button>
@@ -228,8 +218,8 @@ export default function Ledger() {
             })}
           </div>
           {totalPages > 1 && (
-            <div className="ledger-pagination" style={isMobile ? { flexDirection: 'column', alignItems: 'stretch', gap: '12px' } : undefined}>
-              <span className="ledger-pagination__info" style={isMobile ? { textAlign: 'center' } : undefined}>
+            <div className="ledger-pagination">
+              <span className="ledger-pagination__info">
                 SHOWING {pad(entries.length)}_OF_{pad(totalItems)}_RECORDS&nbsp;//&nbsp;PAGE_{pad(page)}_OF_{pad(totalPages)}
               </span>
               <div className="ledger-pagination__buttons">
@@ -239,7 +229,6 @@ export default function Ledger() {
                   onClick={() => setPage((p) => Math.max(p - 1, 1))}
                   disabled={page === 1}
                   aria-label="Prev"
-                  style={isMobile ? { flex: 1, minHeight: '44px' } : undefined}
                 >
                   &lt;&nbsp;PREV
                 </button>
@@ -249,7 +238,6 @@ export default function Ledger() {
                   onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
                   disabled={page === totalPages}
                   aria-label="Next"
-                  style={isMobile ? { flex: 1, minHeight: '44px' } : undefined}
                 >
                   NEXT&nbsp;&gt;
                 </button>

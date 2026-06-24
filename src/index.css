@@ -713,7 +713,7 @@ select.input {
    ============================================================ */
 
 .tab-bar {
-  position: sticky;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
@@ -1658,6 +1658,17 @@ select.input {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.ledger-row__spec {
+  color: var(--fg-muted);
+  font-weight: 400;
 }
 
 .ledger-row__title--tunable {
@@ -2122,4 +2133,76 @@ select.input {
    ============================================================ */
 
 
+/* ============================================================
+   Ledger Mobile Adaptation Overrides
+   ============================================================ */
+@media (max-width: 640px) {
+  .ledger-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    padding: var(--space-4) 0;
+    align-items: center;
+  }
 
+  .ledger-row__main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .ledger-row__title {
+    white-space: normal;
+    overflow-wrap: break-word;
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .ledger-row__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+
+  .ledger-row__actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .btn.btn--danger {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .ledger-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .ledger-pagination__info {
+    text-align: center;
+    white-space: normal;
+  }
+
+  .ledger-pagination__buttons {
+    display: flex;
+    gap: var(--space-2);
+    width: 100%;
+  }
+
+  .ledger-pagination__buttons .btn {
+    flex: 1;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
