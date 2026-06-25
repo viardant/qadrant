@@ -170,7 +170,7 @@ export default function Settings() {
             </div>
             <Eyebrow muted>TERMINAL_SETUP</Eyebrow>
             <pre className="terminal-block" style={{ padding: isMobile ? '12px 16px' : undefined, fontSize: isMobile ? '12px' : undefined }}>
-              <span className="terminal-block__prompt">npm install -g qadrant-cli</span>
+              <span className="terminal-block__prompt">npm install -g @viardant/qadrant-cli</span>
               {'\n'}
               <span className="terminal-block__prompt">
                 qadrant login {copied ? '<copied-token>' : '...'}

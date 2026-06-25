@@ -1,15 +1,33 @@
 {
-  "name": "qadrant-cli",
-  "version": "1.0.0",
+  "name": "@viardant/qadrant-cli",
+  "version": "0.1.0",
   "type": "module",
+  "description": "CLI for the Qadrant time tracker. Starts/stops timers, lists sessions, and reports stats against a PocketBase backend.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/viardant/qadrant",
+    "directory": "cli"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "qadrant": "./dist/cli/src/index.js"
   },
+  "files": [
+    "dist/cli/src/index.js",
+    "dist/shared"
+  ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "postbuild": "chmod +x dist/cli/src/index.js",
+    "test": "vitest run",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run build"
   },
   "devDependencies": {
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.0"
   }
 }
