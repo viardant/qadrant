@@ -21,8 +21,16 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:watch": "tsc --watch",
     "postbuild": "chmod +x dist/cli/src/index.js",
+    "clean": "rm -rf dist",
+    "dev": "tsc && node ./dist/cli/src/index.js",
     "test": "vitest run",
+    "test:watch": "vitest",
+    "pack:dry": "npm pack --dry-run",
+    "publish:dry": "npm publish --dry-run --access public",
+    "link": "npm link",
+    "unlink": "npm unlink -g @viardant/qadrant-cli",
     "prepare": "npm run build",
     "prepublishOnly": "npm test && npm run build"
   },

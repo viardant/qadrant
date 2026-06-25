@@ -151,6 +151,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
   };
   if (args.length === 0) return result;
 
+  if (args.includes('--help') || args.includes('-h') || args[0] === 'help') {
+    result.command = 'help';
+    return result;
+  }
+
   let i = 0;
 
   // First pass: global flags (must come before the subcommand).
@@ -614,8 +619,8 @@ export async function main() {
     throw err;
   }
 
-  if (!parsed.command) {
-    if (parsed.global.noRefresh) {
+  if (!parsed.command || parsed.command === 'help') {
+    if (parsed.global.noRefresh && parsed.command !== 'help') {
       console.error('Error: --no-refresh must be followed by a subcommand.');
       process.exit(1);
       return;

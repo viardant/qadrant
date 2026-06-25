@@ -194,6 +194,13 @@ describe('CLI Argument Parsing - global flags', () => {
     expect(() => parseArgs(['node', 'qadrant', 'list', '--offset', 'bar']))
       .toThrow(/Value for flag --offset must be an integer/);
   });
+
+  it('parses --help, -h, and help commands to show help', () => {
+    expect(parseArgs(['node', 'qadrant', '--help']).command).toBe('help');
+    expect(parseArgs(['node', 'qadrant', '-h']).command).toBe('help');
+    expect(parseArgs(['node', 'qadrant', 'help']).command).toBe('help');
+    expect(parseArgs(['node', 'qadrant', 'start', '--help']).command).toBe('help');
+  });
 });
 
 describe('Config File Operations', () => {
