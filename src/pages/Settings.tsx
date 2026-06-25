@@ -38,6 +38,13 @@ export default function Settings() {
   const [beatIdx, setBeatIdx] = useState(0);
   const { isMobile } = useBreakpoint();
 
+  const handleOpenRenameSpace = (spaceName: string) => {
+    console.log('Rename space:', spaceName);
+  };
+  const handleOpenRenameSpec = (spaceName: string, specName: string) => {
+    console.log('Rename spec:', spaceName, specName);
+  };
+
   const [purgeOpen, setPurgeOpen] = useState(false);
   const [purgePhrase, setPurgePhrase] = useState('');
   const [purgeInProgress, setPurgeInProgress] = useState(false);
@@ -58,8 +65,29 @@ export default function Settings() {
         const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
           filter: `user = "${pb.authStore.model?.id}"`,
         });
-        const uniqueSpaces = Array.from(new Set(entries.map((e) => e.space).filter(Boolean))) as string[];
-        setSpaces(uniqueSpaces);
+        
+        const spaceSpecMap = new Map<string, Set<string>>();
+        const uniqueSpaces = new Set<string>();
+
+        for (const entry of entries) {
+          if (entry.space) {
+            uniqueSpaces.add(entry.space);
+            if (!spaceSpecMap.has(entry.space)) {
+              spaceSpecMap.set(entry.space, new Set());
+            }
+            if (entry.specialization) {
+              spaceSpecMap.get(entry.space)!.add(entry.specialization);
+            }
+          }
+        }
+
+        const detailsList: SpaceDetail[] = Array.from(uniqueSpaces).map((spaceName) => ({
+          name: spaceName,
+          specializations: Array.from(spaceSpecMap.get(spaceName) || []),
+        }));
+
+        setSpaces(Array.from(uniqueSpaces));
+        setSpaceDetails(detailsList);
       } catch (err) {
         console.error('Failed to load user preferences:', err);
       } finally {
@@ -192,20 +220,53 @@ export default function Settings() {
               />
             ) : (
               <div className="color-grid" style={{ gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-                {spaces.map((space, idx) => (
-                  <div key={space} className="color-row" style={{ padding: isMobile ? '12px' : undefined }}>
-                    <span className="color-row__label">{space}</span>
-                    <label
-                      className="color-row__swatch"
-                      style={{ background: getSpaceColor(space, idx), ...(isMobile ? { width: '44px', height: '44px', minWidth: '44px', minHeight: '44px' } : {}) }}
-                      aria-label={`Color for ${space}`}
-                    >
-                      <input
-                        type="color"
-                        value={getSpaceColor(space, idx)}
-                        onChange={(e) => handleColorChange(space, e.target.value)}
-                      />
-                    </label>
+                {spaceDetails.map((detail, idx) => (
+                  <div key={detail.name} className="color-row" style={{ padding: isMobile ? '12px' : undefined, flexDirection: 'column', alignItems: 'stretch', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <span className="color-row__label">{detail.name}</span>
+                        <button
+                          type="button"
+                          className="btn btn--link"
+                          style={{ fontSize: '11px', padding: 0, height: 'auto', minHeight: '0', textDecoration: 'underline' }}
+                          onClick={() => handleOpenRenameSpace(detail.name)}
+                        >
+                          [RENAME]
+                        </button>
+                      </div>
+                      <label
+                        className="color-row__swatch"
+                        style={{ background: getSpaceColor(detail.name, idx), ...(isMobile ? { width: '44px', height: '44px', minWidth: '44px', minHeight: '44px' } : {}) }}
+                        aria-label={`Color for ${detail.name}`}
+                      >
+                        <input
+                          type="color"
+                          value={getSpaceColor(detail.name, idx)}
+                          onChange={(e) => handleColorChange(detail.name, e.target.value)}
+                        />
+                      </label>
+                    </div>
+
+                    {detail.specializations.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px dashed var(--border-muted)' }}>
+                        <span className="eyebrow" style={{ fontSize: '10px', color: 'var(--fg-subtle)' }}>SPECIALIZATIONS:</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                          {detail.specializations.map((spec) => (
+                            <div key={spec} className="badge-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', border: '1px solid var(--border-muted)', padding: '2px 8px', borderRadius: 'var(--radius-xs)' }}>
+                              <span className="type-tech-mono" style={{ fontSize: '12px' }}>{spec}</span>
+                              <button
+                                type="button"
+                                className="btn btn--link"
+                                style={{ fontSize: '10px', padding: 0, height: 'auto', minHeight: '0', textDecoration: 'underline', color: 'var(--fg-muted)' }}
+                                onClick={() => handleOpenRenameSpec(detail.name, spec)}
+                              >
+                                [RENAME]
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

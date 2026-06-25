@@ -348,3 +348,73 @@ describe('Settings — PURGE_DATA', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('Settings — Spaces and Specializations', () => {
+  const mockGetOneUser = vi.fn();
+  const mockGetFullListEntries = vi.fn();
+
+  beforeEach(() => {
+    vi.mocked(pb.collection).mockImplementation((collectionName: string) => {
+      if (collectionName === 'users') {
+        return {
+          getOne: mockGetOneUser,
+        } as any;
+      }
+      if (collectionName === 'time_entries') {
+        return {
+          getFullList: mockGetFullListEntries,
+        } as any;
+      }
+      return {} as any;
+    });
+
+    mockGetOneUser.mockResolvedValue({ id: 'user_123', space_colors: { 'Design': '#ff0000' } });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetAllMocks();
+  });
+
+  test('renders spaces and their specializations with rename buttons', async () => {
+    mockGetFullListEntries.mockResolvedValue([
+      {
+        id: 'entry_1',
+        space: 'Design',
+        specialization: 'Figma',
+        user: 'user_123',
+      },
+      {
+        id: 'entry_2',
+        space: 'Design',
+        specialization: 'Illustrator',
+        user: 'user_123',
+      },
+      {
+        id: 'entry_3',
+        space: 'Engineering',
+        specialization: 'React',
+        user: 'user_123',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Design')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Engineering')).toBeInTheDocument();
+    expect(screen.getByText('Figma')).toBeInTheDocument();
+    expect(screen.getByText('Illustrator')).toBeInTheDocument();
+    expect(screen.getByText('React')).toBeInTheDocument();
+
+    const renameButtons = screen.getAllByRole('button', { name: /\[RENAME\]/i });
+    expect(renameButtons.length).toBe(5);
+  });
+});
+
