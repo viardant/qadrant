@@ -528,19 +528,30 @@ describe('handleWhoami', () => {
 });
 
 describe('Helper Utilities', () => {
+  const formatLocalDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   it('parseRelativeDateOrPreset parses today, yesterday, and relative times', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatLocalDate(new Date());
     expect(parseRelativeDateOrPreset('today')).toBe(today);
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const yesterdayStr = formatLocalDate(yesterday);
     expect(parseRelativeDateOrPreset('yesterday')).toBe(yesterdayStr);
 
     const twoDaysAgo = new Date();
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    const twoDaysAgoStr = twoDaysAgo.toISOString().slice(0, 10);
+    const twoDaysAgoStr = formatLocalDate(twoDaysAgo);
     expect(parseRelativeDateOrPreset('2 days ago')).toBe(twoDaysAgoStr);
+  });
+
+  it('parses input dates with leading or trailing whitespace', () => {
+    expect(parseRelativeDateOrPreset(' 2026-06-25 ')).toBe('2026-06-25');
   });
 
   it('parseDurationToMs parses shorthand durations', () => {

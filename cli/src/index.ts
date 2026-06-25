@@ -141,15 +141,22 @@ function applyOption(opts: ParsedArgs['options'], flag: string, value: string): 
   }
 }
 
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function parseRelativeDateOrPreset(input: string): string {
   const normalized = input.trim().toLowerCase();
   if (normalized === 'today') {
-    return new Date().toISOString().slice(0, 10);
+    return formatLocalDate(new Date());
   }
   if (normalized === 'yesterday') {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    return formatLocalDate(d);
   }
   const relativeMatch = normalized.match(/^(\d+)\s+(day|week|month)s?\s+ago$/);
   if (relativeMatch) {
@@ -159,13 +166,13 @@ export function parseRelativeDateOrPreset(input: string): string {
     if (unit === 'day') d.setDate(d.getDate() - count);
     if (unit === 'week') d.setDate(d.getDate() - count * 7);
     if (unit === 'month') d.setMonth(d.getMonth() - count);
-    return d.toISOString().slice(0, 10);
+    return formatLocalDate(d);
   }
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(input)) {
+  if (!dateRegex.test(normalized)) {
     throw new CliError(`Invalid date format "${input}". Use YYYY-MM-DD, "today", "yesterday", or "N days/weeks/months ago".`);
   }
-  return input;
+  return normalized;
 }
 
 export function parseDurationToMs(input: string): number {
