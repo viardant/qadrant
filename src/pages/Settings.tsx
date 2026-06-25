@@ -31,7 +31,6 @@ interface SpaceDetail {
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
-  const [spaces, setSpaces] = useState<string[]>([]);
   const [spaceDetails, setSpaceDetails] = useState<SpaceDetail[]>([]);
   const [spaceColors, setSpaceColors] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
@@ -67,11 +66,9 @@ export default function Settings() {
         });
         
         const spaceSpecMap = new Map<string, Set<string>>();
-        const uniqueSpaces = new Set<string>();
 
         for (const entry of entries) {
           if (entry.space) {
-            uniqueSpaces.add(entry.space);
             if (!spaceSpecMap.has(entry.space)) {
               spaceSpecMap.set(entry.space, new Set());
             }
@@ -81,12 +78,13 @@ export default function Settings() {
           }
         }
 
-        const detailsList: SpaceDetail[] = Array.from(uniqueSpaces).map((spaceName) => ({
-          name: spaceName,
-          specializations: Array.from(spaceSpecMap.get(spaceName) || []),
-        }));
+        const detailsList: SpaceDetail[] = Array.from(spaceSpecMap.keys())
+          .sort((a, b) => a.localeCompare(b))
+          .map((spaceName) => ({
+            name: spaceName,
+            specializations: Array.from(spaceSpecMap.get(spaceName) || []).sort((a, b) => a.localeCompare(b)),
+          }));
 
-        setSpaces(Array.from(uniqueSpaces));
         setSpaceDetails(detailsList);
       } catch (err) {
         console.error('Failed to load user preferences:', err);
@@ -213,7 +211,7 @@ export default function Settings() {
               Assign a marker for each space detected in your tracking history. The accent
               teal is reserved for active state.
             </p>
-            {spaces.length === 0 ? (
+            {spaceDetails.length === 0 ? (
               <EmptyState
                 title="NO_ACTIVE_SPACES"
                 message="NO_SPACES_DETECTED_IN_HISTORY"

@@ -416,5 +416,50 @@ describe('Settings — Spaces and Specializations', () => {
     const renameButtons = screen.getAllByRole('button', { name: /\[RENAME\]/i });
     expect(renameButtons.length).toBe(5);
   });
+
+  test('renders spaces and their specializations sorted alphabetically', async () => {
+    mockGetFullListEntries.mockResolvedValue([
+      {
+        id: 'entry_1',
+        space: 'Engineering',
+        specialization: 'React',
+        user: 'user_123',
+      },
+      {
+        id: 'entry_2',
+        space: 'Design',
+        specialization: 'Illustrator',
+        user: 'user_123',
+      },
+      {
+        id: 'entry_3',
+        space: 'Design',
+        specialization: 'Figma',
+        user: 'user_123',
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Design')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Engineering')).toBeInTheDocument();
+    
+    // Check that Design comes before Engineering in the DOM
+    const designEl = screen.getByText('Design');
+    const engineeringEl = screen.getByText('Engineering');
+    expect(designEl.compareDocumentPosition(engineeringEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    
+    // Check that Figma comes before Illustrator in the DOM
+    const figmaEl = screen.getByText('Figma');
+    const illustratorEl = screen.getByText('Illustrator');
+    expect(figmaEl.compareDocumentPosition(illustratorEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
