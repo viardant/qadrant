@@ -8,6 +8,7 @@ import {
   handleLogout,
   handleWhoami,
   handleList,
+  handleStats,
   ApiError,
   SessionExpiredError,
   CliError,
@@ -116,6 +117,12 @@ describe('CLI Argument Parsing - new stats flags', () => {
       '--by', 'space', '--include-entries',
     ]);
     expect(parsed.options.includeEntries).toBe(true);
+  });
+
+  it('allows hour-of-day and day-of-week groupings in stats', () => {
+    const parsed = parseArgs(['node', 'qadrant', 'stats', '--by', 'hour-of-day', '--period', 'last-week']);
+    expect(parsed.options.by).toBe('hour-of-day');
+    expect(parsed.options.period).toBe('last-week');
   });
 });
 
@@ -741,3 +748,169 @@ describe('handleList', () => {
     logSpy.mockRestore();
   });
 });
+
+describe('handleStats', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const baseState = { pb_url: 'https://pb.example', auth_token: 'valid-token', user_id: 'user-1' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('correctly aggregates by hour-of-day and day-of-week', async () => {
+    // 2026-06-25T08:00:00.000Z is a Thursday
+    const mockItems = [
+      {
+        id: '1',
+        space: 'eng',
+        specialization: 'fe',
+        start_date: '2026-06-25T08:00:00.000Z',
+        completion_time: '2026-06-25T10:00:00.000Z', // 2 hours
+      },
+      {
+        id: '2',
+        space: 'eng',
+        specialization: 'be',
+        start_date: '2026-06-25T14:30:00.000Z',
+        completion_time: '2026-06-25T15:30:00.000Z', // 1 hour
+      },
+    ];
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: mockItems,
+      }),
+      text: async () => '',
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    // Test hour-of-day
+    await handleStats(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'stats',
+        args: [],
+        options: {
+          by: 'hour-of-day',
+          format: 'json',
+        },
+      },
+      {}
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    
+    // We expect grouping by hour:
+    const date1 = new Date('2026-06-25T08:00:00.000Z');
+    const date2 = new Date('2026-06-25T14:30:00.000Z');
+    const key1 = `${String(date1.getHours()).padStart(2, '0')}:00`;
+    const key2 = `${String(date2.getHours()).padStart(2, '0')}:00`;
+
+    const hourOutput = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(hourOutput.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: key1, hours: 2 }),
+        expect.objectContaining({ key: key2, hours: 1 }),
+      ])
+    );
+
+    logSpy.mockClear();
+    fetchMock.mockClear();
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: mockItems,
+      }),
+      text: async () => '',
+    });
+
+    // Test day-of-week
+    await handleStats(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'stats',
+        args: [],
+        options: {
+          by: 'day-of-week',
+          format: 'json',
+        },
+      },
+      {}
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledTimes(1);
+
+    const weekdayKey = date1.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayOutput = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(dayOutput.rows).toEqual([
+      expect.objectContaining({ key: weekdayKey, hours: 3 })
+    ]);
+
+    logSpy.mockRestore();
+  });
+
+  it('correctly calculates query date ranges for all periods', async () => {
+    vi.useFakeTimers();
+    // Setting system time to June 25, 2026 (Thursday)
+    vi.setSystemTime(new Date('2026-06-25T12:00:00'));
+
+    const periods = [
+      { name: 'today', from: '2026-06-25', to: '2026-06-25' },
+      { name: 'yesterday', from: '2026-06-24', to: '2026-06-24' },
+      { name: 'this-week', from: '2026-06-22', to: '2026-06-28' },
+      { name: 'last-week', from: '2026-06-15', to: '2026-06-21' },
+      { name: 'this-month', from: '2026-06-01', to: '2026-06-30' },
+      { name: 'last-month', from: '2026-05-01', to: '2026-05-31' },
+      { name: 'last-30-days', from: '2026-05-26', to: '2026-06-25' },
+    ];
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    for (const p of periods) {
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [] }),
+        text: async () => '',
+      });
+
+      await handleStats(
+        baseState,
+        {
+          global: { noRefresh: false },
+          command: 'stats',
+          args: [],
+          options: {
+            period: p.name,
+          },
+        },
+        {}
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const url = fetchMock.mock.calls[0][0] as string;
+      expect(url).toContain(encodeURIComponent(`start_date>='${p.from} 00:00:00'`));
+      expect(url).toContain(encodeURIComponent(`start_date<='${p.to} 23:59:59'`));
+    }
+
+    logSpy.mockRestore();
+    vi.useRealTimers();
+  });
+});
+

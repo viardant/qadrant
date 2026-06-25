@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import {
   aggregateBy,
+  windowForPeriod,
   formatAggregateText,
   formatAggregateJson,
   type AggregateOptions,
@@ -655,11 +656,11 @@ export async function handleStats(state: Config, parsed: ParsedArgs, callOpts: A
   const period = parsed.options.period;
   const format = parsed.options.format ?? 'text';
 
-  if (by !== undefined && !['space', 'combo', 'day', 'week', 'month'].includes(by)) {
-    throw new CliError('--by must be one of space|combo|day|week|month');
+  if (by !== undefined && !['space', 'combo', 'day', 'week', 'month', 'hour-of-day', 'day-of-week'].includes(by)) {
+    throw new CliError('--by must be one of space|combo|day|week|month|hour-of-day|day-of-week');
   }
-  if (period !== undefined && !['today', 'this-week', 'this-month', 'all'].includes(period)) {
-    throw new CliError('--period must be one of today|this-week|this-month|all');
+  if (period !== undefined && !['today', 'this-week', 'this-month', 'all', 'yesterday', 'last-week', 'last-month', 'last-30-days'].includes(period)) {
+    throw new CliError('--period must be one of today|this-week|this-month|all|yesterday|last-week|last-month|last-30-days');
   }
   if (!['text', 'json'].includes(format)) {
     throw new CliError('--format must be text|json');
@@ -680,11 +681,21 @@ export async function handleStats(state: Config, parsed: ParsedArgs, callOpts: A
     }
   }
 
+  let periodFrom = parsed.options.from;
+  let periodTo = parsed.options.to;
+  if (period && period !== 'all' && !periodFrom && !periodTo) {
+    const window = windowForPeriod(period as Period);
+    if (window) {
+      periodFrom = window.start;
+      periodTo = window.end;
+    }
+  }
+
   let filter = `user='${state.user_id}' && completion_time!=""`;
   if (parsed.options.space) filter += ` && space='${parsed.options.space}'`;
   if (parsed.options.spec) filter += ` && specialization='${parsed.options.spec}'`;
-  if (hasFrom) filter += ` && start_date>='${parsed.options.from} 00:00:00'`;
-  if (hasTo) filter += ` && start_date<='${parsed.options.to} 23:59:59'`;
+  if (periodFrom) filter += ` && start_date>='${periodFrom} 00:00:00'`;
+  if (periodTo) filter += ` && start_date<='${periodTo} 23:59:59'`;
 
   const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000&sort=-start_date`;
   const response = (await apiCall(state, url, undefined, callOpts)) as {
@@ -706,6 +717,8 @@ export async function handleStats(state: Config, parsed: ParsedArgs, callOpts: A
     const aggOptions: AggregateOptions = {
       by: by as GroupBy,
       period: (period as Period) || 'all',
+      from: periodFrom,
+      to: periodTo,
       ...(parsed.options.includeEntries ? { includeEntries: true } : {}),
     };
     const result = aggregateBy(entries, aggOptions);

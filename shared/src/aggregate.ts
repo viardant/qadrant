@@ -7,6 +7,12 @@ export function windowForPeriod(period: Period, now: Date = new Date()): Window 
   if (period === 'today') {
     return { start: getLocalDateString(now), end: getLocalDateString(now) };
   }
+  if (period === 'yesterday') {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const dateStr = getLocalDateString(yesterday);
+    return { start: dateStr, end: dateStr };
+  }
   if (period === 'this-week') {
     const dayOfWeek = now.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -15,6 +21,16 @@ export function windowForPeriod(period: Period, now: Date = new Date()): Window 
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     return { start: getLocalDateString(monday), end: getLocalDateString(sunday) };
+  }
+  if (period === 'last-week') {
+    const d = new Date(now);
+    const day = d.getDay();
+    const diffToLastMonday = d.getDate() - day - 7 + (day === 0 ? -6 : 1);
+    const lastMonday = new Date(now);
+    lastMonday.setDate(diffToLastMonday);
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+    return { start: getLocalDateString(lastMonday), end: getLocalDateString(lastSunday) };
   }
   if (period === 'this-month') {
     const monthStr = getLocalMonthString(now);
@@ -25,6 +41,16 @@ export function windowForPeriod(period: Period, now: Date = new Date()): Window 
       start: `${monthStr}-01`,
       end: `${monthStr}-${String(lastDay).padStart(2, '0')}`,
     };
+  }
+  if (period === 'last-month') {
+    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { start: getLocalDateString(lm), end: getLocalDateString(lastDay) };
+  }
+  if (period === 'last-30-days') {
+    const d = new Date(now);
+    d.setDate(now.getDate() - 30);
+    return { start: getLocalDateString(d), end: getLocalDateString(now) };
   }
   return null;
 }
@@ -79,6 +105,8 @@ function groupKey(entry: TimeEntry, by: GroupBy): string | null {
     case 'day': return getLocalDateString(d);
     case 'week': return getLocalWeekMondayString(d);
     case 'month': return getLocalMonthString(d);
+    case 'hour-of-day': return `${String(d.getHours()).padStart(2, '0')}:00`;
+    case 'day-of-week': return d.toLocaleDateString('en-US', { weekday: 'long' });
   }
 }
 

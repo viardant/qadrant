@@ -132,14 +132,34 @@ describe('windowForPeriod', () => {
     expect(w).toEqual({ start: '2026-06-17', end: '2026-06-17' });
   });
 
+  it('returns a single-day window for yesterday', () => {
+    const w = windowForPeriod('yesterday', now);
+    expect(w).toEqual({ start: '2026-06-16', end: '2026-06-16' });
+  });
+
   it('returns a week window for this-week', () => {
     const w = windowForPeriod('this-week', now);
     expect(w).toEqual({ start: '2026-06-15', end: '2026-06-21' });
   });
 
+  it('returns a week window for last-week', () => {
+    const w = windowForPeriod('last-week', now);
+    expect(w).toEqual({ start: '2026-06-08', end: '2026-06-14' });
+  });
+
   it('returns a month window for this-month', () => {
     const w = windowForPeriod('this-month', now);
     expect(w).toEqual({ start: '2026-06-01', end: '2026-06-30' });
+  });
+
+  it('returns a month window for last-month', () => {
+    const w = windowForPeriod('last-month', now);
+    expect(w).toEqual({ start: '2026-05-01', end: '2026-05-31' });
+  });
+
+  it('returns a 30-day window for last-30-days', () => {
+    const w = windowForPeriod('last-30-days', now);
+    expect(w).toEqual({ start: '2026-05-18', end: '2026-06-17' });
   });
 
   it('returns null for all', () => {

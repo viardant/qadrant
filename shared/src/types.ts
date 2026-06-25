@@ -7,8 +7,8 @@ export interface TimeEntry {
   user: string;
 }
 
-export type GroupBy = 'space' | 'combo' | 'day' | 'week' | 'month';
-export type Period = 'today' | 'this-week' | 'this-month' | 'all';
+export type GroupBy = 'space' | 'combo' | 'day' | 'week' | 'month' | 'hour-of-day' | 'day-of-week';
+export type Period = 'today' | 'this-week' | 'this-month' | 'all' | 'yesterday' | 'last-week' | 'last-month' | 'last-30-days';
 
 export interface Window {
   start: string;
