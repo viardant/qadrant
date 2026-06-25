@@ -7,6 +7,7 @@ import {
   handleLogin,
   handleLogout,
   handleWhoami,
+  handleList,
   ApiError,
   SessionExpiredError,
   CliError,
@@ -141,6 +142,13 @@ describe('CLI Argument Parsing - new list flags', () => {
     expect(parsed.options.from).toBe('2024-06-01');
     expect(parsed.options.to).toBe('2024-06-30');
     expect(parsed.options.format).toBe('json');
+  });
+
+  it('parses --min-duration, --dedup, and --ignore-spec', () => {
+    const parsed = parseArgs(['node', 'qadrant', 'list', '--min-duration', '5m', '--dedup', '--ignore-spec']);
+    expect(parsed.options.minDuration).toBe('5m');
+    expect(parsed.options.dedup).toBe(true);
+    expect(parsed.options.ignoreSpec).toBe(true);
   });
 });
 
@@ -563,5 +571,173 @@ describe('Helper Utilities', () => {
   it('throws error for invalid date or duration formats', () => {
     expect(() => parseRelativeDateOrPreset('invalid')).toThrow();
     expect(() => parseDurationToMs('10x')).toThrow();
+  });
+});
+
+describe('handleList', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const baseState = { pb_url: 'https://pb.example', auth_token: 'valid-token', user_id: 'user-1' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('filters by --min-duration, clears spec via --ignore-spec, and squashes via --dedup in json mode', async () => {
+    const mockItems = [
+      {
+        id: '1',
+        space: 'eng',
+        specialization: 'fe',
+        start_date: '2026-06-25T08:00:00.000Z',
+        completion_time: '2026-06-25T08:10:00.000Z',
+      },
+      {
+        id: '2',
+        space: 'eng',
+        specialization: 'be',
+        start_date: '2026-06-25T09:00:00.000Z',
+        completion_time: '2026-06-25T09:02:00.000Z',
+      },
+      {
+        id: '3',
+        space: 'eng',
+        specialization: 'fe',
+        start_date: '2026-06-25T10:00:00.000Z',
+        completion_time: '2026-06-25T10:07:00.000Z',
+      },
+    ];
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: mockItems,
+        totalItems: 3,
+      }),
+      text: async () => '',
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handleList(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'list',
+        args: [],
+        options: {
+          minDuration: '5m',
+          ignoreSpec: true,
+          dedup: true,
+          format: 'json',
+          limit: 5,
+          offset: 2,
+        },
+      },
+      {}
+    );
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(logSpy).toHaveBeenCalledOnce();
+
+    const output = logSpy.mock.calls[0][0] as string;
+    const parsedOutput = JSON.parse(output);
+
+    const expectedDate = new Date('2026-06-25T08:00:00.000Z').toLocaleDateString();
+
+    expect(parsedOutput).toEqual({
+      entries: [
+        {
+          date: expectedDate,
+          space: 'eng',
+          specialization: '',
+          duration_ms: (10 + 7) * 60 * 1000,
+        },
+      ],
+      total: 1,
+      limit: 5,
+      offset: 2,
+    });
+
+    logSpy.mockRestore();
+  });
+
+  it('filters by --min-duration, clears spec via --ignore-spec, and squashes via --dedup in text mode with footer warning', async () => {
+    const mockItems = [
+      {
+        id: '1',
+        space: 'eng',
+        specialization: 'fe',
+        start_date: '2026-06-25T08:00:00.000Z',
+        completion_time: '2026-06-25T08:10:00.000Z',
+      },
+      {
+        id: '2',
+        space: 'eng',
+        specialization: 'be',
+        start_date: '2026-06-25T09:00:00.000Z',
+        completion_time: '2026-06-25T09:02:00.000Z',
+      },
+      {
+        id: '3',
+        space: 'eng',
+        specialization: 'fe',
+        start_date: '2026-06-25T10:00:00.000Z',
+        completion_time: '2026-06-25T10:07:00.000Z',
+      },
+    ];
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: mockItems,
+        totalItems: 5, // total 5 items (so there are more pages)
+      }),
+      text: async () => '',
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handleList(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'list',
+        args: [],
+        options: {
+          minDuration: '5m',
+          ignoreSpec: true,
+          dedup: true,
+          format: 'text',
+          limit: 3,
+          offset: 0,
+        },
+      },
+      {}
+    );
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    const logCalls = logSpy.mock.calls.map(c => c[0] as string);
+    expect(logCalls[0]).toContain('DATE       | DURATION | SPACE      | SUB');
+    expect(logCalls[1]).toContain('-----------+----------+------------+------------');
+
+    const expectedDate = new Date('2026-06-25T08:00:00.000Z').toLocaleDateString();
+    expect(logCalls[2]).toContain(expectedDate);
+    expect(logCalls[2]).toContain('00:17:00');
+    expect(logCalls[2]).toContain('eng');
+
+    // Assert that the pagination footer was printed:
+    // entries length here is the raw entries passed (3) filtered to 2, so shown = 0 + 2 = 2.
+    expect(logCalls[3]).toContain('Showing raw entries 1-2 of 5. Use --offset 2 to see more.');
+
+    logSpy.mockRestore();
   });
 });

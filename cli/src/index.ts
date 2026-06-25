@@ -40,6 +40,9 @@ export interface ParsedArgs {
     to?: string;
     offset?: number;
     includeEntries?: boolean;
+    minDuration?: string;
+    dedup?: boolean;
+    ignoreSpec?: boolean;
   };
 }
 
@@ -101,7 +104,7 @@ const GLOBAL_FLAGS = new Set(['--no-refresh', '--url']);
 const PER_COMMAND_FLAGS = new Set([
   '--url', '--space', '--sub', '--spec',
   '--limit', '--by', '--period', '--format',
-  '--from', '--to', '--offset',
+  '--from', '--to', '--offset', '--min-duration',
 ]);
 
 function readFlagValue(args: string[], i: number, flag: string): { value: string; next: number } {
@@ -128,8 +131,9 @@ function applyOption(opts: ParsedArgs['options'], flag: string, value: string): 
     case '--by': opts.by = value; break;
     case '--period': opts.period = value; break;
     case '--format': opts.format = value; break;
-    case '--from': opts.from = value; break;
-    case '--to': opts.to = value; break;
+    case '--min-duration': opts.minDuration = value; break;
+    case '--from': opts.from = parseRelativeDateOrPreset(value); break;
+    case '--to': opts.to = parseRelativeDateOrPreset(value); break;
     case '--offset': {
       const parsed = parseInt(value, 10);
       if (isNaN(parsed)) {
@@ -242,6 +246,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === '--include-entries') {
       result.options.includeEntries = true;
+      i++;
+      continue;
+    }
+    if (arg === '--dedup') {
+      result.options.dedup = true;
+      i++;
+      continue;
+    }
+    if (arg === '--ignore-spec') {
+      result.options.ignoreSpec = true;
       i++;
       continue;
     }
@@ -519,11 +533,82 @@ export async function handleList(state: Config, parsed: ParsedArgs, callOpts: Ap
     items?: Array<{ id: string; space: string; specialization?: string; start_date: string; completion_time?: string }>;
     totalItems?: number;
   };
-  const entries = response.items || [];
+
+  let entries = response.items || [];
   const total = response.totalItems ?? 0;
 
   if (entries.length === 0) {
     console.log('No tracked sessions found.');
+    return;
+  }
+
+  if (parsed.options.minDuration) {
+    const minMs = parseDurationToMs(parsed.options.minDuration);
+    entries = entries.filter(e => {
+      const endMs = e.completion_time ? new Date(e.completion_time).getTime() : new Date(e.start_date).getTime();
+      const durationMs = endMs - new Date(e.start_date).getTime();
+      return durationMs >= minMs;
+    });
+  }
+
+  if (parsed.options.ignoreSpec) {
+    entries = entries.map(e => ({ ...e, specialization: '' }));
+  }
+
+  if (parsed.options.dedup) {
+    const squashedMap = new Map<string, { date: string; space: string; specialization: string; durationMs: number }>();
+    for (const entry of entries) {
+      const localDate = new Date(entry.start_date).toLocaleDateString();
+      const endMs = entry.completion_time ? new Date(entry.completion_time).getTime() : new Date(entry.start_date).getTime();
+      const durationMs = Math.max(0, endMs - new Date(entry.start_date).getTime());
+      
+      const key = `${localDate}|${entry.space}|${entry.specialization || ''}`;
+      const existing = squashedMap.get(key);
+      if (existing) {
+        existing.durationMs += durationMs;
+      } else {
+        squashedMap.set(key, {
+          date: localDate,
+          space: entry.space,
+          specialization: entry.specialization || '',
+          durationMs,
+        });
+      }
+    }
+    
+    const squashedEntries = Array.from(squashedMap.values());
+    if (format === 'json') {
+      console.log(JSON.stringify({
+        entries: squashedEntries.map(e => ({
+          date: e.date,
+          space: e.space,
+          specialization: e.specialization,
+          duration_ms: e.durationMs,
+        })),
+        total: squashedEntries.length,
+        limit,
+        offset,
+      }, null, 2));
+      return;
+    }
+    
+    console.log('DATE       | DURATION | SPACE      | SUB');
+    console.log('-----------+----------+------------+------------');
+    for (const entry of squashedEntries) {
+      const diffSec = Math.floor(entry.durationMs / 1000);
+      const h = Math.floor(diffSec / 3600);
+      const m = Math.floor((diffSec % 3600) / 60);
+      const s = diffSec % 60;
+      const durationStrVal = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      const spaceStr = entry.space.slice(0, 10).padEnd(10);
+      const subStr = entry.specialization.slice(0, 10).padEnd(10);
+      console.log(`${entry.date.padEnd(10)} | ${durationStrVal} | ${spaceStr} | ${subStr}`);
+    }
+    
+    const shown = offset + entries.length;
+    if (shown < total) {
+      console.log(`\nShowing raw entries ${offset + 1}-${shown} of ${total}. Use --offset ${shown} to see more.`);
+    }
     return;
   }
 
