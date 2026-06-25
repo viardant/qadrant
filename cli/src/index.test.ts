@@ -15,6 +15,7 @@ import {
   CliError,
   parseRelativeDateOrPreset,
   parseDurationToMs,
+  type Config,
 } from './index.js';
 import fs from 'fs/promises';
 
@@ -258,7 +259,7 @@ describe('Config File Operations', () => {
 });
 
 describe('apiCall - transparent token refresh', () => {
-  const baseState = { pb_url: 'https://pb.example', auth_token: 'old-token', user_id: 'user-1' };
+  const baseState: Config = { pb_url: 'https://pb.example', auth_token: 'old-token', user_id: 'user-1' };
 
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -295,7 +296,7 @@ describe('apiCall - transparent token refresh', () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ token: 'new-token', record: { id: 'user-1' } }),
+        json: async () => ({ token: 'new-token', record: { id: 'user-1', email: 'alice@example.com' } }),
         text: async () => '',
       })
       .mockResolvedValueOnce({
@@ -310,11 +311,13 @@ describe('apiCall - transparent token refresh', () => {
 
     expect(result).toEqual({ ok: true });
     expect(state.auth_token).toBe('new-token');
+    expect(state.email).toBe('alice@example.com');
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[1][0]).toContain('/api/collections/users/auth-refresh');
     expect(fs.writeFile).toHaveBeenCalled();
     const written = JSON.parse(vi.mocked(fs.writeFile).mock.calls[0][1] as string);
     expect(written.auth_token).toBe('new-token');
+    expect(written.email).toBe('alice@example.com');
   });
 
   it('throws SessionExpiredError when refresh also fails', async () => {
@@ -411,7 +414,7 @@ describe('handleLogin', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ token: 'new-tok', record: { id: 'user-1' } }),
+      json: async () => ({ token: 'new-tok', record: { id: 'user-1', email: 'alice@example.com' } }),
       text: async () => '',
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -427,7 +430,7 @@ describe('handleLogin', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://pb.example/api/collections/users/auth-refresh');
     expect(fs.writeFile).toHaveBeenCalledOnce();
     const written = JSON.parse(vi.mocked(fs.writeFile).mock.calls[0][1] as string);
-    expect(written).toEqual({ pb_url: 'https://pb.example', auth_token: 'new-tok', user_id: 'user-1' });
+    expect(written).toEqual({ pb_url: 'https://pb.example', auth_token: 'new-tok', user_id: 'user-1', email: 'alice@example.com' });
     expect(logSpy).toHaveBeenCalledWith('LOGIN_SUCCESSFUL_AUTHENTICATED');
 
     logSpy.mockRestore();
@@ -505,6 +508,7 @@ describe('handleWhoami', () => {
       pb_url: 'https://pb.example',
       auth_token: token,
       user_id: 'user-1',
+      email: 'alice@example.com',
     }));
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -518,6 +522,7 @@ describe('handleWhoami', () => {
     const output = logSpy.mock.calls.map(c => c[0]).join('\n');
     expect(output).toContain('pb_url:     https://pb.example');
     expect(output).toContain('user_id:    user-1');
+    expect(output).toContain('email:      alice@example.com');
     expect(output).toMatch(/auth_token: [A-Za-z0-9_-]+…[A-Za-z0-9_-]+/);
     expect(output).toContain('expires_at:');
     logSpy.mockRestore();
@@ -525,6 +530,55 @@ describe('handleWhoami', () => {
 
   it('emits JSON when --format json is set', async () => {
     const token = makeJwt({ exp: 1234567890 });
+    vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({
+      pb_url: 'https://pb.example',
+      auth_token: token,
+      user_id: 'user-1',
+      email: 'alice@example.com',
+    }));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handleWhoami({
+      global: { noRefresh: false },
+      command: 'whoami',
+      args: [],
+      options: { format: 'json' },
+    });
+
+    const output = logSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(output);
+    expect(parsed.user_id).toBe('user-1');
+    expect(parsed.email).toBe('alice@example.com');
+    expect(parsed.expires_at).toBe('2009-02-13T23:31:30.000Z');
+    expect(parsed.auth_token).toMatch(/^[A-Za-z0-9_-]+…[A-Za-z0-9_-]+$/);
+    logSpy.mockRestore();
+  });
+
+  it('prefers the stored email over a stale JWT claim', async () => {
+    const token = makeJwt({ exp: 1234567890, email: 'jwt-claim@example.com' });
+    vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({
+      pb_url: 'https://pb.example',
+      auth_token: token,
+      user_id: 'user-1',
+      email: 'fresh@example.com',
+    }));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handleWhoami({
+      global: { noRefresh: false },
+      command: 'whoami',
+      args: [],
+      options: {},
+    });
+
+    const output = logSpy.mock.calls.map(c => c[0]).join('\n');
+    expect(output).toContain('email:      fresh@example.com');
+    expect(output).not.toContain('jwt-claim@example.com');
+    logSpy.mockRestore();
+  });
+
+  it('falls back to the JWT email claim when config has none', async () => {
+    const token = makeJwt({ exp: 1234567890, email: 'jwt-claim@example.com' });
     vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({
       pb_url: 'https://pb.example',
       auth_token: token,
@@ -541,9 +595,28 @@ describe('handleWhoami', () => {
 
     const output = logSpy.mock.calls[0][0] as string;
     const parsed = JSON.parse(output);
-    expect(parsed.user_id).toBe('user-1');
-    expect(parsed.expires_at).toBe('2009-02-13T23:31:30.000Z');
-    expect(parsed.auth_token).toMatch(/^[A-Za-z0-9_-]+…[A-Za-z0-9_-]+$/);
+    expect(parsed.email).toBe('jwt-claim@example.com');
+    logSpy.mockRestore();
+  });
+
+  it('shows (unknown) when neither config nor JWT contain an email', async () => {
+    const token = makeJwt({ exp: 1234567890 });
+    vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({
+      pb_url: 'https://pb.example',
+      auth_token: token,
+      user_id: 'user-1',
+    }));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handleWhoami({
+      global: { noRefresh: false },
+      command: 'whoami',
+      args: [],
+      options: {},
+    });
+
+    const output = logSpy.mock.calls.map(c => c[0]).join('\n');
+    expect(output).toContain('email:      (unknown)');
     logSpy.mockRestore();
   });
 });

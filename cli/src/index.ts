@@ -22,6 +22,7 @@ export interface Config {
   pb_url: string;
   auth_token: string;
   user_id: string;
+  email?: string | null;
 }
 
 export interface ParsedArgs {
@@ -278,6 +279,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 interface RefreshResult {
   token: string;
   userId: string;
+  email: string | null;
 }
 
 export async function refreshToken(pbUrl: string, currentToken: string): Promise<RefreshResult | null> {
@@ -289,9 +291,12 @@ export async function refreshToken(pbUrl: string, currentToken: string): Promise
     },
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { token?: string; record?: { id?: string } };
+  const data = (await res.json()) as { token?: string; record?: { id?: string; email?: string } };
   if (!data.token) return null;
-  return { token: data.token, userId: data.record?.id ?? '' };
+  const email = typeof data.record?.email === 'string' && data.record.email.length > 0
+    ? data.record.email
+    : null;
+  return { token: data.token, userId: data.record?.id ?? '', email };
 }
 
 export interface ApiCallOptions {
@@ -322,6 +327,7 @@ export async function apiCall(
     if (rotated) {
       state.auth_token = rotated.token;
       if (rotated.userId) state.user_id = rotated.userId;
+      if (rotated.email) state.email = rotated.email;
       await writeConfig(state);
       if (callOpts.onTokenRotated) {
         await callOpts.onTokenRotated({ ...state });
@@ -340,18 +346,30 @@ export async function apiCall(
   return res.json();
 }
 
-function decodeJwtExp(token: string): number | null {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   try {
     const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
     const padded = payload + '==='.slice((payload.length + 3) % 4);
     const json = Buffer.from(padded, 'base64').toString('utf-8');
-    const data = JSON.parse(json) as { exp?: number };
-    return typeof data.exp === 'number' ? data.exp : null;
+    const data = JSON.parse(json) as Record<string, unknown>;
+    return data && typeof data === 'object' ? data : null;
   } catch {
     return null;
   }
+}
+
+function decodeJwtExp(token: string): number | null {
+  const data = decodeJwtPayload(token);
+  const exp = data?.exp;
+  return typeof exp === 'number' ? exp : null;
+}
+
+function decodeJwtEmail(token: string): string | null {
+  const data = decodeJwtPayload(token);
+  const email = data?.email;
+  return typeof email === 'string' && email.length > 0 ? email : null;
 }
 
 function maskToken(token: string): string {
@@ -424,6 +442,7 @@ export async function handleLogin(parsed: ParsedArgs): Promise<void> {
     pb_url: normalizedUrl,
     auth_token: rotated.token,
     user_id: rotated.userId,
+    email: rotated.email,
   });
 
   console.log('LOGIN_SUCCESSFUL_AUTHENTICATED');
@@ -438,9 +457,11 @@ export async function handleWhoami(parsed: ParsedArgs): Promise<void> {
   const config = await requireConfig(parsed.options.url);
   const format = parsed.options.format ?? 'text';
   const exp = decodeJwtExp(config.auth_token);
+  const email = config.email ?? decodeJwtEmail(config.auth_token) ?? null;
   const payload = {
     pb_url: config.pb_url,
     user_id: config.user_id,
+    email,
     auth_token: maskToken(config.auth_token),
     ...(exp ? { expires_at: new Date(exp * 1000).toISOString() } : {}),
   };
@@ -450,6 +471,7 @@ export async function handleWhoami(parsed: ParsedArgs): Promise<void> {
   }
   console.log(`pb_url:     ${payload.pb_url}`);
   console.log(`user_id:    ${payload.user_id}`);
+  console.log(`email:      ${payload.email ?? '(unknown)'}`);
   console.log(`auth_token: ${payload.auth_token}`);
   if (payload.expires_at) {
     console.log(`expires_at: ${payload.expires_at}`);

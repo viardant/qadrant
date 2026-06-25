@@ -31,3 +31,6 @@ Thumbs.db
 .agents/
 .superpowers/
 skills-lock.json
+
+# One-shot import script state (notion-tt → qadrant)
+scripts/.imported.json
