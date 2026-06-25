@@ -15,6 +15,13 @@ vi.mock('../lib/pocketbase', () => {
         token: 'mock_token',
         save: vi.fn(),
       },
+      filter: (raw: string, params: Record<string, string>) => {
+        let result = raw;
+        for (const [key, value] of Object.entries(params || {})) {
+          result = result.replace(`{:${key}}`, `"${value}"`);
+        }
+        return result;
+      },
     },
   };
 });
@@ -836,5 +843,72 @@ describe('Settings — Spaces and Specializations', () => {
     });
     expect(mockUpdateEntry).not.toHaveBeenCalled();
   });
+
+  test('Displays error message when space rename fails', async () => {
+    const mockEntries = [
+      { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
+    ];
+    mockGetFullListEntries.mockResolvedValue(mockEntries);
+    mockUpdateEntry.mockRejectedValueOnce(new Error('Update failed'));
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Design')).toBeInTheDocument();
+    });
+
+    const designContainer = screen.getByText('Design').parentElement!;
+    const renameBtn = within(designContainer).getByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(renameBtn);
+
+    const input = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Creatives' } });
+
+    const submitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Rename failed. Please retry.');
+    });
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  test('Displays error message when specialization rename fails', async () => {
+    const mockEntries = [
+      { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
+    ];
+    mockGetFullListEntries.mockResolvedValue(mockEntries);
+    mockUpdateEntry.mockRejectedValueOnce(new Error('Update failed'));
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Figma')).toBeInTheDocument();
+    });
+
+    const figmaContainer = screen.getByText('Figma').parentElement!;
+    const renameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(renameBtn);
+
+    const input = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'UI/UX' } });
+
+    const submitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Rename failed. Please retry.');
+    });
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
 });
+
 

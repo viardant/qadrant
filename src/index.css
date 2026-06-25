@@ -318,6 +318,22 @@ a {
   }
 }
 
+.btn--link {
+  border-color: transparent !important;
+  background: transparent !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  text-decoration: underline;
+  color: var(--fg-muted);
+}
+
+.btn--link:hover {
+  background: transparent !important;
+  color: var(--fg) !important;
+  text-decoration: underline;
+}
+
 .btn--danger {
   color: var(--error);
   border-color: var(--error);

@@ -80,9 +80,13 @@ export default function Settings() {
     setRenameError(null);
     setRenameProgressText('FETCHING_RECORDS…');
 
+    let updatedSome = false;
     try {
       const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
-        filter: `user = "${pb.authStore.model.id}" && space = "${renameTargetSpace}"`,
+        filter: pb.filter('user = {:userId} && space = {:space}', {
+          userId: pb.authStore.model.id,
+          space: renameTargetSpace,
+        }),
       });
 
       const totalSteps = Math.ceil(entries.length / RENAME_BATCH_SIZE);
@@ -97,6 +101,7 @@ export default function Settings() {
             pb.collection('time_entries').update(entry.id, { space: targetNew })
           )
         );
+        updatedSome = true;
       }
 
       // Update color settings if they exist
@@ -117,6 +122,9 @@ export default function Settings() {
       console.error(err);
       setRenameError('Rename failed. Please retry.');
       setRenameInProgress(false);
+      if (updatedSome) {
+        setTimeout(() => window.location.reload(), 2000);
+      }
     }
   };
 
@@ -137,9 +145,14 @@ export default function Settings() {
     setRenameError(null);
     setRenameProgressText('FETCHING_RECORDS…');
 
+    let updatedSome = false;
     try {
       const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
-        filter: `user = "${pb.authStore.model.id}" && space = "${space}" && specialization = "${oldSpec}"`,
+        filter: pb.filter('user = {:userId} && space = {:space} && specialization = {:spec}', {
+          userId: pb.authStore.model.id,
+          space: space,
+          spec: oldSpec,
+        }),
       });
 
       const totalSteps = Math.ceil(entries.length / RENAME_BATCH_SIZE);
@@ -154,6 +167,7 @@ export default function Settings() {
             pb.collection('time_entries').update(entry.id, { specialization: targetNew })
           )
         );
+        updatedSome = true;
       }
 
       window.location.reload();
@@ -161,6 +175,9 @@ export default function Settings() {
       console.error(err);
       setRenameError('Rename failed. Please retry.');
       setRenameInProgress(false);
+      if (updatedSome) {
+        setTimeout(() => window.location.reload(), 2000);
+      }
     }
   };
 
@@ -346,7 +363,7 @@ export default function Settings() {
                         <button
                           type="button"
                           className="btn btn--link"
-                          style={{ fontSize: '11px', padding: 0, height: 'auto', minHeight: '0', textDecoration: 'underline' }}
+                          style={{ fontSize: '11px' }}
                           onClick={() => handleOpenRenameSpace(detail.name)}
                         >
                           [RENAME]
@@ -375,7 +392,7 @@ export default function Settings() {
                               <button
                                 type="button"
                                 className="btn btn--link"
-                                style={{ fontSize: '10px', padding: 0, height: 'auto', minHeight: '0', textDecoration: 'underline', color: 'var(--fg-muted)' }}
+                                style={{ fontSize: '10px', color: 'var(--fg-muted)' }}
                                 onClick={() => handleOpenRenameSpec(detail.name, spec)}
                               >
                                 [RENAME]
