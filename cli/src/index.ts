@@ -387,6 +387,7 @@ Commands:
   qadrant list [--limit <n>] [--space <name>] [--spec <specialization>] [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--offset <n>] [--format <text|json>]
   qadrant stats [--by <space|combo|day|week|month>] [--period <today|this-week|this-month|all>] [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--space <name>] [--spec <specialization>] [--include-entries] [--format <text|json>]
   qadrant aggregate --by <space|combo|day|week|month> (deprecated, use "stats --by ...")
+  qadrant insights [--period <today|this-week|this-month|all|yesterday|last-week|last-month|last-30-days>] [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--format <text|json>]
 
 Global Flags:
   --no-refresh      Disable transparent token refresh on 401/403.
@@ -751,6 +752,149 @@ export async function handleStats(state: Config, parsed: ParsedArgs, callOpts: A
   console.log(`TOTAL_TRACKED_HOURS: ${totalHours.toFixed(2)}`);
 }
 
+export async function handleInsights(state: Config, parsed: ParsedArgs, callOpts: ApiCallOptions): Promise<void> {
+  const period = (parsed.options.period as Period) || 'last-30-days';
+  const format = parsed.options.format ?? 'text';
+  
+  let periodFrom = parsed.options.from;
+  let periodTo = parsed.options.to;
+  if (!periodFrom && !periodTo) {
+    const window = windowForPeriod(period);
+    if (window) {
+      periodFrom = window.start;
+      periodTo = window.end;
+    }
+  }
+  
+  let filter = `user='${state.user_id}' && completion_time!=""`;
+  if (periodFrom) filter += ` && start_date>='${periodFrom} 00:00:00'`;
+  if (periodTo) filter += ` && start_date<='${periodTo} 23:59:59'`;
+  
+  const url = `/api/collections/time_entries/records?filter=${encodeURIComponent(filter)}&perPage=100000&sort=-start_date`;
+  const response = (await apiCall(state, url, undefined, callOpts)) as {
+    items?: Array<{ space: string; specialization?: string; start_date: string; completion_time?: string }>;
+  };
+  const items = response.items || [];
+  
+  if (items.length === 0) {
+    if (format === 'json') {
+      console.log(JSON.stringify({ error: 'No data found' }));
+    } else {
+      console.log('No tracked sessions found in this period to extract insights.');
+    }
+    return;
+  }
+
+  // Compute metrics
+  let focusBlocks = 0;
+  const daySwitchesMap = new Map<string, Set<string>>();
+  let totalStartMs = 0;
+  let totalEndMs = 0;
+  let totalMs = 0;
+  const spaceMs = new Map<string, number>();
+
+  // For velocity trends: current week vs previous week
+  const nowTime = new Date().getTime();
+  const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+  let curWeekMs = 0;
+  let prevWeekMs = 0;
+
+  for (const item of items) {
+    const start = new Date(item.start_date);
+    const end = item.completion_time ? new Date(item.completion_time) : start;
+    const duration = end.getTime() - start.getTime();
+    totalMs += duration;
+
+    if (duration >= 90 * 60 * 1000) {
+      focusBlocks++;
+    }
+
+    const localDate = formatLocalDate(start);
+    if (!daySwitchesMap.has(localDate)) {
+      daySwitchesMap.set(localDate, new Set());
+    }
+    daySwitchesMap.get(localDate)!.add(item.space);
+
+    const startHourMs = (start.getHours() * 3600 + start.getMinutes() * 60 + start.getSeconds()) * 1000;
+    const endHourMs = (end.getHours() * 3600 + end.getMinutes() * 60 + end.getSeconds()) * 1000;
+    totalStartMs += startHourMs;
+    totalEndMs += endHourMs;
+
+    spaceMs.set(item.space, (spaceMs.get(item.space) || 0) + duration);
+
+    // Velocity calculations
+    const startEpoch = start.getTime();
+    if (startEpoch >= nowTime - oneWeekMs) {
+      curWeekMs += duration;
+    } else if (startEpoch >= nowTime - 2 * oneWeekMs && startEpoch < nowTime - oneWeekMs) {
+      prevWeekMs += duration;
+    }
+  }
+
+  const activeDays = daySwitchesMap.size || 1;
+  let totalSwitches = 0;
+  for (const spaces of daySwitchesMap.values()) {
+    totalSwitches += Math.max(0, spaces.size - 1);
+  }
+  const avgContextSwitches = totalSwitches / activeDays;
+
+  const avgStartSec = Math.floor(totalStartMs / items.length / 1000);
+  const avgEndSec = Math.floor(totalEndMs / items.length / 1000);
+  const formatTimeOfDay = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  const spaceRatios: Record<string, number> = {};
+  const distributionRows: Array<{ space: string; ratio: number; percent: number }> = [];
+  for (const [space, ms] of spaceMs.entries()) {
+    const ratio = ms / totalMs;
+    spaceRatios[space] = ratio;
+    distributionRows.push({ space, ratio, percent: Math.round(ratio * 100) });
+  }
+  distributionRows.sort((a, b) => b.ratio - a.ratio);
+
+  let velocityChange = 0;
+  if (prevWeekMs > 0) {
+    velocityChange = ((curWeekMs - prevWeekMs) / prevWeekMs) * 100;
+  }
+
+  if (format === 'json') {
+    console.log(JSON.stringify({
+      period: { from: periodFrom, to: periodTo },
+      metrics: {
+        focus_blocks: focusBlocks,
+        avg_context_switches_per_day: parseFloat(avgContextSwitches.toFixed(1)),
+        temporal_core: {
+          avg_start: formatTimeOfDay(avgStartSec),
+          avg_end: formatTimeOfDay(avgEndSec)
+        },
+        space_distribution: spaceRatios,
+        velocity_trend_percentage: parseFloat(velocityChange.toFixed(1))
+      }
+    }, null, 2));
+    return;
+  }
+
+  // Text Output Format Dashboard
+  console.log(`=== QADRANT INSIGHTS (${periodFrom} to ${periodTo}) ===\n`);
+  console.log('Productivity Patterns:');
+  console.log(`- Focus Blocks (>= 90m):  ${focusBlocks} deep session(s)`);
+  console.log(`- Context Switches:       ${avgContextSwitches.toFixed(1)} / day`);
+  console.log('\nWork Schedule Window:');
+  console.log(`- Average Work Day:       ${formatTimeOfDay(avgStartSec)} - ${formatTimeOfDay(avgEndSec)}`);
+  console.log('\nSpace Distribution:');
+  for (const r of distributionRows) {
+    const barLen = Math.round(r.ratio * 10);
+    const bar = '█'.repeat(barLen).padEnd(10, '░');
+    console.log(`[${bar}] ${r.percent}% ${r.space}`);
+  }
+  console.log('\nVelocity Trends:');
+  const prefix = velocityChange >= 0 ? '+' : '';
+  console.log(`- Current Week vs Last:   ${prefix}${velocityChange.toFixed(1)}% active hours`);
+}
+
 export async function main() {
   let parsed: ParsedArgs;
   try {
@@ -796,6 +940,11 @@ export async function main() {
       case 'stats': {
         const state = await requireConfig(parsed.options.url);
         await handleStats(state, parsed, callOpts);
+        return;
+      }
+      case 'insights': {
+        const state = await requireConfig(parsed.options.url);
+        await handleInsights(state, parsed, callOpts);
         return;
       }
       case 'start': {

@@ -9,6 +9,7 @@ import {
   handleWhoami,
   handleList,
   handleStats,
+  handleInsights,
   ApiError,
   SessionExpiredError,
   CliError,
@@ -203,6 +204,11 @@ describe('CLI Argument Parsing - global flags', () => {
   it('accepts the new commands whoami and logout', () => {
     expect(parseArgs(['node', 'qadrant', 'whoami']).command).toBe('whoami');
     expect(parseArgs(['node', 'qadrant', 'logout']).command).toBe('logout');
+  });
+
+  it('parses insights command', () => {
+    const parsed = parseArgs(['node', 'qadrant', 'insights', '--period', 'last-30-days']);
+    expect(parsed.command).toBe('insights');
   });
 
   it('rejects invalid limit or offset values with CliError', () => {
@@ -911,6 +917,171 @@ describe('handleStats', () => {
 
     logSpy.mockRestore();
     vi.useRealTimers();
+  });
+});
+
+describe('handleInsights', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const baseState = { pb_url: 'https://pb.example', auth_token: 'valid-token', user_id: 'user-1' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('calculates insights telemetry correctly and outputs in json and text format', async () => {
+    vi.useFakeTimers();
+    const mockNow = new Date(2026, 5, 25, 12, 0, 0); // Thursday June 25, 2026
+    vi.setSystemTime(mockNow);
+
+    const d1_start = new Date(2026, 5, 24, 8, 0, 0);
+    const d1_end = new Date(2026, 5, 24, 9, 40, 0); // 100m (Focus block)
+    const d2_start = new Date(2026, 5, 24, 14, 0, 0);
+    const d2_end = new Date(2026, 5, 24, 14, 30, 0); // 30m
+    const prev_start = new Date(mockNow.getTime() - 9 * 24 * 3600 * 1000); // 9 days ago, previous week
+    const prev_end = new Date(prev_start.getTime() + 100 * 60 * 1000); // 100m
+
+    const mockItems = [
+      {
+        space: 'work',
+        start_date: d1_start.toISOString(),
+        completion_time: d1_end.toISOString(),
+      },
+      {
+        space: 'learn',
+        start_date: d2_start.toISOString(),
+        completion_time: d2_end.toISOString(),
+      },
+      {
+        space: 'work',
+        start_date: prev_start.toISOString(),
+        completion_time: prev_end.toISOString(),
+      },
+    ];
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: mockItems,
+      }),
+      text: async () => '',
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    // JSON format
+    await handleInsights(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'insights',
+        args: [],
+        options: {
+          period: 'last-30-days',
+          format: 'json',
+        },
+      },
+      {}
+    );
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(logSpy).toHaveBeenCalledOnce();
+    const jsonOutput = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(jsonOutput.metrics.focus_blocks).toBe(2);
+    expect(jsonOutput.metrics.avg_context_switches_per_day).toBe(0.5);
+    expect(jsonOutput.metrics.temporal_core).toEqual({
+      avg_start: '11:20',
+      avg_end: '12:36',
+    });
+    expect(jsonOutput.metrics.space_distribution).toEqual({
+      work: 200 / 230,
+      learn: 30 / 230,
+    });
+    expect(jsonOutput.metrics.velocity_trend_percentage).toBe(30.0);
+
+    logSpy.mockClear();
+
+    // Text format
+    await handleInsights(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'insights',
+        args: [],
+        options: {
+          period: 'last-30-days',
+          format: 'text',
+        },
+      },
+      {}
+    );
+
+    const textCalls = logSpy.mock.calls.map(c => c[0]);
+    const fullText = textCalls.join('\n');
+    expect(fullText).toContain('=== QADRANT INSIGHTS');
+    expect(fullText).toContain('Focus Blocks (>= 90m):  2 deep session(s)');
+    expect(fullText).toContain('Context Switches:       0.5 / day');
+    expect(fullText).toContain('Average Work Day:       11:20 - 12:36');
+    expect(fullText).toContain('[█████████░] 87% work');
+    expect(fullText).toContain('[█░░░░░░░░░] 13% learn');
+    expect(fullText).toContain('Current Week vs Last:   +30.0% active hours');
+
+    logSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('outputs fallback text when no data is found', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [] }),
+      text: async () => '',
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handleInsights(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'insights',
+        args: [],
+        options: { format: 'text' },
+      },
+      {}
+    );
+
+    expect(logSpy).toHaveBeenCalledWith('No tracked sessions found in this period to extract insights.');
+    logSpy.mockClear();
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [] }),
+      text: async () => '',
+    });
+
+    await handleInsights(
+      baseState,
+      {
+        global: { noRefresh: false },
+        command: 'insights',
+        args: [],
+        options: { format: 'json' },
+      },
+      {}
+    );
+
+    const jsonOutput = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(jsonOutput).toEqual({ error: 'No data found' });
+
+    logSpy.mockRestore();
   });
 });
 
