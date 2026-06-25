@@ -461,5 +461,49 @@ describe('Settings — Spaces and Specializations', () => {
     const illustratorEl = screen.getByText('Illustrator');
     expect(figmaEl.compareDocumentPosition(illustratorEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  test('clicking space [RENAME] button opens rename space modal', async () => {
+    mockGetFullListEntries.mockResolvedValue([
+      {
+        id: 'entry_1',
+        space: 'WORK',
+        specialization: 'Figma',
+        user: 'user_123',
+      },
+    ]);
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(screen.getByText('WORK')).toBeInTheDocument();
+    });
+    const renameBtns = screen.getAllByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(renameBtns[0]); // Click first rename button (space level)
+    expect(screen.getByText('NEW SPACE NAME')).toBeInTheDocument();
+  });
+
+  test('clicking specialization [RENAME] button opens rename spec modal', async () => {
+    mockGetFullListEntries.mockResolvedValue([
+      {
+        id: 'entry_1',
+        space: 'WORK',
+        specialization: 'Figma',
+        user: 'user_123',
+      },
+    ]);
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(screen.getByText('WORK')).toBeInTheDocument();
+    });
+    const renameBtns = screen.getAllByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(renameBtns[1]); // Click second rename button (spec level)
+    expect(screen.getByText('NEW SPECIALIZATION NAME')).toBeInTheDocument();
+  });
 });
 

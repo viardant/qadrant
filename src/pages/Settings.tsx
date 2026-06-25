@@ -37,11 +37,41 @@ export default function Settings() {
   const [beatIdx, setBeatIdx] = useState(0);
   const { isMobile } = useBreakpoint();
 
+  const [renameTargetSpace, setRenameTargetSpace] = useState<string | null>(null);
+  const [renameTargetSpec, setRenameTargetSpec] = useState<{ space: string; spec: string } | null>(null);
+  const [newName, setNewName] = useState('');
+  const [renameInProgress, setRenameInProgress] = useState(false);
+  const [renameProgressText, setRenameProgressText] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+
   const handleOpenRenameSpace = (spaceName: string) => {
-    console.log('Rename space:', spaceName);
+    setRenameTargetSpace(spaceName);
+    setNewName(spaceName);
+    setRenameError(null);
   };
+
   const handleOpenRenameSpec = (spaceName: string, specName: string) => {
-    console.log('Rename spec:', spaceName, specName);
+    setRenameTargetSpec({ space: spaceName, spec: specName });
+    setNewName(specName);
+    setRenameError(null);
+  };
+
+  const handleCloseRename = () => {
+    if (renameInProgress) return;
+    setRenameTargetSpace(null);
+    setRenameTargetSpec(null);
+    setNewName('');
+    setRenameError(null);
+  };
+
+  const executeRenameSpace = async () => {
+    console.log('Execute rename space', renameTargetSpace, newName);
+    handleCloseRename();
+  };
+
+  const executeRenameSpec = async () => {
+    console.log('Execute rename spec', renameTargetSpec, newName);
+    handleCloseRename();
   };
 
   const [purgeOpen, setPurgeOpen] = useState(false);
@@ -403,6 +433,98 @@ export default function Settings() {
             </p>
           )}
         </form>
+      </Modal>
+
+      <Modal
+        open={renameTargetSpace !== null}
+        onClose={handleCloseRename}
+        title="▸&nbsp;&nbsp;RENAME_SPACE_PROTOCOL"
+        footer={
+          <>
+            <button type="button" className="btn btn--ghost" onClick={handleCloseRename} disabled={renameInProgress}>
+              CANCEL
+            </button>
+            <button
+              type="button"
+              className="btn btn--filled"
+              onClick={executeRenameSpace}
+              disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpace}
+            >
+              {renameInProgress ? 'EXECUTING...' : '>>> EXECUTE_RENAME'}
+            </button>
+          </>
+        }
+      >
+        <div className="section" style={{ gap: 'var(--space-4)' }}>
+          <p className="settings-section__body">
+            Renaming space <strong>{renameTargetSpace}</strong> will update all associated historical time entries.
+          </p>
+          <label className="section" style={{ gap: 'var(--space-2)' }}>
+            <span className="eyebrow">NEW SPACE NAME</span>
+            <input
+              type="text"
+              className="input input--inline"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="NEW_NAME..."
+              maxLength={48}
+              disabled={renameInProgress}
+            />
+          </label>
+          {renameInProgress && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <BeatIndicator activeIndex={beatIdx} label="Renaming" />
+              <span className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>{renameProgressText}</span>
+            </div>
+          )}
+          {renameError && <span className="type-tech-mono" style={{ color: 'var(--error)' }}>{renameError}</span>}
+        </div>
+      </Modal>
+
+      <Modal
+        open={renameTargetSpec !== null}
+        onClose={handleCloseRename}
+        title="▸&nbsp;&nbsp;RENAME_SPECIALIZATION_PROTOCOL"
+        footer={
+          <>
+            <button type="button" className="btn btn--ghost" onClick={handleCloseRename} disabled={renameInProgress}>
+              CANCEL
+            </button>
+            <button
+              type="button"
+              className="btn btn--filled"
+              onClick={executeRenameSpec}
+              disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpec?.spec}
+            >
+              {renameInProgress ? 'EXECUTING...' : '>>> EXECUTE_RENAME'}
+            </button>
+          </>
+        }
+      >
+        <div className="section" style={{ gap: 'var(--space-4)' }}>
+          <p className="settings-section__body">
+            Renaming specialization <strong>{renameTargetSpec?.spec}</strong> inside space <strong>{renameTargetSpec?.space}</strong> will update all matching historical entries.
+          </p>
+          <label className="section" style={{ gap: 'var(--space-2)' }}>
+            <span className="eyebrow">NEW SPECIALIZATION NAME</span>
+            <input
+              type="text"
+              className="input input--inline"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="NEW_NAME..."
+              maxLength={48}
+              disabled={renameInProgress}
+            />
+          </label>
+          {renameInProgress && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <BeatIndicator activeIndex={beatIdx} label="Renaming" />
+              <span className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>{renameProgressText}</span>
+            </div>
+          )}
+          {renameError && <span className="type-tech-mono" style={{ color: 'var(--error)' }}>{renameError}</span>}
+        </div>
       </Modal>
     </>
   );
