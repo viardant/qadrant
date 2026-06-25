@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getLocalDateString, getLocalMonthString, getLocalWeekMondayString, getEntryDurationHours } from './date-helpers.js';
-import type { TimeEntry, GroupBy, Period, AggregateResult } from './types.js';
+import type { TimeEntry, GroupBy, AggregateResult } from './types.js';
 import {
   filterByPeriod,
   filterByCustomRange,

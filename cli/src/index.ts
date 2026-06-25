@@ -101,7 +101,6 @@ export async function deleteConfig(): Promise<void> {
   }
 }
 
-const GLOBAL_FLAGS = new Set(['--no-refresh', '--url']);
 const PER_COMMAND_FLAGS = new Set([
   '--url', '--space', '--sub', '--spec',
   '--limit', '--by', '--period', '--format',
@@ -936,7 +935,7 @@ export async function main() {
         if (!parsed.options.by) {
           throw new CliError('--by is required for aggregate');
         }
-        // intentional fall-through
+        /* falls through */
       case 'stats': {
         const state = await requireConfig(parsed.options.url);
         await handleStats(state, parsed, callOpts);

@@ -127,8 +127,8 @@ export default function Stats() {
     const modal = getModalStream(currentFiltered);
 
     // Dynamic stats aggregation
-    let totalSecs = currentFiltered.reduce((sum, e) => sum + getEntryDurationHours(e), 0);
-    let priorTotalSecs = priorFiltered.reduce((sum, e) => sum + getEntryDurationHours(e), 0);
+    const totalSecs = currentFiltered.reduce((sum, e) => sum + getEntryDurationHours(e), 0);
+    const priorTotalSecs = priorFiltered.reduce((sum, e) => sum + getEntryDurationHours(e), 0);
 
     const todayHours = currentFiltered
       .filter((e) => new Date(e.start_date).toDateString() === now.toDateString())
