@@ -24,9 +24,15 @@ const DEFAULT_COLORS = [
   '#8a8780',
 ];
 
+interface SpaceDetail {
+  name: string;
+  specializations: string[];
+}
+
 export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [spaces, setSpaces] = useState<string[]>([]);
+  const [spaceDetails, setSpaceDetails] = useState<SpaceDetail[]>([]);
   const [spaceColors, setSpaceColors] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [beatIdx, setBeatIdx] = useState(0);

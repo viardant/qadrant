@@ -5,10 +5,21 @@ import { MemoryRouter } from 'react-router-dom';
 import Settings from './Settings';
 import { pb } from '../lib/pocketbase';
 
+const mockSendBatch = vi.fn().mockResolvedValue([]);
+const mockBatchUpdate = vi.fn();
+const mockBatchCollection = vi.fn().mockReturnValue({
+  update: mockBatchUpdate,
+});
+const mockCreateBatch = vi.fn().mockReturnValue({
+  collection: mockBatchCollection,
+  send: mockSendBatch,
+});
+
 vi.mock('../lib/pocketbase', () => {
   return {
     pb: {
       collection: vi.fn(),
+      createBatch: () => mockCreateBatch(),
       authStore: {
         isValid: true,
         model: { id: 'user_123' },
