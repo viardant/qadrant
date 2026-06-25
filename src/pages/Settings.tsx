@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { pb } from '../lib/pocketbase';
 import type { TimeEntry } from '../lib/time-entry';
@@ -6,6 +6,10 @@ import { TopBar } from '../components/ui/TopBar';
 import { BeatIndicator } from '../components/ui/BeatIndicator';
 import { Eyebrow } from '../components/ui/Eyebrow';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Modal } from '../components/ui/Modal';
+
+const PURGE_CONFIRM_PHRASE = 'DELETE ALL';
+const PURGE_BATCH_SIZE = 10;
 
 const DEFAULT_COLORS = [
   '#35675d', // forest green (accent)
@@ -27,6 +31,12 @@ export default function Settings() {
   const [copied, setCopied] = useState(false);
   const [beatIdx, setBeatIdx] = useState(0);
   const { isMobile } = useBreakpoint();
+
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgePhrase, setPurgePhrase] = useState('');
+  const [purgeInProgress, setPurgeInProgress] = useState(false);
+  const [purgeError, setPurgeError] = useState<string | null>(null);
+  const purgeInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     async function fetchSettingsData() {
@@ -92,6 +102,55 @@ export default function Settings() {
     pb.authStore.clear();
     document.cookie = 'pb_auth=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
     window.location.reload();
+  };
+
+  const openPurge = () => {
+    setPurgePhrase('');
+    setPurgeError(null);
+    setPurgeOpen(true);
+  };
+
+  const closePurge = () => {
+    if (purgeInProgress) return;
+    setPurgeOpen(false);
+    setPurgePhrase('');
+    setPurgeError(null);
+  };
+
+  const handlePurge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (purgeInProgress) return;
+    if (purgePhrase !== PURGE_CONFIRM_PHRASE) {
+      setPurgeError(`Type ${PURGE_CONFIRM_PHRASE} to confirm.`);
+      return;
+    }
+    const userId = pb.authStore.model?.id;
+    if (!userId) {
+      setPurgeError('Not authenticated.');
+      return;
+    }
+    setPurgeInProgress(true);
+    setPurgeError(null);
+    try {
+      const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
+        filter: `user = "${userId}"`,
+      });
+      for (let i = 0; i < entries.length; i += PURGE_BATCH_SIZE) {
+        const batch = entries.slice(i, i + PURGE_BATCH_SIZE);
+        await Promise.all(
+          batch.map((entry) => pb.collection('time_entries').delete(entry.id)),
+        );
+      }
+      const updatedUser = await pb.collection('users').update(userId, {
+        space_colors: {},
+      });
+      pb.authStore.save(pb.authStore.token, updatedUser);
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to purge user data:', err);
+      setPurgeInProgress(false);
+      setPurgeError('Purge failed. Your data has not been changed. Please retry.');
+    }
   };
 
   const getSpaceColor = (space: string, index: number) => {
@@ -196,8 +255,90 @@ export default function Settings() {
               </button>
             </div>
           </section>
+
+          <section className="settings-section" style={{ padding: isMobile ? '16px' : '32px', gap: isMobile ? '12px' : '16px' }}>
+            <Eyebrow>▸&nbsp;&nbsp;PURGE_DATA</Eyebrow>
+            <h2 className="settings-section__title">PURGE_DATA</h2>
+            <p className="settings-section__body">
+              Permanently delete every time entry in your account and reset your space color
+              preferences. The account itself is preserved. This cannot be undone.
+            </p>
+            <div>
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={openPurge}
+                aria-label="Purge all data"
+              >
+                ✕&nbsp;&nbsp;PURGE_ALL_DATA
+              </button>
+            </div>
+          </section>
         </>
       )}
+
+      <Modal
+        open={purgeOpen}
+        onClose={closePurge}
+        title="▸&nbsp;&nbsp;PURGE_DATA_PROTOCOL"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={closePurge}
+              disabled={purgeInProgress}
+            >
+              CANCEL
+            </button>
+            <button
+              type="submit"
+              form="purge-form"
+              className="btn btn--danger"
+              disabled={purgeInProgress || purgePhrase !== PURGE_CONFIRM_PHRASE}
+            >
+              {purgeInProgress ? 'PURGING…' : '✕ PURGE'}
+            </button>
+          </>
+        }
+      >
+        <form
+          id="purge-form"
+          onSubmit={handlePurge}
+          className="section"
+          style={{ gap: 'var(--space-4)' }}
+        >
+          <p className="settings-section__body" style={{ color: 'var(--fg)', margin: 0 }}>
+            Every time entry — active and archived — will be removed. Your space color
+            preferences will be reset. The CLI token and login remain valid.
+          </p>
+          <label className="section" style={{ gap: 'var(--space-2)' }}>
+            <span className="eyebrow">TYPE&nbsp;&nbsp;{PURGE_CONFIRM_PHRASE}&nbsp;&nbsp;TO_CONFIRM</span>
+            <input
+              ref={purgeInputRef}
+              type="text"
+              className="input input--inline"
+              value={purgePhrase}
+              onChange={(e) => setPurgePhrase(e.target.value)}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              disabled={purgeInProgress}
+              aria-label={`Type ${PURGE_CONFIRM_PHRASE} to confirm`}
+            />
+          </label>
+          {purgeError && (
+            <p
+              className="settings-section__body"
+              style={{ color: 'var(--error)', margin: 0 }}
+              role="alert"
+            >
+              ⚠&nbsp;&nbsp;{purgeError}
+            </p>
+          )}
+        </form>
+      </Modal>
     </>
   );
 }
