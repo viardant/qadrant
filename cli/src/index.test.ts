@@ -10,6 +10,8 @@ import {
   ApiError,
   SessionExpiredError,
   CliError,
+  parseRelativeDateOrPreset,
+  parseDurationToMs,
 } from './index.js';
 import fs from 'fs/promises';
 
@@ -522,5 +524,33 @@ describe('handleWhoami', () => {
     expect(parsed.expires_at).toBe('2009-02-13T23:31:30.000Z');
     expect(parsed.auth_token).toMatch(/^[A-Za-z0-9_-]+…[A-Za-z0-9_-]+$/);
     logSpy.mockRestore();
+  });
+});
+
+describe('Helper Utilities', () => {
+  it('parseRelativeDateOrPreset parses today, yesterday, and relative times', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    expect(parseRelativeDateOrPreset('today')).toBe(today);
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    expect(parseRelativeDateOrPreset('yesterday')).toBe(yesterdayStr);
+
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const twoDaysAgoStr = twoDaysAgo.toISOString().slice(0, 10);
+    expect(parseRelativeDateOrPreset('2 days ago')).toBe(twoDaysAgoStr);
+  });
+
+  it('parseDurationToMs parses shorthand durations', () => {
+    expect(parseDurationToMs('30s')).toBe(30 * 1000);
+    expect(parseDurationToMs('5m')).toBe(5 * 60 * 1000);
+    expect(parseDurationToMs('1.5h')).toBe(1.5 * 60 * 60 * 1000);
+  });
+
+  it('throws error for invalid date or duration formats', () => {
+    expect(() => parseRelativeDateOrPreset('invalid')).toThrow();
+    expect(() => parseDurationToMs('10x')).toThrow();
   });
 });

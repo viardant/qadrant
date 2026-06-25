@@ -141,6 +141,46 @@ function applyOption(opts: ParsedArgs['options'], flag: string, value: string): 
   }
 }
 
+export function parseRelativeDateOrPreset(input: string): string {
+  const normalized = input.trim().toLowerCase();
+  if (normalized === 'today') {
+    return new Date().toISOString().slice(0, 10);
+  }
+  if (normalized === 'yesterday') {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+  const relativeMatch = normalized.match(/^(\d+)\s+(day|week|month)s?\s+ago$/);
+  if (relativeMatch) {
+    const count = parseInt(relativeMatch[1], 10);
+    const unit = relativeMatch[2];
+    const d = new Date();
+    if (unit === 'day') d.setDate(d.getDate() - count);
+    if (unit === 'week') d.setDate(d.getDate() - count * 7);
+    if (unit === 'month') d.setMonth(d.getMonth() - count);
+    return d.toISOString().slice(0, 10);
+  }
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(input)) {
+    throw new CliError(`Invalid date format "${input}". Use YYYY-MM-DD, "today", "yesterday", or "N days/weeks/months ago".`);
+  }
+  return input;
+}
+
+export function parseDurationToMs(input: string): number {
+  const match = input.trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(s|m|h)$/);
+  if (!match) {
+    throw new CliError(`Invalid duration "${input}". Use shorthand formats like "30s", "5m", or "1.5h".`);
+  }
+  const value = parseFloat(match[1]);
+  const unit = match[2];
+  if (unit === 's') return value * 1000;
+  if (unit === 'm') return value * 60 * 1000;
+  if (unit === 'h') return value * 60 * 60 * 1000;
+  return 0;
+}
+
 export function parseArgs(argv: string[]): ParsedArgs {
   const args = argv.slice(2);
   const result: ParsedArgs = {
