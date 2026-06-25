@@ -5,21 +5,10 @@ import { MemoryRouter } from 'react-router-dom';
 import Settings from './Settings';
 import { pb } from '../lib/pocketbase';
 
-const mockSendBatch = vi.fn().mockResolvedValue([]);
-const mockBatchUpdate = vi.fn();
-const mockBatchCollection = vi.fn().mockReturnValue({
-  update: mockBatchUpdate,
-});
-const mockCreateBatch = vi.fn().mockReturnValue({
-  collection: mockBatchCollection,
-  send: mockSendBatch,
-});
-
 vi.mock('../lib/pocketbase', () => {
   return {
     pb: {
       collection: vi.fn(),
-      createBatch: () => mockCreateBatch(),
       authStore: {
         isValid: true,
         model: { id: 'user_123' },
@@ -355,6 +344,7 @@ describe('Settings — Spaces and Specializations', () => {
   const mockGetOneUser = vi.fn();
   const mockGetFullListEntries = vi.fn();
   const mockUpdateUser = vi.fn();
+  const mockUpdateEntry = vi.fn();
 
   beforeEach(() => {
     delete (window as any).location;
@@ -363,16 +353,6 @@ describe('Settings — Spaces and Specializations', () => {
       href: '',
       reload: reloadSpy,
     } as any;
-
-    mockSendBatch.mockResolvedValue([]);
-    mockBatchCollection.mockReturnValue({
-      update: mockBatchUpdate,
-    });
-    mockCreateBatch.mockReturnValue({
-      collection: mockBatchCollection,
-      send: mockSendBatch,
-    });
-    pb.createBatch = mockCreateBatch;
 
     vi.mocked(pb.collection).mockImplementation((collectionName: string) => {
       if (collectionName === 'users') {
@@ -384,6 +364,7 @@ describe('Settings — Spaces and Specializations', () => {
       if (collectionName === 'time_entries') {
         return {
           getFullList: mockGetFullListEntries,
+          update: mockUpdateEntry,
         } as any;
       }
       return {} as any;
@@ -391,6 +372,7 @@ describe('Settings — Spaces and Specializations', () => {
 
     mockGetOneUser.mockResolvedValue({ id: 'user_123', space_colors: { 'Design': '#ff0000' } });
     mockUpdateUser.mockResolvedValue({ id: 'user_123', space_colors: {} });
+    mockUpdateEntry.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -565,11 +547,8 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     await waitFor(() => {
-      expect(mockCreateBatch).toHaveBeenCalled();
-      expect(mockBatchCollection).toHaveBeenCalledWith('time_entries');
-      expect(mockBatchUpdate).toHaveBeenCalledWith('entry_1', { space: 'Creatives' });
-      expect(mockBatchUpdate).toHaveBeenCalledWith('entry_2', { space: 'Creatives' });
-      expect(mockSendBatch).toHaveBeenCalled();
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'Creatives' });
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_2', { space: 'Creatives' });
     });
 
     await waitFor(() => {
@@ -615,10 +594,7 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     await waitFor(() => {
-      expect(mockCreateBatch).toHaveBeenCalled();
-      expect(mockBatchCollection).toHaveBeenCalledWith('time_entries');
-      expect(mockBatchUpdate).toHaveBeenCalledWith('entry_1', { specialization: 'UI/UX' });
-      expect(mockSendBatch).toHaveBeenCalled();
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { specialization: 'UI/UX' });
     });
 
     await waitFor(() => {
@@ -724,6 +700,141 @@ describe('Settings — Spaces and Specializations', () => {
     // Enabled with a new name
     fireEvent.change(specInput, { target: { value: 'Sketch' } });
     expect(specSubmitBtn).not.toBeDisabled();
+  });
+
+  test('Allows case-only renaming for Space and Specialization', async () => {
+    const mockEntries = [
+      { id: 'entry_1', space: 'WORK', specialization: 'FIGMA', user: 'user_123' },
+    ];
+    mockGetFullListEntries.mockResolvedValue(mockEntries);
+    mockUpdateUser.mockResolvedValue({ id: 'user_123', space_colors: { 'Work': '#ff0000' } });
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('WORK')).toBeInTheDocument();
+    });
+
+    // Rename Space WORK -> Work
+    const workContainer = screen.getByText('WORK').parentElement!;
+    const spaceRenameBtn = within(workContainer).getByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(spaceRenameBtn);
+
+    const spaceDialog = screen.getByRole('dialog', { name: /RENAME_SPACE_PROTOCOL/i });
+    const spaceInput = within(spaceDialog).getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
+    fireEvent.change(spaceInput, { target: { value: 'Work' } });
+
+    const spaceSubmitBtn = within(spaceDialog).getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    expect(spaceSubmitBtn).not.toBeDisabled();
+    fireEvent.click(spaceSubmitBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'Work' });
+    });
+  });
+
+  test('Allows case-only renaming for Specialization', async () => {
+    const mockEntries = [
+      { id: 'entry_1', space: 'WORK', specialization: 'FIGMA', user: 'user_123' },
+    ];
+    mockGetFullListEntries.mockResolvedValue(mockEntries);
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('FIGMA')).toBeInTheDocument();
+    });
+
+    // Rename Specialization FIGMA -> Figma
+    const figmaContainer = screen.getByText('FIGMA').parentElement!;
+    const specRenameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(specRenameBtn);
+
+    const specDialog = screen.getByRole('dialog', { name: /RENAME_SPECIALIZATION_PROTOCOL/i });
+    const specInput = within(specDialog).getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
+    fireEvent.change(specInput, { target: { value: 'Figma' } });
+
+    const specSubmitBtn = within(specDialog).getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    expect(specSubmitBtn).not.toBeDisabled();
+    fireEvent.click(specSubmitBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { specialization: 'Figma' });
+    });
+  });
+
+  test('Displays duplicate space error', async () => {
+    const mockEntries = [
+      { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
+      { id: 'entry_2', space: 'Engineering', specialization: 'React', user: 'user_123' },
+    ];
+    mockGetFullListEntries.mockResolvedValue(mockEntries);
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Design')).toBeInTheDocument();
+    });
+
+    const designContainer = screen.getByText('Design').parentElement!;
+    const spaceRenameBtn = within(designContainer).getByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(spaceRenameBtn);
+
+    const spaceInput = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
+    fireEvent.change(spaceInput, { target: { value: 'Engineering' } });
+
+    const spaceSubmitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    fireEvent.click(spaceSubmitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('A space with this name already exists.');
+    });
+    expect(mockUpdateEntry).not.toHaveBeenCalled();
+  });
+
+  test('Displays duplicate specialization error', async () => {
+    const mockEntries = [
+      { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
+      { id: 'entry_2', space: 'Design', specialization: 'Sketch', user: 'user_123' },
+    ];
+    mockGetFullListEntries.mockResolvedValue(mockEntries);
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Figma')).toBeInTheDocument();
+    });
+
+    const figmaContainer = screen.getByText('Figma').parentElement!;
+    const specRenameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(specRenameBtn);
+
+    const specInput = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
+    fireEvent.change(specInput, { target: { value: 'Sketch' } });
+
+    const specSubmitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    fireEvent.click(specSubmitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('A specialization with this name already exists in this space.');
+    });
+    expect(mockUpdateEntry).not.toHaveBeenCalled();
   });
 });
 

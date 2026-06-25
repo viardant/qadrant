@@ -10,6 +10,7 @@ import { Modal } from '../components/ui/Modal';
 
 const PURGE_CONFIRM_PHRASE = 'DELETE ALL';
 const PURGE_BATCH_SIZE = 10;
+const RENAME_BATCH_SIZE = 10;
 
 const DEFAULT_COLORS = [
   '#35675d', // forest green (accent)
@@ -70,7 +71,7 @@ export default function Settings() {
     const targetNew = newName.trim();
     if (!targetNew || targetNew === renameTargetSpace) return;
 
-    if (spaceDetails.some(d => d.name.toLowerCase() === targetNew.toLowerCase())) {
+    if (spaceDetails.some(d => d.name.toLowerCase() === targetNew.toLowerCase() && d.name.toLowerCase() !== renameTargetSpace.toLowerCase())) {
       setRenameError('A space with this name already exists.');
       return;
     }
@@ -84,19 +85,18 @@ export default function Settings() {
         filter: `user = "${pb.authStore.model.id}" && space = "${renameTargetSpace}"`,
       });
 
-      const chunkSize = 100;
-      const totalChunks = Math.ceil(entries.length / chunkSize);
+      const totalSteps = Math.ceil(entries.length / RENAME_BATCH_SIZE);
 
-      for (let i = 0; i < entries.length; i += chunkSize) {
-        const chunk = entries.slice(i, i + chunkSize);
-        const currentChunkIdx = Math.floor(i / chunkSize) + 1;
-        setRenameProgressText(`MIGRATING_RECORDS // CHUNK ${currentChunkIdx} OF ${totalChunks || 1}…`);
+      for (let i = 0; i < entries.length; i += RENAME_BATCH_SIZE) {
+        const batch = entries.slice(i, i + RENAME_BATCH_SIZE);
+        const currentStep = Math.floor(i / RENAME_BATCH_SIZE) + 1;
+        setRenameProgressText(`MIGRATING_RECORDS // STEP ${currentStep} OF ${totalSteps || 1}…`);
 
-        const batch = pb.createBatch();
-        for (const entry of chunk) {
-          batch.collection('time_entries').update(entry.id, { space: targetNew });
-        }
-        await batch.send();
+        await Promise.all(
+          batch.map((entry) =>
+            pb.collection('time_entries').update(entry.id, { space: targetNew })
+          )
+        );
       }
 
       // Update color settings if they exist
@@ -128,7 +128,7 @@ export default function Settings() {
     if (!targetNew || targetNew === oldSpec) return;
 
     const group = spaceDetails.find(d => d.name === space);
-    if (group?.specializations.some(s => s.toLowerCase() === targetNew.toLowerCase())) {
+    if (group?.specializations.some(s => s.toLowerCase() === targetNew.toLowerCase() && s.toLowerCase() !== oldSpec.toLowerCase())) {
       setRenameError('A specialization with this name already exists in this space.');
       return;
     }
@@ -142,19 +142,18 @@ export default function Settings() {
         filter: `user = "${pb.authStore.model.id}" && space = "${space}" && specialization = "${oldSpec}"`,
       });
 
-      const chunkSize = 100;
-      const totalChunks = Math.ceil(entries.length / chunkSize);
+      const totalSteps = Math.ceil(entries.length / RENAME_BATCH_SIZE);
 
-      for (let i = 0; i < entries.length; i += chunkSize) {
-        const chunk = entries.slice(i, i + chunkSize);
-        const currentChunkIdx = Math.floor(i / chunkSize) + 1;
-        setRenameProgressText(`MIGRATING_RECORDS // CHUNK ${currentChunkIdx} OF ${totalChunks || 1}…`);
+      for (let i = 0; i < entries.length; i += RENAME_BATCH_SIZE) {
+        const batch = entries.slice(i, i + RENAME_BATCH_SIZE);
+        const currentStep = Math.floor(i / RENAME_BATCH_SIZE) + 1;
+        setRenameProgressText(`MIGRATING_RECORDS // STEP ${currentStep} OF ${totalSteps || 1}…`);
 
-        const batch = pb.createBatch();
-        for (const entry of chunk) {
-          batch.collection('time_entries').update(entry.id, { specialization: targetNew });
-        }
-        await batch.send();
+        await Promise.all(
+          batch.map((entry) =>
+            pb.collection('time_entries').update(entry.id, { specialization: targetNew })
+          )
+        );
       }
 
       window.location.reload();
@@ -553,6 +552,7 @@ export default function Settings() {
           <label className="section" style={{ gap: 'var(--space-2)' }}>
             <span className="eyebrow">NEW SPACE NAME</span>
             <input
+              autoFocus
               type="text"
               className="input input--inline"
               value={newName}
@@ -568,7 +568,11 @@ export default function Settings() {
               <span className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>{renameProgressText}</span>
             </div>
           )}
-          {renameError && <span className="type-tech-mono" style={{ color: 'var(--error)' }}>{renameError}</span>}
+          {renameError && (
+            <span className="type-tech-mono" style={{ color: 'var(--error)' }} role="alert">
+              {renameError}
+            </span>
+          )}
         </form>
       </Modal>
 
@@ -599,6 +603,7 @@ export default function Settings() {
           <label className="section" style={{ gap: 'var(--space-2)' }}>
             <span className="eyebrow">NEW SPECIALIZATION NAME</span>
             <input
+              autoFocus
               type="text"
               className="input input--inline"
               value={newName}
@@ -614,7 +619,11 @@ export default function Settings() {
               <span className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>{renameProgressText}</span>
             </div>
           )}
-          {renameError && <span className="type-tech-mono" style={{ color: 'var(--error)' }}>{renameError}</span>}
+          {renameError && (
+            <span className="type-tech-mono" style={{ color: 'var(--error)' }} role="alert">
+              {renameError}
+            </span>
+          )}
         </form>
       </Modal>
     </>
