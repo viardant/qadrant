@@ -64,14 +64,105 @@ export default function Settings() {
     setRenameError(null);
   };
 
-  const executeRenameSpace = async () => {
-    console.log('Execute rename space', renameTargetSpace, newName);
-    handleCloseRename();
+  const executeRenameSpace = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pb.authStore.model?.id || !renameTargetSpace) return;
+    const targetNew = newName.trim();
+    if (!targetNew || targetNew === renameTargetSpace) return;
+
+    if (spaceDetails.some(d => d.name.toLowerCase() === targetNew.toLowerCase())) {
+      setRenameError('A space with this name already exists.');
+      return;
+    }
+
+    setRenameInProgress(true);
+    setRenameError(null);
+    setRenameProgressText('FETCHING_RECORDS…');
+
+    try {
+      const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
+        filter: `user = "${pb.authStore.model.id}" && space = "${renameTargetSpace}"`,
+      });
+
+      const chunkSize = 100;
+      const totalChunks = Math.ceil(entries.length / chunkSize);
+
+      for (let i = 0; i < entries.length; i += chunkSize) {
+        const chunk = entries.slice(i, i + chunkSize);
+        const currentChunkIdx = Math.floor(i / chunkSize) + 1;
+        setRenameProgressText(`MIGRATING_RECORDS // CHUNK ${currentChunkIdx} OF ${totalChunks || 1}…`);
+
+        const batch = pb.createBatch();
+        for (const entry of chunk) {
+          batch.collection('time_entries').update(entry.id, { space: targetNew });
+        }
+        await batch.send();
+      }
+
+      // Update color settings if they exist
+      setRenameProgressText('UPDATING_PREFERENCES…');
+      const updatedColors = { ...spaceColors };
+      if (updatedColors[renameTargetSpace]) {
+        updatedColors[targetNew] = updatedColors[renameTargetSpace];
+        delete updatedColors[renameTargetSpace];
+        const updatedUser = await pb.collection('users').update(pb.authStore.model.id, {
+          space_colors: updatedColors,
+        });
+        pb.authStore.save(pb.authStore.token, updatedUser);
+        setSpaceColors(updatedColors);
+      }
+
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      setRenameError('Rename failed. Please retry.');
+      setRenameInProgress(false);
+    }
   };
 
-  const executeRenameSpec = async () => {
-    console.log('Execute rename spec', renameTargetSpec, newName);
-    handleCloseRename();
+  const executeRenameSpec = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pb.authStore.model?.id || !renameTargetSpec) return;
+    const targetNew = newName.trim();
+    const { space, spec: oldSpec } = renameTargetSpec;
+    if (!targetNew || targetNew === oldSpec) return;
+
+    const group = spaceDetails.find(d => d.name === space);
+    if (group?.specializations.some(s => s.toLowerCase() === targetNew.toLowerCase())) {
+      setRenameError('A specialization with this name already exists in this space.');
+      return;
+    }
+
+    setRenameInProgress(true);
+    setRenameError(null);
+    setRenameProgressText('FETCHING_RECORDS…');
+
+    try {
+      const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
+        filter: `user = "${pb.authStore.model.id}" && space = "${space}" && specialization = "${oldSpec}"`,
+      });
+
+      const chunkSize = 100;
+      const totalChunks = Math.ceil(entries.length / chunkSize);
+
+      for (let i = 0; i < entries.length; i += chunkSize) {
+        const chunk = entries.slice(i, i + chunkSize);
+        const currentChunkIdx = Math.floor(i / chunkSize) + 1;
+        setRenameProgressText(`MIGRATING_RECORDS // CHUNK ${currentChunkIdx} OF ${totalChunks || 1}…`);
+
+        const batch = pb.createBatch();
+        for (const entry of chunk) {
+          batch.collection('time_entries').update(entry.id, { specialization: targetNew });
+        }
+        await batch.send();
+      }
+
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      setRenameError('Rename failed. Please retry.');
+      setRenameInProgress(false);
+    }
   };
 
   const [purgeOpen, setPurgeOpen] = useState(false);
@@ -445,9 +536,9 @@ export default function Settings() {
               CANCEL
             </button>
             <button
-              type="button"
+              type="submit"
+              form="rename-space-form"
               className="btn btn--filled"
-              onClick={executeRenameSpace}
               disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpace}
             >
               {renameInProgress ? 'EXECUTING...' : '>>> EXECUTE_RENAME'}
@@ -455,7 +546,7 @@ export default function Settings() {
           </>
         }
       >
-        <div className="section" style={{ gap: 'var(--space-4)' }}>
+        <form id="rename-space-form" onSubmit={executeRenameSpace} className="section" style={{ gap: 'var(--space-4)' }}>
           <p className="settings-section__body">
             Renaming space <strong>{renameTargetSpace}</strong> will update all associated historical time entries.
           </p>
@@ -478,7 +569,7 @@ export default function Settings() {
             </div>
           )}
           {renameError && <span className="type-tech-mono" style={{ color: 'var(--error)' }}>{renameError}</span>}
-        </div>
+        </form>
       </Modal>
 
       <Modal
@@ -491,9 +582,9 @@ export default function Settings() {
               CANCEL
             </button>
             <button
-              type="button"
+              type="submit"
+              form="rename-spec-form"
               className="btn btn--filled"
-              onClick={executeRenameSpec}
               disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpec?.spec}
             >
               {renameInProgress ? 'EXECUTING...' : '>>> EXECUTE_RENAME'}
@@ -501,7 +592,7 @@ export default function Settings() {
           </>
         }
       >
-        <div className="section" style={{ gap: 'var(--space-4)' }}>
+        <form id="rename-spec-form" onSubmit={executeRenameSpec} className="section" style={{ gap: 'var(--space-4)' }}>
           <p className="settings-section__body">
             Renaming specialization <strong>{renameTargetSpec?.spec}</strong> inside space <strong>{renameTargetSpec?.space}</strong> will update all matching historical entries.
           </p>
@@ -524,7 +615,7 @@ export default function Settings() {
             </div>
           )}
           {renameError && <span className="type-tech-mono" style={{ color: 'var(--error)' }}>{renameError}</span>}
-        </div>
+        </form>
       </Modal>
     </>
   );
