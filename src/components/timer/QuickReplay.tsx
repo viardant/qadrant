@@ -9,14 +9,16 @@ interface Props {
   onStart: (combo: Combo) => void;
   onCreate: () => void;
   lastAgo?: string;
+  highlightedComboId?: string;
+  newFromQueryId?: string;
 }
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
-export function QuickReplay({ combos, total, onStart, onCreate, lastAgo }: Props) {
-  const { isMobile } = useBreakpoint();
+export function QuickReplay({ combos, total, onStart, onCreate, lastAgo, highlightedComboId, newFromQueryId }: Props) {
+  const { isDesktop } = useBreakpoint();
   return (
     <section className="section" aria-label="Quick replay">
       <div className="section__head">
@@ -36,7 +38,13 @@ export function QuickReplay({ combos, total, onStart, onCreate, lastAgo }: Props
         <div className="combo-grid" role="list">
           {combos.map((c) => (
             <div key={c.id} role="listitem" className="combo-grid__cell">
-              <ComboCard combo={c} onStart={onStart} compact={isMobile} />
+              <ComboCard
+                combo={c}
+                onStart={onStart}
+                compact={!isDesktop}
+                highlighted={c.id === highlightedComboId}
+                newFromQuery={c.id === newFromQueryId}
+              />
             </div>
           ))}
         </div>

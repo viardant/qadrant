@@ -63,12 +63,13 @@ export function deriveTopCombos(
 }
 
 export function filterCombos(combos: Combo[], query: string): Combo[] {
-  const q = query.trim().toLowerCase();
+  const q = query.trim().toLowerCase().replace(/\s*\/+\s*/g, '/');
   if (!q) return combos;
   return combos.filter((c) =>
     [c.name, c.space, c.specialization, c.category]
       .join(' ')
       .toLowerCase()
+      .replace(/\s*\/+\s*/g, '/')
       .includes(q),
   );
 }
@@ -81,6 +82,14 @@ export interface ParsedQuery {
 export function parseQueryForNewCombo(query: string): ParsedQuery | null {
   const raw = query.trim();
   if (!raw) return null;
+  if (raw.includes('//')) {
+    const parts = raw.split('//');
+    const space = parts[0].trim();
+    const specialization = (parts[1] || '').trim();
+    if (!space && !specialization) return null;
+    if (!space) return { space: specialization || '', specialization: '' };
+    return { space, specialization: specialization || '' };
+  }
   const slashIndex = raw.indexOf('/');
   if (slashIndex === -1) {
     return { space: raw, specialization: '' };

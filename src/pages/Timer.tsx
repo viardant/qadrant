@@ -8,7 +8,7 @@ import {
   getLastRelative,
   getAggregateStats,
 } from '../lib/transform';
-import { deriveTopCombos, filterCombos, parseQueryForNewCombo, type Combo } from '../lib/combos';
+import { deriveTopCombos, filterCombos, parseQueryForNewCombo, comboDisplayName, type Combo } from '../lib/combos';
 import { TopBar } from '../components/ui/TopBar';
 import { StatsStrip } from '../components/ui/StatsStrip';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -78,13 +78,13 @@ export default function Timer() {
       return;
     }
     try {
-      const records = await pb.collection('time_entries').getList<TimeEntry>(1, 200, {
+      const records = await pb.collection('time_entries').getFullList<TimeEntry>({
         sort: '-start_date',
         filter: `user = "${pb.authStore.model?.id}"`,
         requestKey: null,
       });
-      setEntries(records.items);
-      setActiveSessions(records.items.filter((r) => !r.completion_time));
+      setEntries(records);
+      setActiveSessions(records.filter((r) => !r.completion_time));
     } catch (err) {
       console.error('Failed to load timer data:', err);
       setError('FAILED_TO_LOAD_ARCHIVE');
@@ -112,8 +112,29 @@ export default function Timer() {
   const renderedCombos = query.trim() ? filteredCombos : allCombos;
   const totalDistinct = allCombosDistinct.length;
   const parsedQuery = useMemo(() => parseQueryForNewCombo(query), [query]);
+  const exactMatchCombo = useMemo(() => {
+    if (!parsedQuery) return undefined;
+    return filteredCombos.find(
+      (c) =>
+        c.space.toLowerCase().trim() === parsedQuery.space.toLowerCase().trim() &&
+        (c.specialization || '').toLowerCase().trim() === (parsedQuery.specialization || '').toLowerCase().trim(),
+    );
+  }, [filteredCombos, parsedQuery]);
   const showNewFromQuery =
-    query.trim() !== '' && filteredCombos.length === 0 && parsedQuery !== null;
+    query.trim() !== '' && parsedQuery !== null && exactMatchCombo === undefined;
+  const renderedWithNewFromQuery = useMemo(() => {
+    if (!showNewFromQuery || !parsedQuery) return renderedCombos;
+    const queryCombo: Combo = {
+      id: '__new_from_query__',
+      space: parsedQuery.space,
+      specialization: parsedQuery.specialization,
+      name: comboDisplayName(parsedQuery.space, parsedQuery.specialization),
+      category: 'GENERAL',
+      useCount: 0,
+      lastUsed: '',
+    };
+    return [queryCombo, ...renderedCombos];
+  }, [showNewFromQuery, parsedQuery, renderedCombos]);
   const stats = useMemo(() => getAggregateStats(entries, new Date()), [entries]);
   const last = useMemo(() => getLastRelative(entries, new Date()), [entries]);
 
@@ -141,6 +162,7 @@ export default function Timer() {
         specialization: combo.specialization,
         start_date: new Date().toISOString(),
       });
+      setQuery('');
       await fetchData();
     } catch (err) {
       console.error('Failed to start combo:', err);
@@ -266,6 +288,51 @@ export default function Timer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessions, topCombo]);
 
+  const getSearchFocusableElements = (): HTMLElement[] => {
+    const list: HTMLElement[] = [];
+    if (searchRef.current) {
+      list.push(searchRef.current);
+    }
+    const comboCards = Array.from(
+      document.querySelectorAll('.combo-grid .combo-card')
+    ) as HTMLElement[];
+    list.push(...comboCards);
+    return list;
+  };
+
+  useEffect(() => {
+    const handleTabNavigation = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (!query.trim()) return;
+
+      const elements = getSearchFocusableElements();
+      if (elements.length <= 1) return;
+
+      const activeEl = document.activeElement as HTMLElement | null;
+      const firstEl = elements[0];
+      const lastEl = elements[elements.length - 1];
+
+      const isFocusInSearch = elements.includes(activeEl as HTMLElement);
+      if (!isFocusInSearch) return;
+
+      if (e.shiftKey) {
+        if (activeEl === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        }
+      } else {
+        if (activeEl === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTabNavigation);
+    return () => window.removeEventListener('keydown', handleTabNavigation);
+  }, [query]);
+
+
   const submitNewCombo = async (data: NewComboData) => {
     if (!pb.authStore.isValid) return;
     const now = new Date().toISOString();
@@ -390,7 +457,7 @@ export default function Timer() {
           ref={searchRef}
           value={query}
           onChange={setQuery}
-          onEnter={showNewFromQuery ? startFromQuery : undefined}
+          onEnter={exactMatchCombo ? () => startCombo(exactMatchCombo) : (showNewFromQuery ? startFromQuery : undefined)}
         />
         {activeSessions.length > 0 && query.trim() && filteredCombos.length === 0 && !showNewFromQuery ? (
           <EmptyState
@@ -398,53 +465,14 @@ export default function Timer() {
             message={`NO_COMBO_MATCHES_QUERY: ${query.toUpperCase()}`}
           />
         ) : null}
-        {showNewFromQuery && parsedQuery && (
-          <section className="section" aria-label="Start new combo from query">
-            <div className="section__head">
-              <span className="eyebrow">START_NEW_COMBO_FROM_QUERY</span>
-            </div>
-            <div className="combo-grid" role="list">
-              <div role="listitem" className="combo-grid__cell">
-                <button
-                  type="button"
-                  className="combo-card combo-card--new"
-                  onClick={() => {
-                    void startFromQuery();
-                  }}
-                  aria-label={`Start new combo ${parsedQuery.specialization ? `${parsedQuery.space} / ${parsedQuery.specialization}` : parsedQuery.space}`}
-                >
-                  <span className="combo-card__caret" aria-hidden>▸</span>
-                  <div className="combo-card__main">
-                    <span className="combo-card__name">
-                      {parsedQuery.space}
-                      {parsedQuery.specialization && (
-                        <>
-                          <span className="combo-card__sep" aria-hidden> // </span>
-                          <span className="combo-card__spec-inline">
-                            {parsedQuery.specialization}
-                          </span>
-                        </>
-                      )}
-                    </span>
-                    <span
-                      className="combo-card__meta"
-                      aria-hidden
-                      style={{ color: 'var(--accent)' }}
-                    >
-                      &gt;&gt;&gt;&nbsp;START_NEW_COMBO
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
         <QuickReplay
-          combos={renderedCombos}
+          combos={renderedWithNewFromQuery}
           total={totalDistinct}
           onStart={startCombo}
           onCreate={() => setSheetOpen(true)}
           lastAgo={last}
+          highlightedComboId={exactMatchCombo?.id}
+          newFromQueryId={showNewFromQuery ? '__new_from_query__' : undefined}
         />
         <button
           type="button"

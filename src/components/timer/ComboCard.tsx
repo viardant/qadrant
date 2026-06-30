@@ -5,6 +5,8 @@ interface Props {
   combo: Combo;
   onStart: (combo: Combo) => void;
   compact?: boolean;
+  highlighted?: boolean;
+  newFromQuery?: boolean;
 }
 
 function pad(n: number): string {
@@ -24,12 +26,13 @@ const COMPACT_STYLE: CSSProperties = {
   gap: '8px',
 };
 
-export function ComboCard({ combo, onStart, compact = false }: Props) {
+export function ComboCard({ combo, onStart, compact = false, highlighted = false, newFromQuery = false }: Props) {
   const label = comboLabel(combo.space, combo.specialization);
+  const classes = ['combo-card', highlighted && 'combo-card--highlighted', newFromQuery && 'combo-card--new'].filter(Boolean).join(' ');
   return (
     <button
       type="button"
-      className="combo-card"
+      className={classes}
       onClick={() => onStart(combo)}
       aria-label={`Start ${label}`}
       style={compact ? COMPACT_STYLE : undefined}
@@ -55,14 +58,24 @@ export function ComboCard({ combo, onStart, compact = false }: Props) {
         </span>
         <span className="sr-only">{label}</span>
       </div>
-      <span
-        className="combo-card__meta"
-        aria-hidden
-        style={compact ? { fontSize: '10px', gap: '4px' } : undefined}
-      >
-        {!compact && <span className="combo-card__meta-square" />}
-        {pad(combo.useCount)}&nbsp;USES
-      </span>
+      {newFromQuery ? (
+        <span
+          className="combo-card__meta"
+          aria-hidden
+          style={{ color: 'var(--accent)' }}
+        >
+          &gt;&gt;&gt;&nbsp;START_NEW_COMBO
+        </span>
+      ) : (
+        <span
+          className="combo-card__meta"
+          aria-hidden
+          style={compact ? { fontSize: '10px', gap: '4px' } : undefined}
+        >
+          {!compact && <span className="combo-card__meta-square" />}
+          {pad(combo.useCount)}&nbsp;USES
+        </span>
+      )}
     </button>
   );
 }
