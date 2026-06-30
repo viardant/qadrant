@@ -45,6 +45,19 @@ export default function Settings() {
   const [renameProgressText, setRenameProgressText] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
 
+  const [manageSpecsTarget, setManageSpecsTarget] = useState<SpaceDetail | null>(null);
+  const [specSearchQuery, setSpecSearchQuery] = useState('');
+
+  const handleOpenManageSpecs = (spaceDetail: SpaceDetail) => {
+    setManageSpecsTarget(spaceDetail);
+    setSpecSearchQuery('');
+  };
+
+  const handleCloseManageSpecs = () => {
+    setManageSpecsTarget(null);
+    setSpecSearchQuery('');
+  };
+
   const handleOpenRenameSpace = (spaceName: string) => {
     setRenameTargetSpace(spaceName);
     setNewName(spaceName);
@@ -384,21 +397,18 @@ export default function Settings() {
 
                     {detail.specializations.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px dashed var(--border-muted)' }}>
-                        <span className="eyebrow" style={{ fontSize: '10px', color: 'var(--fg-subtle)' }}>SPECIALIZATIONS:</span>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                          {detail.specializations.map((spec) => (
-                            <div key={spec} className="badge-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', border: '1px solid var(--border-muted)', padding: '2px 8px', borderRadius: 'var(--radius-xs)' }}>
-                              <span className="type-tech-mono" style={{ fontSize: '12px' }}>{spec}</span>
-                              <button
-                                type="button"
-                                className="btn btn--link"
-                                style={{ fontSize: '10px', color: 'var(--fg-muted)' }}
-                                onClick={() => handleOpenRenameSpec(detail.name, spec)}
-                              >
-                                [RENAME]
-                              </button>
-                            </div>
-                          ))}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span className="type-tech-mono" style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+                            {detail.specializations.length} {detail.specializations.length === 1 ? 'SPECIALIZATION' : 'SPECIALIZATIONS'}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn--link"
+                            style={{ fontSize: '11px', textTransform: 'uppercase' }}
+                            onClick={() => handleOpenManageSpecs(detail)}
+                          >
+                            {">>> MANAGE"}
+                          </button>
                         </div>
                       </div>
                     )}

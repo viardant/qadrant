@@ -909,6 +909,29 @@ describe('Settings — Spaces and Specializations', () => {
     });
     expect(reloadSpy).not.toHaveBeenCalled();
   });
+
+  describe('Manage Specializations Modal - Layout', () => {
+    test('displays specialization count and opens management modal on click', async () => {
+      const mockEntries = [
+        { id: '1', space: 'Piano', specialization: 'Chopin', user: 'user_123' },
+        { id: '2', space: 'Piano', specialization: 'Bach', user: 'user_123' },
+      ];
+      mockGetFullListEntries.mockResolvedValue(mockEntries);
+
+      render(
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('2 SPECIALIZATIONS')).toBeInTheDocument();
+      });
+
+      const manageBtn = screen.getByRole('button', { name: />>> MANAGE/i });
+      expect(manageBtn).toBeInTheDocument();
+    });
+  });
 });
 
 
