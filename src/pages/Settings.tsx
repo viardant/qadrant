@@ -96,8 +96,8 @@ export default function Settings() {
   const executeRenameSpace = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!pb.authStore.model?.id || !renameTargetSpace) return;
-    const targetNew = newName.trim();
-    if (!targetNew || targetNew === renameTargetSpace) return;
+    const targetNew = newName.trim().toUpperCase();
+    if (!targetNew || targetNew === renameTargetSpace.toUpperCase()) return;
 
     setRenameInProgress(true);
     setRenameError(null);
@@ -159,9 +159,9 @@ export default function Settings() {
   const executeRenameSpec = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!pb.authStore.model?.id || !renameTargetSpec) return;
-    const targetNew = newName.trim();
+    const targetNew = newName.trim().toUpperCase();
     const { space, spec: oldSpec } = renameTargetSpec;
-    if (!targetNew || targetNew === oldSpec) return;
+    if (!targetNew || targetNew === oldSpec.toUpperCase()) return;
 
     setRenameInProgress(true);
     setRenameError(null);
@@ -602,7 +602,7 @@ export default function Settings() {
                 type="text"
                 className="input input--inline"
                 value={specSearchQuery}
-                onChange={(e) => setSpecSearchQuery(e.target.value)}
+                onChange={(e) => setSpecSearchQuery(e.target.value.toUpperCase())}
                 placeholder="SEARCH_SPECIALIZATIONS…"
                 aria-label="Search specializations"
               />
@@ -675,7 +675,7 @@ export default function Settings() {
               type="submit"
               form="rename-space-form"
               className="btn btn--filled"
-              disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpace}
+              disabled={renameInProgress || !newName.trim() || newName.trim().toUpperCase() === renameTargetSpace?.toUpperCase()}
             >
               {renameInProgress ? 'EXECUTING...' : isSpaceMerge ? '>>> CONFIRM_MERGE' : '>>> EXECUTE_RENAME'}
             </button>
@@ -699,6 +699,7 @@ export default function Settings() {
               className="input input--inline"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              onBlur={(e) => setNewName(e.target.value.toUpperCase())}
               placeholder="NEW_NAME..."
               maxLength={48}
               disabled={renameInProgress}
@@ -731,7 +732,7 @@ export default function Settings() {
               type="submit"
               form="rename-spec-form"
               className="btn btn--filled"
-              disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpec?.spec}
+              disabled={renameInProgress || !newName.trim() || newName.trim().toUpperCase() === renameTargetSpec?.spec.toUpperCase()}
             >
               {renameInProgress ? 'EXECUTING...' : isSpecMerge ? '>>> CONFIRM_MERGE' : '>>> EXECUTE_RENAME'}
             </button>
@@ -755,6 +756,7 @@ export default function Settings() {
               className="input input--inline"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              onBlur={(e) => setNewName(e.target.value.toUpperCase())}
               placeholder="NEW_NAME..."
               maxLength={48}
               disabled={renameInProgress}

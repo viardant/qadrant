@@ -612,13 +612,13 @@ describe('Settings — Spaces and Specializations', () => {
 
     await waitFor(() => {
       expect(mockBatchSend).toHaveBeenCalled();
-      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'Creatives' });
-      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_2', { space: 'Creatives' });
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'CREATIVES' });
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_2', { space: 'CREATIVES' });
     });
 
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith('user_123', {
-        space_colors: { Creatives: '#ff0000' },
+        space_colors: { CREATIVES: '#ff0000' },
       });
       expect(pb.authStore.save).toHaveBeenCalled();
       expect(reloadSpy).toHaveBeenCalled();
@@ -790,12 +790,11 @@ describe('Settings — Spaces and Specializations', () => {
     expect(specSubmitBtn).not.toBeDisabled();
   });
 
-  test('Allows case-only renaming for Space and Specialization', async () => {
+  test('Disallows renaming when case is identical (case-insensitive) for Space', async () => {
     const mockEntries = [
       { id: 'entry_1', space: 'WORK', specialization: 'FIGMA', user: 'user_123' },
     ];
     mockGetFullListEntries.mockResolvedValue(mockEntries);
-    mockUpdateUser.mockResolvedValue({ id: 'user_123', space_colors: { 'Work': '#ff0000' } });
 
     render(
       <MemoryRouter>
@@ -817,15 +816,10 @@ describe('Settings — Spaces and Specializations', () => {
     fireEvent.change(spaceInput, { target: { value: 'Work' } });
 
     const spaceSubmitBtn = within(spaceDialog).getByRole('button', { name: />>> EXECUTE_RENAME/i });
-    expect(spaceSubmitBtn).not.toBeDisabled();
-    fireEvent.click(spaceSubmitBtn);
-
-    await waitFor(() => {
-      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'Work' });
-    });
+    expect(spaceSubmitBtn).toBeDisabled();
   });
 
-  test('Allows case-only renaming for Specialization', async () => {
+  test('Disallows renaming when case is identical (case-insensitive) for Specialization', async () => {
     const mockEntries = [
       { id: 'entry_1', space: 'WORK', specialization: 'FIGMA', user: 'user_123' },
     ];
@@ -858,12 +852,7 @@ describe('Settings — Spaces and Specializations', () => {
     fireEvent.change(specInput, { target: { value: 'Figma' } });
 
     const specSubmitBtn = within(specDialog).getByRole('button', { name: />>> EXECUTE_RENAME/i });
-    expect(specSubmitBtn).not.toBeDisabled();
-    fireEvent.click(specSubmitBtn);
-
-    await waitFor(() => {
-      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { specialization: 'Figma' });
-    });
+    expect(specSubmitBtn).toBeDisabled();
   });
 
   test('Space Merge Test', async () => {
@@ -905,7 +894,7 @@ describe('Settings — Spaces and Specializations', () => {
 
     await waitFor(() => {
       expect(mockBatchSend).toHaveBeenCalled();
-      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'Engineering' });
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'ENGINEERING' });
     });
 
     await waitFor(() => {
@@ -960,7 +949,7 @@ describe('Settings — Spaces and Specializations', () => {
 
     await waitFor(() => {
       expect(mockBatchSend).toHaveBeenCalled();
-      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { specialization: 'Sketch' });
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { specialization: 'SKETCH' });
     });
 
     await waitFor(() => {

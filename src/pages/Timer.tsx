@@ -456,7 +456,7 @@ export default function Timer() {
         <ComboSearch
           ref={searchRef}
           value={query}
-          onChange={setQuery}
+          onChange={(val) => setQuery(val.toUpperCase())}
           onEnter={exactMatchCombo ? () => startCombo(exactMatchCombo) : (showNewFromQuery ? startFromQuery : undefined)}
         />
         {activeSessions.length > 0 && query.trim() && filteredCombos.length === 0 && !showNewFromQuery ? (

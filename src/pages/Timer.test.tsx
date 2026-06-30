@@ -555,7 +555,7 @@ describe('Timer page', () => {
     });
     await waitFor(() => {
       expect(create).toHaveBeenCalledWith(
-        expect.objectContaining({ space: 'dev', specialization: 'frontend' }),
+        expect.objectContaining({ space: 'DEV', specialization: 'FRONTEND' }),
       );
     });
     await waitFor(() => {
@@ -580,7 +580,7 @@ describe('Timer page', () => {
     });
     await waitFor(() => {
       expect(create).toHaveBeenCalledWith(
-        expect.objectContaining({ space: 'reading', specialization: '' }),
+        expect.objectContaining({ space: 'READING', specialization: '' }),
       );
     });
     unmount();
@@ -602,7 +602,7 @@ describe('Timer page', () => {
     });
     await waitFor(() => {
       expect(create).toHaveBeenCalledWith(
-        expect.objectContaining({ space: 'work', specialization: 'review' }),
+        expect.objectContaining({ space: 'WORK', specialization: 'REVIEW' }),
       );
     });
     unmount();
