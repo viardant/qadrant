@@ -3,6 +3,7 @@ import {
   parseArgs,
   readConfig,
   writeConfig,
+  deleteConfig,
   apiCall,
   handleLogin,
   handleLogout,
@@ -15,6 +16,7 @@ import {
   CliError,
   parseRelativeDateOrPreset,
   parseDurationToMs,
+  resolveConfigDir,
   type Config,
 } from './index.js';
 import fs from 'fs/promises';
@@ -200,6 +202,19 @@ describe('CLI Argument Parsing - global flags', () => {
       .toThrow(/A subcommand is required/);
     expect(() => parseArgs(['node', 'qadrant', '--url', 'https://x.example']))
       .toThrow(/A subcommand is required/);
+    expect(() => parseArgs(['node', 'qadrant', '--config-dir', '/tmp/qadrant']))
+      .toThrow(/A subcommand is required/);
+  });
+
+  it('parses --config-dir as a global flag before the subcommand', () => {
+    const parsed = parseArgs(['node', 'qadrant', '--config-dir', '/tmp/qadrant', 'status']);
+    expect(parsed.global.configDir).toBe('/tmp/qadrant');
+    expect(parsed.command).toBe('status');
+  });
+
+  it('rejects --config-dir after the subcommand', () => {
+    expect(() => parseArgs(['node', 'qadrant', 'status', '--config-dir', '/tmp/qadrant']))
+      .toThrow(/Unknown flag/);
   });
 
   it('accepts the new commands whoami and logout', () => {
@@ -255,6 +270,45 @@ describe('Config File Operations', () => {
     vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify({ pb_url: '', auth_token: '', user_id: '' }));
     const config = await readConfig();
     expect(config).toBeNull();
+  });
+
+  it('resolves config directory from customDir param', () => {
+    expect(resolveConfigDir('/custom/path')).toBe('/custom/path');
+  });
+
+  it('resolves config directory from QADRANT_CONFIG_DIR env var', () => {
+    process.env.QADRANT_CONFIG_DIR = '/env/path';
+    expect(resolveConfigDir()).toBe('/env/path');
+    delete process.env.QADRANT_CONFIG_DIR;
+  });
+
+  it('resolves config directory to ~/.qadrant when nothing is set', () => {
+    const home = require('os').homedir();
+    expect(resolveConfigDir()).toBe(`${home}/.qadrant`);
+  });
+
+  it('customDir takes priority over env var', () => {
+    process.env.QADRANT_CONFIG_DIR = '/env/path';
+    expect(resolveConfigDir('/custom/path')).toBe('/custom/path');
+    delete process.env.QADRANT_CONFIG_DIR;
+  });
+
+  it('readConfig and writeConfig accept a configDir parameter', async () => {
+    const configData = { pb_url: 'https://staging.example.com', auth_token: 'tok', user_id: 'usr' };
+    await writeConfig(configData, '/tmp/qadrant-test');
+    expect(fs.mkdir).toHaveBeenCalledWith('/tmp/qadrant-test', { recursive: true });
+    expect(fs.writeFile).toHaveBeenCalledWith('/tmp/qadrant-test/config.json', expect.any(String));
+    expect(fs.chmod).toHaveBeenCalledWith('/tmp/qadrant-test/config.json', 0o600);
+
+    vi.mocked(fs.readFile).mockResolvedValueOnce(JSON.stringify(configData));
+    const config = await readConfig('/tmp/qadrant-test');
+    expect(fs.readFile).toHaveBeenCalledWith('/tmp/qadrant-test/config.json', 'utf-8');
+    expect(config).toEqual(configData);
+  });
+
+  it('deleteConfig accepts a configDir parameter', async () => {
+    await deleteConfig('/tmp/qadrant-test');
+    expect(fs.unlink).toHaveBeenCalledWith('/tmp/qadrant-test/config.json');
   });
 });
 

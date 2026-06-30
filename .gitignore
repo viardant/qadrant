@@ -35,3 +35,6 @@ skills-lock.json
 # One-shot import script state (notion-tt → qadrant)
 scripts/.imported.json
 scripts/.imported.json.bak.*
+
+# Local CLI config overrides
+.qadrant/

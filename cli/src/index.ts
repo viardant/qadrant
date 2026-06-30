@@ -14,9 +14,11 @@ import {
   type TimeEntry,
 } from '../../shared/src/index.js';
 
-const CONFIG_DIR = path.join(os.homedir(), '.qadrant');
-const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const CONFIG_FILE_MODE = 0o600;
+
+export function resolveConfigDir(customDir?: string): string {
+  return customDir ?? process.env.QADRANT_CONFIG_DIR ?? path.join(os.homedir(), '.qadrant');
+}
 
 export interface Config {
   pb_url: string;
@@ -26,7 +28,7 @@ export interface Config {
 }
 
 export interface ParsedArgs {
-  global: { noRefresh: boolean };
+  global: { noRefresh: boolean; configDir?: string };
   command: string | null;
   args: string[];
   options: {
@@ -73,9 +75,11 @@ export class CliError extends Error {
   }
 }
 
-export async function readConfig(): Promise<Config | null> {
+export async function readConfig(configDir?: string): Promise<Config | null> {
+  const dir = resolveConfigDir(configDir);
+  const file = path.join(dir, 'config.json');
   try {
-    const data = await fs.readFile(CONFIG_FILE, 'utf-8');
+    const data = await fs.readFile(file, 'utf-8');
     const parsed = JSON.parse(data) as Config;
     if (!parsed.pb_url || !parsed.auth_token || !parsed.user_id) {
       return null;
@@ -86,15 +90,19 @@ export async function readConfig(): Promise<Config | null> {
   }
 }
 
-export async function writeConfig(config: Config): Promise<void> {
-  await fs.mkdir(CONFIG_DIR, { recursive: true });
-  await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
-  await fs.chmod(CONFIG_FILE, CONFIG_FILE_MODE);
+export async function writeConfig(config: Config, configDir?: string): Promise<void> {
+  const dir = resolveConfigDir(configDir);
+  const file = path.join(dir, 'config.json');
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(file, JSON.stringify(config, null, 2));
+  await fs.chmod(file, CONFIG_FILE_MODE);
 }
 
-export async function deleteConfig(): Promise<void> {
+export async function deleteConfig(configDir?: string): Promise<void> {
+  const dir = resolveConfigDir(configDir);
+  const file = path.join(dir, 'config.json');
   try {
-    await fs.unlink(CONFIG_FILE);
+    await fs.unlink(file);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw err;
@@ -218,6 +226,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
       i++;
       continue;
     }
+    if (flag === '--config-dir') {
+      const { value, next } = readFlagValue(args, i, flag);
+      result.global.configDir = value;
+      i = next;
+      continue;
+    }
     if (flag === '--url') {
       const { value, next } = readFlagValue(args, i, flag);
       result.options.url = value;
@@ -301,6 +315,7 @@ export async function refreshToken(pbUrl: string, currentToken: string): Promise
 
 export interface ApiCallOptions {
   noRefresh?: boolean;
+  configDir?: string;
   onTokenRotated?: (newConfig: Config) => Promise<void>;
 }
 
@@ -328,7 +343,7 @@ export async function apiCall(
       state.auth_token = rotated.token;
       if (rotated.userId) state.user_id = rotated.userId;
       if (rotated.email) state.email = rotated.email;
-      await writeConfig(state);
+      await writeConfig(state, callOpts.configDir);
       if (callOpts.onTokenRotated) {
         await callOpts.onTokenRotated({ ...state });
       }
@@ -392,7 +407,7 @@ function printHelp() {
 qadrant - Qadrant Time Tracker CLI
 
 Usage:
-  qadrant [--no-refresh] <command> [args] [options]
+  qadrant [--no-refresh] [--config-dir <path>] <command> [args] [options]
 
 Commands:
   qadrant login <token> [--url <pocketbase_url>]
@@ -408,14 +423,16 @@ Commands:
 
 Global Flags:
   --no-refresh      Disable transparent token refresh on 401/403.
+  --config-dir <path>  Use a custom config directory (default: ~/.qadrant/).
+                       Also honors the QADRANT_CONFIG_DIR environment variable.
   --url <url>       Override the configured PocketBase URL for a single call.
 
 Get a token: open the web app, go to Settings → CLI_AND_AI_AGENT_ACCESS, copy the token.
 `);
 }
 
-async function requireConfig(urlOverride?: string): Promise<Config> {
-  const config = await readConfig();
+async function requireConfig(urlOverride?: string, configDir?: string): Promise<Config> {
+  const config = await readConfig(configDir);
   if (!config || !config.auth_token || !config.pb_url || !config.user_id) {
     throw new CliError('Not authenticated. Please login first: qadrant login <token>');
   }
@@ -425,7 +442,7 @@ async function requireConfig(urlOverride?: string): Promise<Config> {
   return config;
 }
 
-export async function handleLogin(parsed: ParsedArgs): Promise<void> {
+export async function handleLogin(parsed: ParsedArgs, configDir?: string): Promise<void> {
   const token = parsed.args[0];
   if (!token) {
     throw new CliError('Token is required for login.');
@@ -443,18 +460,18 @@ export async function handleLogin(parsed: ParsedArgs): Promise<void> {
     auth_token: rotated.token,
     user_id: rotated.userId,
     email: rotated.email,
-  });
+  }, configDir);
 
   console.log('LOGIN_SUCCESSFUL_AUTHENTICATED');
 }
 
-export async function handleLogout(): Promise<void> {
-  await deleteConfig();
+export async function handleLogout(configDir?: string): Promise<void> {
+  await deleteConfig(configDir);
   console.log('LOGOUT_PROTOCOL');
 }
 
-export async function handleWhoami(parsed: ParsedArgs): Promise<void> {
-  const config = await requireConfig(parsed.options.url);
+export async function handleWhoami(parsed: ParsedArgs, configDir?: string): Promise<void> {
+  const config = await requireConfig(parsed.options.url, configDir);
   const format = parsed.options.format ?? 'text';
   const exp = decodeJwtExp(config.auth_token);
   const email = config.email ?? decodeJwtEmail(config.auth_token) ?? null;
@@ -930,8 +947,8 @@ export async function main() {
   }
 
   if (!parsed.command || parsed.command === 'help') {
-    if (parsed.global.noRefresh && parsed.command !== 'help') {
-      console.error('Error: --no-refresh must be followed by a subcommand.');
+    if ((parsed.global.noRefresh || parsed.global.configDir) && parsed.command !== 'help') {
+      console.error('Error: --no-refresh and --config-dir must be followed by a subcommand.');
       process.exit(1);
       return;
     }
@@ -939,18 +956,19 @@ export async function main() {
     return;
   }
 
-  const callOpts: ApiCallOptions = { noRefresh: parsed.global.noRefresh };
+  const configDir = parsed.global.configDir;
+  const callOpts: ApiCallOptions = { noRefresh: parsed.global.noRefresh, configDir };
 
   try {
     switch (parsed.command) {
       case 'login':
-        await handleLogin(parsed);
+        await handleLogin(parsed, configDir);
         return;
       case 'logout':
-        await handleLogout();
+        await handleLogout(configDir);
         return;
       case 'whoami':
-        await handleWhoami(parsed);
+        await handleWhoami(parsed, configDir);
         return;
       case 'aggregate':
         console.error('qadrant: "aggregate" is deprecated. Use "stats --by ..." instead.');
@@ -959,32 +977,32 @@ export async function main() {
         }
         /* falls through */
       case 'stats': {
-        const state = await requireConfig(parsed.options.url);
+        const state = await requireConfig(parsed.options.url, configDir);
         await handleStats(state, parsed, callOpts);
         return;
       }
       case 'insights': {
-        const state = await requireConfig(parsed.options.url);
+        const state = await requireConfig(parsed.options.url, configDir);
         await handleInsights(state, parsed, callOpts);
         return;
       }
       case 'start': {
-        const state = await requireConfig(parsed.options.url);
+        const state = await requireConfig(parsed.options.url, configDir);
         await handleStart(state, parsed, callOpts);
         return;
       }
       case 'stop': {
-        const state = await requireConfig(parsed.options.url);
+        const state = await requireConfig(parsed.options.url, configDir);
         await handleStop(state, callOpts);
         return;
       }
       case 'status': {
-        const state = await requireConfig(parsed.options.url);
+        const state = await requireConfig(parsed.options.url, configDir);
         await handleStatus(state, callOpts);
         return;
       }
       case 'list': {
-        const state = await requireConfig(parsed.options.url);
+        const state = await requireConfig(parsed.options.url, configDir);
         await handleList(state, parsed, callOpts);
         return;
       }
