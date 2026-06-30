@@ -87,7 +87,7 @@ export default function Ledger() {
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
-    const trimmedSpace = editSpace.trim();
+    const trimmedSpace = editSpace.toUpperCase().trim();
     if (!trimmedSpace) {
       alert('Space name cannot be empty.');
       return;
@@ -109,7 +109,7 @@ export default function Ledger() {
       }
       await pb.collection('time_entries').update(editing.id, {
         space: trimmedSpace,
-        specialization: editSpecialization,
+        specialization: editSpecialization.toUpperCase().trim(),
         start_date: startIso,
         completion_time: completionIso,
       });
@@ -267,9 +267,10 @@ export default function Ledger() {
             <span className="eyebrow">SPACE</span>
             <input
               type="text"
-              className="input input--inline"
+              className="input input--inline input-uppercase"
               value={editSpace}
               onChange={(e) => setEditSpace(e.target.value)}
+              onBlur={(e) => setEditSpace(e.target.value.toUpperCase())}
               required
             />
           </label>
@@ -277,9 +278,10 @@ export default function Ledger() {
             <span className="eyebrow">SPECIALIZATION</span>
             <input
               type="text"
-              className="input input--inline"
+              className="input input--inline input-uppercase"
               value={editSpecialization}
               onChange={(e) => setEditSpecialization(e.target.value)}
+              onBlur={(e) => setEditSpecialization(e.target.value.toUpperCase())}
             />
           </label>
           <label className="section" style={{ gap: 'var(--space-2)' }}>

@@ -405,6 +405,11 @@ a {
   height: 40px;
 }
 
+.input-uppercase {
+  text-transform: uppercase;
+}
+
+
 textarea.input {
   height: auto;
   padding: var(--space-3) var(--space-4);

@@ -32,7 +32,12 @@ export function NewComboSheet({ open, onClose, onSubmit }: Props) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!space.trim() && !specialization.trim()) return;
-    onSubmit({ name: name.trim(), space: space.trim(), specialization: specialization.trim(), start });
+    onSubmit({
+      name: name.trim(),
+      space: space.toUpperCase().trim(),
+      specialization: specialization.toUpperCase().trim(),
+      start
+    });
   };
 
   return (
@@ -72,9 +77,10 @@ export function NewComboSheet({ open, onClose, onSubmit }: Props) {
           <span className="eyebrow">SPACE</span>
           <input
             type="text"
-            className="input input--inline"
+            className="input input--inline input-uppercase"
             value={space}
             onChange={(e) => setSpace(e.target.value)}
+            onBlur={(e) => setSpace(e.target.value.toUpperCase())}
             placeholder="DEV, WORK, ..."
             required
             maxLength={48}
@@ -84,9 +90,10 @@ export function NewComboSheet({ open, onClose, onSubmit }: Props) {
           <span className="eyebrow">SPECIALIZATION</span>
           <input
             type="text"
-            className="input input--inline"
+            className="input input--inline input-uppercase"
             value={specialization}
             onChange={(e) => setSpecialization(e.target.value)}
+            onBlur={(e) => setSpecialization(e.target.value.toUpperCase())}
             placeholder="FRONTEND, MEETING, ..."
             maxLength={48}
           />
