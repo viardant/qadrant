@@ -163,7 +163,7 @@ export default function Stats() {
     const weekdayData = getWeekdayDistribution(currentFiltered);
 
     // Daytime Grid Heatmap
-    const heatmapCells = getDaytimeHeatmap(currentFiltered);
+    const heatmapCells = getDaytimeHeatmap(currentFiltered, scope);
 
     // Start Hours
     const startTimeData = getStartTimeHeatmap(currentFiltered);
@@ -803,6 +803,7 @@ export default function Stats() {
                     <Line
                       type="monotone"
                       dataKey="hours"
+                      name="CURRENT"
                       stroke="var(--accent)"
                       strokeWidth={1.5}
                       dot={false}
@@ -812,6 +813,7 @@ export default function Stats() {
                     <Line
                       type="monotone"
                       dataKey={() => stats.rollingAvg}
+                      name="BASELINE"
                       stroke="var(--fg-subtle)"
                       strokeWidth={1}
                       strokeDasharray="4 4"
