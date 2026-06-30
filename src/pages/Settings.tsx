@@ -10,7 +10,7 @@ import { Modal } from '../components/ui/Modal';
 
 const PURGE_CONFIRM_PHRASE = 'DELETE ALL';
 const PURGE_BATCH_SIZE = 10;
-const RENAME_BATCH_SIZE = 10;
+const RENAME_BATCH_SIZE = 100;
 
 const DEFAULT_COLORS = [
   '#35675d', // forest green (accent)
@@ -28,6 +28,21 @@ const DEFAULT_COLORS = [
 interface SpaceDetail {
   name: string;
   specializations: string[];
+}
+
+export async function runWithRetry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delayMs = 1000
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    console.warn(`Request failed. Retrying in ${delayMs}ms...`, err);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return runWithRetry(fn, retries - 1, delayMs * 2 + Math.floor(Math.random() * 100));
+  }
 }
 
 export default function Settings() {
