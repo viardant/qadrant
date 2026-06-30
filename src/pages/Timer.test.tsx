@@ -54,6 +54,7 @@ describe('Timer page', () => {
   test('shows the top bar with the TIMER section', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
     }));
     renderTimer();
     expect(screen.getAllByText(/QADRANT\s*\/\/\s*TIMER/i).length).toBeGreaterThan(0);
@@ -62,6 +63,7 @@ describe('Timer page', () => {
   test('renders stats strip with TODAY / STREAK / SESSIONS', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
     }));
     renderTimer();
     expect(screen.getByText('TODAY')).toBeInTheDocument();
@@ -72,6 +74,7 @@ describe('Timer page', () => {
   test('renders search input with REPLAY_EXISTING_COMBO eyebrow and FAB', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
     }));
     renderTimer();
     expect(screen.getByText(/REPLAY_EXISTING_COMBO/i)).toBeInTheDocument();
@@ -82,6 +85,7 @@ describe('Timer page', () => {
   test('shows empty state when there are no combos and opens sheet on FAB click', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({}),
     }));
     renderTimer();
@@ -99,6 +103,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
       create: vi.fn().mockResolvedValue({}),
     }));
     renderTimer();
@@ -114,6 +119,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
     }));
     renderTimer();
     const quickReplay = screen.getByLabelText('Quick replay');
@@ -139,6 +145,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+      getFullList: vi.fn().mockResolvedValue(sixDistinct),
     }));
     renderTimer();
     const quickReplay = screen.getByLabelText('Quick replay');
@@ -164,6 +171,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+      getFullList: vi.fn().mockResolvedValue(sixDistinct),
     }));
     renderTimer();
     const quickReplay = screen.getByLabelText('Quick replay');
@@ -189,6 +197,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+      getFullList: vi.fn().mockResolvedValue(sixDistinct),
     }));
     renderTimer();
     const input = screen.getByLabelText('Search existing combos');
@@ -199,6 +208,95 @@ describe('Timer page', () => {
     expect(within(quickReplay).getByText('Work / meeting')).toBeInTheDocument();
     expect(within(quickReplay).getByText('Piano / scales')).toBeInTheDocument();
     expect(within(quickReplay).getByText('Reading / literature')).toBeInTheDocument();
+  });
+
+  test('searches the full set of distinct combos even when they are older than the 200 limit', async () => {
+    const recentEntries = Array.from({ length: 200 }, (_, i) =>
+      baseEntry({
+        id: `recent-${i}`,
+        space: 'KO2',
+        specialization: '',
+        start_date: new Date(2026, 5, 20, 12, 0, 0 - i).toISOString(),
+      })
+    );
+    const oldEntry = baseEntry({
+      id: 'old-1',
+      space: 'KO2',
+      specialization: 'Web',
+      start_date: new Date(2026, 5, 1, 12, 0, 0).toISOString(),
+    });
+    const allEntries = [...recentEntries, oldEntry];
+
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockImplementation((_page, size) => {
+        return Promise.resolve({ items: allEntries.slice(0, size) });
+      }),
+      getFullList: vi.fn().mockResolvedValue(allEntries),
+    }));
+
+    renderTimer();
+
+    const quickReplay = screen.getByLabelText('Quick replay');
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'Web' } });
+
+    await within(quickReplay).findByText('KO2 / Web');
+  });
+
+  test('Tab key wraps focus from the last search result back to the search input', async () => {
+    const entries = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '2', space: 'Work', specialization: 'meeting' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
+    }));
+    renderTimer();
+    const quickReplay = screen.getByLabelText('Quick replay');
+    await within(quickReplay).findByText('Dev / frontend');
+
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'e' } });
+
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    const cards = within(quickReplay).getAllByRole('button');
+    expect(cards).toHaveLength(2);
+
+    const secondCard = cards[1];
+    secondCard.focus();
+    expect(document.activeElement).toBe(secondCard);
+
+    fireEvent.keyDown(secondCard, { key: 'Tab' });
+    expect(document.activeElement).toBe(input);
+  });
+
+  test('Shift+Tab key wraps focus from the search input to the last search result', async () => {
+    const entries = [
+      baseEntry({ id: '1', space: 'Dev', specialization: 'frontend' }),
+      baseEntry({ id: '2', space: 'Work', specialization: 'meeting' }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
+    }));
+    renderTimer();
+    const quickReplay = screen.getByLabelText('Quick replay');
+    await within(quickReplay).findByText('Dev / frontend');
+
+    const input = screen.getByLabelText('Search existing combos');
+    fireEvent.change(input, { target: { value: 'e' } });
+
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    const cards = within(quickReplay).getAllByRole('button');
+    const secondCard = cards[1];
+
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(secondCard);
   });
 
   test('does not show the START_NEW_COMBO_FROM_QUERY affordance for a query that matches a rank-5+ combo in the full set', async () => {
@@ -216,6 +314,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: sixDistinct }),
+      getFullList: vi.fn().mockResolvedValue(sixDistinct),
     }));
     renderTimer();
     const quickReplay = screen.getByLabelText('Quick replay');
@@ -229,6 +328,7 @@ describe('Timer page', () => {
   test('Cmd+K (and Ctrl+K) focuses the search input', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
     }));
     renderTimer();
     const input = await screen.findByLabelText('Search existing combos');
@@ -247,6 +347,7 @@ describe('Timer page', () => {
   test('Cmd+K selects existing text in the search input', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
     }));
     renderTimer();
     const input = await screen.findByLabelText('Search existing combos') as HTMLInputElement;
@@ -271,6 +372,7 @@ describe('Timer page', () => {
     const update = vi.fn().mockResolvedValue({});
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
       update,
     }));
     renderTimer();
@@ -297,6 +399,7 @@ describe('Timer page', () => {
     const create = vi.fn().mockResolvedValue({});
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
       create,
     }));
     const { unmount } = renderTimer();
@@ -330,6 +433,7 @@ describe('Timer page', () => {
     const create = vi.fn().mockResolvedValue({});
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
       create,
     }));
     const { unmount } = renderTimer();
@@ -369,6 +473,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
     }));
 
     const { unmount } = renderTimer();
@@ -400,6 +505,7 @@ describe('Timer page', () => {
   test('shows a START_NEW_COMBO_FROM_QUERY affordance when a typed query has no matches', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
     }));
     renderTimer();
     const input = screen.getByLabelText('Search existing combos');
@@ -414,6 +520,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
     }));
     renderTimer();
     const input = screen.getByLabelText('Search existing combos');
@@ -425,6 +532,7 @@ describe('Timer page', () => {
   test('does not show the new-combo affordance when the query is empty or whitespace', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
     }));
     renderTimer();
     const input = screen.getByLabelText('Search existing combos');
@@ -436,6 +544,7 @@ describe('Timer page', () => {
     const create = vi.fn().mockResolvedValue({});
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
       create,
     }));
     const { unmount } = renderTimer();
@@ -460,6 +569,7 @@ describe('Timer page', () => {
     const create = vi.fn().mockResolvedValue({});
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
       create,
     }));
     const { unmount } = renderTimer();
@@ -481,6 +591,7 @@ describe('Timer page', () => {
     const create = vi.fn().mockResolvedValue({});
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
+      getFullList: vi.fn().mockResolvedValue([]),
       create,
     }));
     const { unmount } = renderTimer();
@@ -505,6 +616,7 @@ describe('Timer page', () => {
     ];
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
       create,
     }));
     const { unmount } = renderTimer();
@@ -532,6 +644,7 @@ describe('Timer page', () => {
     const create = vi.fn().mockResolvedValue({});
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
       create,
     }));
     const { unmount } = renderTimer();
