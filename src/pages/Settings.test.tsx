@@ -9,6 +9,7 @@ vi.mock('../lib/pocketbase', () => {
   return {
     pb: {
       collection: vi.fn(),
+      createBatch: vi.fn(),
       authStore: {
         isValid: true,
         model: { id: 'user_123' },
@@ -352,8 +353,31 @@ describe('Settings — Spaces and Specializations', () => {
   const mockGetFullListEntries = vi.fn();
   const mockUpdateUser = vi.fn();
   const mockUpdateEntry = vi.fn();
+  const mockBatchSend = vi.fn();
+  const mockBatchCollection = vi.fn();
+  const mockCreateBatch = vi.mocked(pb.createBatch);
 
   beforeEach(() => {
+    mockCreateBatch.mockClear();
+    mockBatchCollection.mockClear();
+    mockBatchSend.mockClear();
+
+    mockCreateBatch.mockReturnValue({
+      collection: mockBatchCollection,
+      send: mockBatchSend,
+    });
+
+    mockBatchCollection.mockImplementation((name: string) => {
+      return {
+        update: mockUpdateEntry,
+        create: vi.fn(),
+        delete: vi.fn(),
+        upsert: vi.fn(),
+      } as any;
+    });
+
+    mockBatchSend.mockResolvedValue([]);
+
     delete (window as any).location;
     window.location = {
       ...originalLocation,
@@ -587,6 +611,7 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     await waitFor(() => {
+      expect(mockBatchSend).toHaveBeenCalled();
       expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'Creatives' });
       expect(mockUpdateEntry).toHaveBeenCalledWith('entry_2', { space: 'Creatives' });
     });
@@ -642,6 +667,7 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     await waitFor(() => {
+      expect(mockBatchSend).toHaveBeenCalled();
       expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { specialization: 'UI/UX' });
     });
 
@@ -840,12 +866,17 @@ describe('Settings — Spaces and Specializations', () => {
     });
   });
 
-  test('Displays duplicate space error', async () => {
+  test('Space Merge Test', async () => {
     const mockEntries = [
       { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
       { id: 'entry_2', space: 'Engineering', specialization: 'React', user: 'user_123' },
     ];
-    mockGetFullListEntries.mockResolvedValue(mockEntries);
+    mockGetFullListEntries.mockImplementation(async (options?: any) => {
+      if (options?.filter && options.filter.includes('space = "Design"')) {
+        return [mockEntries[0]];
+      }
+      return mockEntries;
+    });
 
     render(
       <MemoryRouter>
@@ -864,21 +895,35 @@ describe('Settings — Spaces and Specializations', () => {
     const spaceInput = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
     fireEvent.change(spaceInput, { target: { value: 'Engineering' } });
 
-    const spaceSubmitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '[WARNING] A space with this name already exists. Executing this rename will merge all entries into it.'
+    );
+
+    const spaceSubmitBtn = screen.getByRole('button', { name: />>> CONFIRM_MERGE/i });
+    expect(spaceSubmitBtn).not.toBeDisabled();
     fireEvent.click(spaceSubmitBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('A space with this name already exists.');
+      expect(mockBatchSend).toHaveBeenCalled();
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { space: 'Engineering' });
     });
-    expect(mockUpdateEntry).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(reloadSpy).toHaveBeenCalled();
+    });
   });
 
-  test('Displays duplicate specialization error', async () => {
+  test('Specialization Merge Test', async () => {
     const mockEntries = [
       { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
       { id: 'entry_2', space: 'Design', specialization: 'Sketch', user: 'user_123' },
     ];
-    mockGetFullListEntries.mockResolvedValue(mockEntries);
+    mockGetFullListEntries.mockImplementation(async (options?: any) => {
+      if (options?.filter && options.filter.includes('specialization = "Figma"')) {
+        return [mockEntries[0]];
+      }
+      return mockEntries;
+    });
 
     render(
       <MemoryRouter>
@@ -905,13 +950,22 @@ describe('Settings — Spaces and Specializations', () => {
     const specInput = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
     fireEvent.change(specInput, { target: { value: 'Sketch' } });
 
-    const specSubmitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '[WARNING] A specialization with this name already exists in this space. Executing this rename will merge all entries into it.'
+    );
+
+    const specSubmitBtn = screen.getByRole('button', { name: />>> CONFIRM_MERGE/i });
+    expect(specSubmitBtn).not.toBeDisabled();
     fireEvent.click(specSubmitBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('A specialization with this name already exists in this space.');
+      expect(mockBatchSend).toHaveBeenCalled();
+      expect(mockUpdateEntry).toHaveBeenCalledWith('entry_1', { specialization: 'Sketch' });
     });
-    expect(mockUpdateEntry).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(reloadSpy).toHaveBeenCalled();
+    });
   });
 
   test('Displays error message when space rename fails', async () => {
@@ -919,7 +973,7 @@ describe('Settings — Spaces and Specializations', () => {
       { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
     ];
     mockGetFullListEntries.mockResolvedValue(mockEntries);
-    mockUpdateEntry.mockRejectedValueOnce(new Error('Update failed'));
+    mockBatchSend.mockRejectedValue(new Error('Update failed'));
 
     render(
       <MemoryRouter>
@@ -939,7 +993,11 @@ describe('Settings — Spaces and Specializations', () => {
     fireEvent.change(input, { target: { value: 'Creatives' } });
 
     const submitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+
+    vi.useFakeTimers();
     fireEvent.click(submitBtn);
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Rename failed. Please retry.');
@@ -952,7 +1010,7 @@ describe('Settings — Spaces and Specializations', () => {
       { id: 'entry_1', space: 'Design', specialization: 'Figma', user: 'user_123' },
     ];
     mockGetFullListEntries.mockResolvedValue(mockEntries);
-    mockUpdateEntry.mockRejectedValueOnce(new Error('Update failed'));
+    mockBatchSend.mockRejectedValue(new Error('Update failed'));
 
     render(
       <MemoryRouter>
@@ -980,7 +1038,11 @@ describe('Settings — Spaces and Specializations', () => {
     fireEvent.change(input, { target: { value: 'UI/UX' } });
 
     const submitBtn = screen.getByRole('button', { name: />>> EXECUTE_RENAME/i });
+
+    vi.useFakeTimers();
     fireEvent.click(submitBtn);
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Rename failed. Please retry.');
