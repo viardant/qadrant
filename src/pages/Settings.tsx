@@ -576,7 +576,7 @@ export default function Settings() {
               <div
                 className="section"
                 style={{
-                  maxHeight: '300px',
+                  maxHeight: '350px',
                   overflowY: 'auto',
                   gap: 'var(--space-2)',
                   border: '1px solid var(--border-muted)',
