@@ -247,8 +247,10 @@ export default function Settings() {
           }));
 
         setSpaceDetails(detailsList);
-      } catch (err) {
-        console.error('Failed to load user preferences:', err);
+      } catch (err: any) {
+        if (!err?.isAbort) {
+          console.error('Failed to load user preferences:', err);
+        }
       } finally {
         setLoading(false);
       }
