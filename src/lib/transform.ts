@@ -505,7 +505,25 @@ export interface HeatmapCell {
   minutes: number;
 }
 
-export function getDaytimeHeatmap(entries: TimeEntry[]): HeatmapCell[] {
+function countWeekdaysInRange(start: Date, end: Date): number[] {
+  const counts = [0, 0, 0, 0, 0, 0, 0];
+  const current = new Date(start);
+  current.setHours(0, 0, 0, 0);
+  const endDay = new Date(end);
+  endDay.setHours(23, 59, 59, 999);
+
+  while (current <= endDay) {
+    counts[current.getDay()]++;
+    current.setDate(current.getDate() + 1);
+  }
+  return counts;
+}
+
+export function getDaytimeHeatmap(
+  entries: TimeEntry[],
+  scope: StatsScope = 'ALL_TIME',
+  relativeTo: Date = new Date()
+): HeatmapCell[] {
   const cells: HeatmapCell[] = [];
   for (let d = 0; d < 7; d++) {
     for (let h = 0; h < 24; h++) {
@@ -538,7 +556,25 @@ export function getDaytimeHeatmap(entries: TimeEntry[]): HeatmapCell[] {
     }
   }
 
-  return cells.map((c) => ({ ...c, minutes: Math.round(c.minutes) }));
+  const bounds = getScopeBounds(scope, relativeTo);
+  const rangeStart: Date = bounds.start
+    ? bounds.start
+    : (() => {
+        const dates = entries
+          .map((e) => new Date(e.start_date))
+          .filter((d) => !isNaN(d.getTime()));
+        return dates.length > 0
+          ? new Date(Math.min(...dates.map((d) => d.getTime())))
+          : relativeTo;
+      })();
+  const rangeEnd: Date = relativeTo;
+
+  const weekdayCounts = countWeekdaysInRange(rangeStart, rangeEnd);
+
+  return cells.map((c) => ({
+    ...c,
+    minutes: Math.round(c.minutes / Math.max(1, weekdayCounts[c.day])),
+  }));
 }
 
 export function getStartTimeHeatmap(entries: TimeEntry[]): number[] {

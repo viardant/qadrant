@@ -232,10 +232,11 @@ export default function Stats() {
   }, [entries, scope, spaceFilter]);
 
   // Heatmap helper styles
-  const getIntensityClass = (mins: number) => {
+  const getIntensityClass = (mins: number, maxMins: number) => {
     if (mins <= 0) return 'heatmap-cell--empty';
-    if (mins < 15) return 'heatmap-cell--low';
-    if (mins < 45) return 'heatmap-cell--medium';
+    const ratio = mins / (maxMins || 1);
+    if (ratio < 0.3) return 'heatmap-cell--low';
+    if (ratio < 0.7) return 'heatmap-cell--medium';
     return 'heatmap-cell--high';
   };
 
@@ -248,6 +249,7 @@ export default function Stats() {
   };
 
   const maxStartTimeCount = Math.max(...stats.startTimeData, 1);
+  const maxHeatmapMinutes = Math.max(...stats.heatmapCells.map((c) => c.minutes), 1);
 
   return (
     <>
@@ -506,7 +508,7 @@ export default function Stats() {
                         <div
                           key={h}
                           title={`${dayName} ${h}:00 - ${minutes} minutes`}
-                          className={`heatmap-cell ${getIntensityClass(minutes)}`}
+                          className={`heatmap-cell ${getIntensityClass(minutes, maxHeatmapMinutes)}`}
                           style={{
                             flex: 1,
                             aspectRatio: '1',

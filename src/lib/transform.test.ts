@@ -247,6 +247,7 @@ describe('getScopeBounds and filterEntriesByScope', () => {
 });
 
 describe('Time-shape data transforms', () => {
+  const refDate = new Date('2026-06-25T12:00:00.000Z');
   const mockData: TimeEntry[] = [
     // Monday 09:00 -> 11:00 (2h)
     { id: '1', space: 'Work', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T11:00:00.000Z', user: 'u' },
@@ -261,7 +262,7 @@ describe('Time-shape data transforms', () => {
   });
 
   it('allocates daytime heatmap crossing midnight correctly', () => {
-    const cells = getDaytimeHeatmap(mockData);
+    const cells = getDaytimeHeatmap(mockData, 'THIS_WEEK', refDate);
     // 2026-06-24 is Wednesday (Date.getDay() === 3)
     const wedCell = cells.find((c) => c.day === 3 && c.hour === 23);
     // 2026-06-25 is Thursday (Date.getDay() === 4)
@@ -269,6 +270,33 @@ describe('Time-shape data transforms', () => {
     
     expect(wedCell?.minutes).toBe(15);
     expect(thuCell?.minutes).toBe(15);
+  });
+
+  it('averages daytime heatmap minutes across weekday occurrences', () => {
+    const cells = getDaytimeHeatmap(mockData, 'THIS_WEEK', refDate);
+    // Monday 09:00-10:00: 60 minutes each hour, divided by 1 Monday in scope
+    const mon9 = cells.find((c) => c.day === 1 && c.hour === 9);
+    const mon10 = cells.find((c) => c.day === 1 && c.hour === 10);
+    expect(mon9?.minutes).toBe(60);
+    expect(mon10?.minutes).toBe(60);
+  });
+
+  it('averages heatmap minutes over multiple weeks in a month', () => {
+    const monthRef = new Date('2026-06-30T12:00:00.000Z');
+    const multiWeekData: TimeEntry[] = [
+      // Monday week 1 (June 22): 09:00-10:00 (60 min)
+      { id: 'a', space: 'Work', specialization: '', start_date: '2026-06-22T09:00:00.000Z', completion_time: '2026-06-22T10:00:00.000Z', user: 'u' },
+      // Monday week 2 (June 29): 09:00-10:00 (60 min)
+      { id: 'b', space: 'Work', specialization: '', start_date: '2026-06-29T09:00:00.000Z', completion_time: '2026-06-29T10:00:00.000Z', user: 'u' },
+    ];
+    // THIS_MONTH (June 2026) has 5 Mondays (Jun 1, 8, 15, 22, 29)
+    const cells = getDaytimeHeatmap(multiWeekData, 'THIS_MONTH', monthRef);
+    // 120 total minutes / 5 Mondays = 24 avg
+    const mon9 = cells.find((c) => c.day === 1 && c.hour === 9);
+    expect(mon9?.minutes).toBe(24);
+    // Other weekdays should have 0
+    const tue9 = cells.find((c) => c.day === 2 && c.hour === 9);
+    expect(tue9?.minutes).toBe(0);
   });
 
   it('calculates session length buckets and deep work ratio', () => {
