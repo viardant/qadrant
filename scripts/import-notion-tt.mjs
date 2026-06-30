@@ -137,10 +137,13 @@ function hashEntry(source) {
 
 function mapToQadrantRow(source, userId) {
   if (!source.completionTime) return null;
+  const isPiano = source.spaceName === 'Piano';
   const specialization =
-    source.subtype && source.subtype.length > 0
-      ? source.subtype
-      : source.taskName || '';
+    isPiano
+      ? (source.subtype && source.subtype.length > 0
+          ? source.subtype
+          : source.taskName || '')
+      : (source.subtype || '');
   return {
     start_date: source.startTime,
     completion_time: source.completionTime,
