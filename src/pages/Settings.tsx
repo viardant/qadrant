@@ -119,6 +119,7 @@ export default function Settings() {
         const currentStep = Math.floor(i / RENAME_BATCH_SIZE) + 1;
         setRenameProgressText(`MIGRATING_RECORDS // STEP ${currentStep} OF ${totalSteps || 1}…`);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const batch = (pb as any).createBatch();
         for (const entry of batchItems) {
           batch.collection('time_entries').update(entry.id, { space: targetNew });
@@ -183,6 +184,7 @@ export default function Settings() {
         const currentStep = Math.floor(i / RENAME_BATCH_SIZE) + 1;
         setRenameProgressText(`MIGRATING_RECORDS // STEP ${currentStep} OF ${totalSteps || 1}…`);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const batch = (pb as any).createBatch();
         for (const entry of batchItems) {
           batch.collection('time_entries').update(entry.id, { specialization: targetNew });
@@ -347,6 +349,26 @@ export default function Settings() {
   const getSpaceColor = (space: string, index: number) => {
     return spaceColors[space] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
   };
+
+  const isSpaceMerge =
+    renameTargetSpace !== null &&
+    spaceDetails.some(
+      (space) =>
+        space.name.toLowerCase() === newName.trim().toLowerCase() &&
+        space.name.toLowerCase() !== renameTargetSpace.toLowerCase()
+    );
+
+  const currentSpaceDetail = renameTargetSpec
+    ? spaceDetails.find((s) => s.name === renameTargetSpec.space)
+    : null;
+  const isSpecMerge =
+    renameTargetSpec !== null &&
+    !!currentSpaceDetail &&
+    currentSpaceDetail.specializations.some(
+      (spec) =>
+        spec.toLowerCase() === newName.trim().toLowerCase() &&
+        spec.toLowerCase() !== renameTargetSpec.spec.toLowerCase()
+    );
 
   return (
     <>
@@ -653,7 +675,7 @@ export default function Settings() {
               className="btn btn--filled"
               disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpace}
             >
-              {renameInProgress ? 'EXECUTING...' : '>>> EXECUTE_RENAME'}
+              {renameInProgress ? 'EXECUTING...' : isSpaceMerge ? '>>> CONFIRM_MERGE' : '>>> EXECUTE_RENAME'}
             </button>
           </>
         }
@@ -662,6 +684,11 @@ export default function Settings() {
           <p className="settings-section__body">
             Renaming space <strong>{renameTargetSpace}</strong> will update all associated historical time entries.
           </p>
+          {isSpaceMerge && (
+            <div style={{ padding: 'var(--space-3)', borderLeft: '3px solid var(--warning, #eab308)', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--warning, #eab308)', fontSize: '0.875rem' }} role="alert">
+              ⚠️ A space with this name already exists. Executing this rename will merge all entries into it.
+            </div>
+          )}
           <label className="section" style={{ gap: 'var(--space-2)' }}>
             <span className="eyebrow">NEW SPACE NAME</span>
             <input
@@ -704,7 +731,7 @@ export default function Settings() {
               className="btn btn--filled"
               disabled={renameInProgress || !newName.trim() || newName.trim() === renameTargetSpec?.spec}
             >
-              {renameInProgress ? 'EXECUTING...' : '>>> EXECUTE_RENAME'}
+              {renameInProgress ? 'EXECUTING...' : isSpecMerge ? '>>> CONFIRM_MERGE' : '>>> EXECUTE_RENAME'}
             </button>
           </>
         }
@@ -713,6 +740,11 @@ export default function Settings() {
           <p className="settings-section__body">
             Renaming specialization <strong>{renameTargetSpec?.spec}</strong> inside space <strong>{renameTargetSpec?.space}</strong> will update all matching historical entries.
           </p>
+          {isSpecMerge && (
+            <div style={{ padding: 'var(--space-3)', borderLeft: '3px solid var(--warning, #eab308)', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--warning, #eab308)', fontSize: '0.875rem' }} role="alert">
+              ⚠️ A specialization with this name already exists in this space. Executing this rename will merge all entries into it.
+            </div>
+          )}
           <label className="section" style={{ gap: 'var(--space-2)' }}>
             <span className="eyebrow">NEW SPECIALIZATION NAME</span>
             <input
