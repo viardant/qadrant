@@ -421,12 +421,34 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     expect(screen.getByText('Engineering')).toBeInTheDocument();
+
+    // Verify rename button exists for the spaces
+    const spaceRenameBtns = screen.getAllByRole('button', { name: /\[RENAME\]/i });
+    expect(spaceRenameBtns.length).toBe(2);
+
+    // Open manage modal for Design
+    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const manageBtn1 = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn1);
+
+    // Now Figma and Illustrator should be visible
     expect(screen.getByText('Figma')).toBeInTheDocument();
     expect(screen.getByText('Illustrator')).toBeInTheDocument();
-    expect(screen.getByText('React')).toBeInTheDocument();
 
-    const renameButtons = screen.getAllByRole('button', { name: /\[RENAME\]/i });
-    expect(renameButtons.length).toBe(5);
+    // Inside the modal, rename buttons for Figma/Illustrator are visible
+    // Total [RENAME] buttons now: 2 space renames + 2 specialization renames = 4
+    expect(screen.getAllByRole('button', { name: /\[RENAME\]/i })).toHaveLength(4);
+
+    // Close modal
+    fireEvent.click(screen.getByRole('button', { name: /CLOSE/i }));
+
+    // Open manage modal for Engineering
+    const engineeringContainer = screen.getByText('Engineering').closest('.color-row')!;
+    const manageBtn2 = within(engineeringContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn2);
+
+    // React should be visible
+    expect(screen.getByText('React')).toBeInTheDocument();
   });
 
   test('renders spaces and their specializations sorted alphabetically', async () => {
@@ -468,6 +490,11 @@ describe('Settings — Spaces and Specializations', () => {
     const engineeringEl = screen.getByText('Engineering');
     expect(designEl.compareDocumentPosition(engineeringEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     
+    // Open manage modal for Design
+    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
     // Check that Figma comes before Illustrator in the DOM
     const figmaEl = screen.getByText('Figma');
     const illustratorEl = screen.getByText('Illustrator');
@@ -513,8 +540,14 @@ describe('Settings — Spaces and Specializations', () => {
     await waitFor(() => {
       expect(screen.getByText('WORK')).toBeInTheDocument();
     });
-    const renameBtns = screen.getAllByRole('button', { name: /\[RENAME\]/i });
-    fireEvent.click(renameBtns[1]); // Click second rename button (spec level)
+
+    const workContainer = screen.getByText('WORK').closest('.color-row')!;
+    const manageBtn = within(workContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
+    const modal = screen.getByRole('dialog', { name: /MANAGE_SPECIALIZATIONS_PROTOCOL/i });
+    const renameBtn = within(modal).getByRole('button', { name: /\[RENAME\]/i });
+    fireEvent.click(renameBtn);
     expect(screen.getByText('NEW SPECIALIZATION NAME')).toBeInTheDocument();
   });
 
@@ -580,11 +613,19 @@ describe('Settings — Spaces and Specializations', () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByText('Design')).toBeInTheDocument();
+    });
+
+    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
+    await waitFor(() => {
       expect(screen.getByText('Figma')).toBeInTheDocument();
     });
 
-    const figmaContainer = screen.getByText('Figma').parentElement!;
-    const renameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    const modal = screen.getByRole('dialog', { name: /MANAGE_SPECIALIZATIONS_PROTOCOL/i });
+    const renameBtn = within(modal).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(renameBtn);
 
     expect(screen.getByText('NEW SPECIALIZATION NAME')).toBeInTheDocument();
@@ -625,7 +666,7 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     // Space Rename Modal Cancel
-    const designContainer = screen.getByText('Design').parentElement!;
+    const designContainer = screen.getByText('Design').closest('.color-row')!;
     const spaceRenameBtn = within(designContainer).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(spaceRenameBtn);
     expect(screen.getByText('NEW SPACE NAME')).toBeInTheDocument();
@@ -637,8 +678,15 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     // Spec Rename Modal Cancel
-    const figmaContainer = screen.getByText('Figma').parentElement!;
-    const specRenameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Figma')).toBeInTheDocument();
+    });
+
+    const modal = screen.getByRole('dialog', { name: /MANAGE_SPECIALIZATIONS_PROTOCOL/i });
+    const specRenameBtn = within(modal).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(specRenameBtn);
     expect(screen.getByText('NEW SPECIALIZATION NAME')).toBeInTheDocument();
 
@@ -665,7 +713,7 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     // Space modal disabled states
-    const designContainer = screen.getByText('Design').parentElement!;
+    const designContainer = screen.getByText('Design').closest('.color-row')!;
     const spaceRenameBtn = within(designContainer).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(spaceRenameBtn);
 
@@ -690,8 +738,15 @@ describe('Settings — Spaces and Specializations', () => {
     fireEvent.click(screen.getByRole('button', { name: /CANCEL/i }));
 
     // Spec modal disabled states
-    const figmaContainer = screen.getByText('Figma').parentElement!;
-    const specRenameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Figma')).toBeInTheDocument();
+    });
+
+    const modal = screen.getByRole('dialog', { name: /MANAGE_SPECIALIZATIONS_PROTOCOL/i });
+    const specRenameBtn = within(modal).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(specRenameBtn);
 
     const specInput = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
@@ -757,12 +812,19 @@ describe('Settings — Spaces and Specializations', () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByText('WORK')).toBeInTheDocument();
+    });
+
+    const workContainer = screen.getByText('WORK').closest('.color-row')!;
+    const manageBtn = within(workContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
+    await waitFor(() => {
       expect(screen.getByText('FIGMA')).toBeInTheDocument();
     });
 
-    // Rename Specialization FIGMA -> Figma
-    const figmaContainer = screen.getByText('FIGMA').parentElement!;
-    const specRenameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    const modal = screen.getByRole('dialog', { name: /MANAGE_SPECIALIZATIONS_PROTOCOL/i });
+    const specRenameBtn = within(modal).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(specRenameBtn);
 
     const specDialog = screen.getByRole('dialog', { name: /RENAME_SPECIALIZATION_PROTOCOL/i });
@@ -825,11 +887,19 @@ describe('Settings — Spaces and Specializations', () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByText('Design')).toBeInTheDocument();
+    });
+
+    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
+    await waitFor(() => {
       expect(screen.getByText('Figma')).toBeInTheDocument();
     });
 
-    const figmaContainer = screen.getByText('Figma').parentElement!;
-    const specRenameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    const figmaRow = screen.getByText('Figma').closest('div')!;
+    const specRenameBtn = within(figmaRow).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(specRenameBtn);
 
     const specInput = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
@@ -891,11 +961,19 @@ describe('Settings — Spaces and Specializations', () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByText('Design')).toBeInTheDocument();
+    });
+
+    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
+    fireEvent.click(manageBtn);
+
+    await waitFor(() => {
       expect(screen.getByText('Figma')).toBeInTheDocument();
     });
 
-    const figmaContainer = screen.getByText('Figma').parentElement!;
-    const renameBtn = within(figmaContainer).getByRole('button', { name: /\[RENAME\]/i });
+    const modal = screen.getByRole('dialog', { name: /MANAGE_SPECIALIZATIONS_PROTOCOL/i });
+    const renameBtn = within(modal).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(renameBtn);
 
     const input = screen.getByPlaceholderText('NEW_NAME...') as HTMLInputElement;
@@ -910,7 +988,7 @@ describe('Settings — Spaces and Specializations', () => {
     expect(reloadSpy).not.toHaveBeenCalled();
   });
 
-  describe('Manage Specializations Modal - Layout', () => {
+  describe('Manage Specializations Modal', () => {
     test('displays specialization count and opens management modal on click', async () => {
       const mockEntries = [
         { id: '1', space: 'Piano', specialization: 'Chopin', user: 'user_123' },
@@ -930,6 +1008,62 @@ describe('Settings — Spaces and Specializations', () => {
 
       const manageBtn = screen.getByRole('button', { name: />>> MANAGE/i });
       expect(manageBtn).toBeInTheDocument();
+    });
+
+    test('filters specializations list by query', async () => {
+      const mockEntries = [
+        { id: '1', space: 'Piano', specialization: 'Chopin', user: 'user_123' },
+        { id: '2', space: 'Piano', specialization: 'Bach', user: 'user_123' },
+      ];
+      mockGetFullListEntries.mockResolvedValue(mockEntries);
+
+      render(
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: />>> MANAGE/i })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: />>> MANAGE/i }));
+
+      const searchInput = screen.getByPlaceholderText('SEARCH_SPECIALIZATIONS…');
+      fireEvent.change(searchInput, { target: { value: 'Chop' } });
+
+      expect(screen.getByText('Chopin')).toBeInTheDocument();
+      expect(screen.queryByText('Bach')).not.toBeInTheDocument();
+    });
+
+    test('clicking [RENAME] closes manage modal and opens rename spec modal', async () => {
+      const mockEntries = [
+        { id: '1', space: 'Piano', specialization: 'Chopin', user: 'user_123' },
+      ];
+      mockGetFullListEntries.mockResolvedValue(mockEntries);
+
+      render(
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: />>> MANAGE/i })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: />>> MANAGE/i }));
+
+      const modal = screen.getByRole('dialog', { name: /MANAGE_SPECIALIZATIONS_PROTOCOL/i });
+      const renameBtn = within(modal).getByRole('button', { name: /\[RENAME\]/i });
+      fireEvent.click(renameBtn);
+
+      // Manage modal should close
+      expect(screen.queryByText('▸  MANAGE_SPECIALIZATIONS_PROTOCOL // Piano')).not.toBeInTheDocument();
+
+      // Rename modal should open
+      expect(screen.getByText('NEW SPECIALIZATION NAME')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('NEW_NAME...')).toHaveValue('Chopin');
     });
   });
 });

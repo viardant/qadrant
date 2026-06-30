@@ -553,6 +553,83 @@ export default function Settings() {
       </Modal>
 
       <Modal
+        open={manageSpecsTarget !== null}
+        onClose={handleCloseManageSpecs}
+        title={`▸  MANAGE_SPECIALIZATIONS_PROTOCOL // ${manageSpecsTarget?.name || ''}`}
+        footer={
+          <button type="button" className="btn btn--ghost" onClick={handleCloseManageSpecs}>
+            CLOSE
+          </button>
+        }
+      >
+        <div className="section" style={{ gap: 'var(--space-4)' }}>
+          {manageSpecsTarget && (
+            <div className="section" style={{ gap: 'var(--space-3)' }}>
+              <input
+                type="text"
+                className="input input--inline"
+                value={specSearchQuery}
+                onChange={(e) => setSpecSearchQuery(e.target.value)}
+                placeholder="SEARCH_SPECIALIZATIONS…"
+                aria-label="Search specializations"
+              />
+              <div
+                className="section"
+                style={{
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  gap: 'var(--space-2)',
+                  border: '1px solid var(--border-muted)',
+                  padding: 'var(--space-2)',
+                  backgroundColor: 'var(--bg)',
+                }}
+              >
+                {manageSpecsTarget.specializations
+                  .filter((spec) =>
+                    spec.toLowerCase().includes(specSearchQuery.toLowerCase())
+                  )
+                  .map((spec) => (
+                    <div
+                      key={spec}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: 'var(--space-2) var(--space-3)',
+                        borderBottom: '1px solid var(--border-muted)',
+                      }}
+                    >
+                      <span className="type-tech-mono" style={{ fontSize: '13px' }}>
+                        {spec}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn--link"
+                        style={{ fontSize: '11px' }}
+                        onClick={() => {
+                          const spaceName = manageSpecsTarget.name;
+                          handleCloseManageSpecs();
+                          handleOpenRenameSpec(spaceName, spec);
+                        }}
+                      >
+                        [RENAME]
+                      </button>
+                    </div>
+                  ))}
+                {manageSpecsTarget.specializations.filter((spec) =>
+                  spec.toLowerCase().includes(specSearchQuery.toLowerCase())
+                ).length === 0 && (
+                  <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--fg-muted)' }}>
+                    NO_MATCHING_SPECIALIZATIONS
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
         open={renameTargetSpace !== null}
         onClose={handleCloseRename}
         title="▸&nbsp;&nbsp;RENAME_SPACE_PROTOCOL"
