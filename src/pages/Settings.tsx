@@ -30,7 +30,7 @@ interface SpaceDetail {
   specializations: string[];
 }
 
-export async function runWithRetry<T>(
+async function runWithRetry<T>(
   fn: () => Promise<T>,
   retries = 3,
   delayMs = 1000
@@ -41,7 +41,7 @@ export async function runWithRetry<T>(
     if (retries <= 0) throw err;
     console.warn(`Request failed. Retrying in ${delayMs}ms...`, err);
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return runWithRetry(fn, retries - 1, delayMs * 2 + Math.floor(Math.random() * 100));
+    return runWithRetry(fn, retries - 1, delayMs * 2 + Math.floor(Math.random() * (delayMs * 0.1)));
   }
 }
 
@@ -99,11 +99,6 @@ export default function Settings() {
     const targetNew = newName.trim();
     if (!targetNew || targetNew === renameTargetSpace) return;
 
-    if (spaceDetails.some(d => d.name.toLowerCase() === targetNew.toLowerCase() && d.name.toLowerCase() !== renameTargetSpace.toLowerCase())) {
-      setRenameError('A space with this name already exists.');
-      return;
-    }
-
     setRenameInProgress(true);
     setRenameError(null);
     setRenameProgressText('FETCHING_RECORDS…');
@@ -120,15 +115,16 @@ export default function Settings() {
       const totalSteps = Math.ceil(entries.length / RENAME_BATCH_SIZE);
 
       for (let i = 0; i < entries.length; i += RENAME_BATCH_SIZE) {
-        const batch = entries.slice(i, i + RENAME_BATCH_SIZE);
+        const batchItems = entries.slice(i, i + RENAME_BATCH_SIZE);
         const currentStep = Math.floor(i / RENAME_BATCH_SIZE) + 1;
         setRenameProgressText(`MIGRATING_RECORDS // STEP ${currentStep} OF ${totalSteps || 1}…`);
 
-        await Promise.all(
-          batch.map((entry) =>
-            pb.collection('time_entries').update(entry.id, { space: targetNew })
-          )
-        );
+        const batch = (pb as any).createBatch();
+        for (const entry of batchItems) {
+          batch.collection('time_entries').update(entry.id, { space: targetNew });
+        }
+
+        await runWithRetry(() => batch.send());
         updatedSome = true;
       }
 
@@ -136,7 +132,10 @@ export default function Settings() {
       setRenameProgressText('UPDATING_PREFERENCES…');
       const updatedColors = { ...spaceColors };
       if (updatedColors[renameTargetSpace]) {
-        updatedColors[targetNew] = updatedColors[renameTargetSpace];
+        // If target space doesn't have a color, migrate the old one
+        if (!updatedColors[targetNew]) {
+          updatedColors[targetNew] = updatedColors[renameTargetSpace];
+        }
         delete updatedColors[renameTargetSpace];
         const updatedUser = await pb.collection('users').update(pb.authStore.model.id, {
           space_colors: updatedColors,
@@ -163,12 +162,6 @@ export default function Settings() {
     const { space, spec: oldSpec } = renameTargetSpec;
     if (!targetNew || targetNew === oldSpec) return;
 
-    const group = spaceDetails.find(d => d.name === space);
-    if (group?.specializations.some(s => s.toLowerCase() === targetNew.toLowerCase() && s.toLowerCase() !== oldSpec.toLowerCase())) {
-      setRenameError('A specialization with this name already exists in this space.');
-      return;
-    }
-
     setRenameInProgress(true);
     setRenameError(null);
     setRenameProgressText('FETCHING_RECORDS…');
@@ -186,15 +179,16 @@ export default function Settings() {
       const totalSteps = Math.ceil(entries.length / RENAME_BATCH_SIZE);
 
       for (let i = 0; i < entries.length; i += RENAME_BATCH_SIZE) {
-        const batch = entries.slice(i, i + RENAME_BATCH_SIZE);
+        const batchItems = entries.slice(i, i + RENAME_BATCH_SIZE);
         const currentStep = Math.floor(i / RENAME_BATCH_SIZE) + 1;
         setRenameProgressText(`MIGRATING_RECORDS // STEP ${currentStep} OF ${totalSteps || 1}…`);
 
-        await Promise.all(
-          batch.map((entry) =>
-            pb.collection('time_entries').update(entry.id, { specialization: targetNew })
-          )
-        );
+        const batch = (pb as any).createBatch();
+        for (const entry of batchItems) {
+          batch.collection('time_entries').update(entry.id, { specialization: targetNew });
+        }
+
+        await runWithRetry(() => batch.send());
         updatedSome = true;
       }
 
