@@ -36,7 +36,7 @@ export default function Settings() {
   const [spaceColors, setSpaceColors] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [beatIdx, setBeatIdx] = useState(0);
-  const { isMobile } = useBreakpoint();
+  const { isMobile, isDesktop } = useBreakpoint();
 
   const [renameTargetSpace, setRenameTargetSpace] = useState<string | null>(null);
   const [renameTargetSpec, setRenameTargetSpec] = useState<{ space: string; spec: string } | null>(null);
@@ -367,7 +367,7 @@ export default function Settings() {
                 message="NO_SPACES_DETECTED_IN_HISTORY"
               />
             ) : (
-              <div className="color-grid" style={{ gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+              <div className="color-grid" style={{ gridTemplateColumns: isMobile ? '1fr' : isDesktop ? 'repeat(4, minmax(220px, 1fr))' : 'repeat(auto-fit, minmax(220px, 1fr))' }}>
                 {spaceDetails.map((detail, idx) => (
                   <div key={detail.name} className="color-row" style={{ padding: isMobile ? '12px' : undefined, flexDirection: 'column', alignItems: 'stretch', gap: 'var(--space-3)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
