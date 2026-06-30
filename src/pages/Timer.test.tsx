@@ -263,13 +263,13 @@ describe('Timer page', () => {
     expect(document.activeElement).toBe(input);
 
     const cards = within(quickReplay).getAllByRole('button');
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(3);
 
-    const secondCard = cards[1];
-    secondCard.focus();
-    expect(document.activeElement).toBe(secondCard);
+    const thirdCard = cards[2];
+    thirdCard.focus();
+    expect(document.activeElement).toBe(thirdCard);
 
-    fireEvent.keyDown(secondCard, { key: 'Tab' });
+    fireEvent.keyDown(thirdCard, { key: 'Tab' });
     expect(document.activeElement).toBe(input);
   });
 
@@ -293,10 +293,10 @@ describe('Timer page', () => {
     expect(document.activeElement).toBe(input);
 
     const cards = within(quickReplay).getAllByRole('button');
-    const secondCard = cards[1];
+    const thirdCard = cards[2];
 
     fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(secondCard);
+    expect(document.activeElement).toBe(thirdCard);
   });
 
   test('does not show the START_NEW_COMBO_FROM_QUERY affordance for a query that matches a rank-5+ combo in the full set', async () => {
@@ -320,9 +320,9 @@ describe('Timer page', () => {
     const quickReplay = screen.getByLabelText('Quick replay');
     await within(quickReplay).findByText('Piano / scales');
     const input = screen.getByLabelText('Search existing combos');
-    fireEvent.change(input, { target: { value: 'reading' } });
+    fireEvent.change(input, { target: { value: 'reading/literature' } });
     expect(within(quickReplay).getByText('Reading / literature')).toBeInTheDocument();
-    expect(screen.queryByText('START_NEW_COMBO_FROM_QUERY')).not.toBeInTheDocument();
+    expect(document.querySelector('.combo-card--new')).toBeNull();
   });
 
   test('Cmd+K (and Ctrl+K) focuses the search input', async () => {
@@ -510,8 +510,7 @@ describe('Timer page', () => {
     renderTimer();
     const input = screen.getByLabelText('Search existing combos');
     fireEvent.change(input, { target: { value: 'dev/frontend' } });
-    expect(await screen.findByText('START_NEW_COMBO_FROM_QUERY')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Start new combo dev \/ frontend/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Start dev \/ frontend/i })).toBeInTheDocument();
   });
 
   test('does not show the new-combo affordance when there are matching combos', async () => {
@@ -524,9 +523,9 @@ describe('Timer page', () => {
     }));
     renderTimer();
     const input = screen.getByLabelText('Search existing combos');
-    fireEvent.change(input, { target: { value: 'frontend' } });
+    fireEvent.change(input, { target: { value: 'dev/frontend' } });
     await screen.findAllByText('Dev / frontend');
-    expect(screen.queryByText('START_NEW_COMBO_FROM_QUERY')).not.toBeInTheDocument();
+    expect(document.querySelector('.combo-card--new')).toBeNull();
   });
 
   test('does not show the new-combo affordance when the query is empty or whitespace', async () => {
@@ -537,7 +536,7 @@ describe('Timer page', () => {
     renderTimer();
     const input = screen.getByLabelText('Search existing combos');
     fireEvent.change(input, { target: { value: '   ' } });
-    expect(screen.queryByText('START_NEW_COMBO_FROM_QUERY')).not.toBeInTheDocument();
+    expect(document.querySelector('.combo-card--new')).toBeNull();
   });
 
   test('clicking the new-combo affordance creates an entry with parsed space and specialization, then clears the query', async () => {
@@ -550,7 +549,7 @@ describe('Timer page', () => {
     const { unmount } = renderTimer();
     const input = screen.getByLabelText('Search existing combos') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'dev/frontend' } });
-    const button = await screen.findByRole('button', { name: /Start new combo dev \/ frontend/i });
+    const button = await screen.findByRole('button', { name: /Start dev \/ frontend/i });
     await act(async () => {
       fireEvent.click(button);
     });
@@ -575,7 +574,7 @@ describe('Timer page', () => {
     const { unmount } = renderTimer();
     const input = screen.getByLabelText('Search existing combos') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'reading' } });
-    const button = await screen.findByRole('button', { name: /Start new combo reading/i });
+    const button = await screen.findByRole('button', { name: /Start reading/i });
     await act(async () => {
       fireEvent.click(button);
     });
@@ -597,7 +596,7 @@ describe('Timer page', () => {
     const { unmount } = renderTimer();
     const input = screen.getByLabelText('Search existing combos');
     fireEvent.change(input, { target: { value: 'work/review' } });
-    await screen.findByText('START_NEW_COMBO_FROM_QUERY');
+    await screen.findByRole('button', { name: /Start work \/ review/i });
     await act(async () => {
       fireEvent.keyDown(input, { key: 'Enter' });
     });
@@ -621,12 +620,16 @@ describe('Timer page', () => {
     }));
     const { unmount } = renderTimer();
     const input = screen.getByLabelText('Search existing combos');
-    fireEvent.change(input, { target: { value: 'frontend' } });
+    fireEvent.change(input, { target: { value: 'dev/frontend' } });
     await screen.findAllByText('Dev / frontend');
     await act(async () => {
       fireEvent.keyDown(input, { key: 'Enter' });
     });
-    expect(create).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ space: 'Dev', specialization: 'frontend' }),
+      );
+    });
     unmount();
   });
 
@@ -648,9 +651,10 @@ describe('Timer page', () => {
       create,
     }));
     const { unmount } = renderTimer();
+    await screen.findByText('00:00:05');
     const input = screen.getByLabelText('Search existing combos');
     fireEvent.change(input, { target: { value: 'dev/frontend' } });
-    const button = await screen.findByRole('button', { name: /Start new combo dev \/ frontend/i });
+    const button = await screen.findByRole('button', { name: /Start dev \/ frontend/i });
     await act(async () => {
       fireEvent.click(button);
     });
@@ -707,8 +711,8 @@ describe('NewComboSheet', () => {
     fireEvent.submit(form, { preventDefault: () => {} });
     expect(onSubmit).toHaveBeenCalledWith({
       name: 'QuizApp',
-      space: 'Dev',
-      specialization: 'frontend',
+      space: 'DEV',
+      specialization: 'FRONTEND',
       start: true,
     });
   });

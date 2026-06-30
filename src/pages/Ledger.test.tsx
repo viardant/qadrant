@@ -178,7 +178,7 @@ describe('Ledger Component', () => {
     expect(spaceInput).toHaveValue('Dev');
 
     fireEvent.change(spaceInput, { target: { value: 'Updated Space' } });
-    mockUpdate.mockResolvedValue({ id: 'entry_1', space: 'Updated Space' });
+    mockUpdate.mockResolvedValue({ id: 'entry_1', space: 'UPDATED SPACE' });
     const saveButton = screen.getByRole('button', { name: /SAVE/i });
     fireEvent.click(saveButton);
 
@@ -186,7 +186,7 @@ describe('Ledger Component', () => {
       expect(mockUpdate).toHaveBeenCalledWith(
         'entry_1',
         expect.objectContaining({
-          space: 'Updated Space',
+          space: 'UPDATED SPACE',
         }),
       );
     });
