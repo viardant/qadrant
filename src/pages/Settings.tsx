@@ -685,8 +685,8 @@ export default function Settings() {
             Renaming space <strong>{renameTargetSpace}</strong> will update all associated historical time entries.
           </p>
           {isSpaceMerge && (
-            <div style={{ padding: 'var(--space-3)', borderLeft: '3px solid var(--warning, #eab308)', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--warning, #eab308)', fontSize: '0.875rem' }} role="alert">
-              ⚠️ A space with this name already exists. Executing this rename will merge all entries into it.
+            <div className="alert-warning" role="alert">
+              [WARNING] A space with this name already exists. Executing this rename will merge all entries into it.
             </div>
           )}
           <label className="section" style={{ gap: 'var(--space-2)' }}>
@@ -741,8 +741,8 @@ export default function Settings() {
             Renaming specialization <strong>{renameTargetSpec?.spec}</strong> inside space <strong>{renameTargetSpec?.space}</strong> will update all matching historical entries.
           </p>
           {isSpecMerge && (
-            <div style={{ padding: 'var(--space-3)', borderLeft: '3px solid var(--warning, #eab308)', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--warning, #eab308)', fontSize: '0.875rem' }} role="alert">
-              ⚠️ A specialization with this name already exists in this space. Executing this rename will merge all entries into it.
+            <div className="alert-warning" role="alert">
+              [WARNING] A specialization with this name already exists in this space. Executing this rename will merge all entries into it.
             </div>
           )}
           <label className="section" style={{ gap: 'var(--space-2)' }}>

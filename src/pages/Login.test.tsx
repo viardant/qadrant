@@ -48,17 +48,20 @@ describe('Login OAuth Flow', () => {
 
   test('initiates OAuth redirect when clicking login button with URL-encoded redirect URI', async () => {
     const mockListAuthMethods = vi.fn().mockResolvedValue({
-      authProviders: [
-        {
-          name: 'google',
-          displayName: 'Google',
-          state: 'mock_state_123',
-          authUrl: 'https://accounts.google.com/o/oauth2/auth?client_id=123&',
-          codeVerifier: 'mock_verifier_123',
-          codeChallenge: 'mock_challenge_123',
-          codeChallengeMethod: 'S256',
-        },
-      ],
+      oauth2: {
+        enabled: true,
+        providers: [
+          {
+            name: 'google',
+            displayName: 'Google',
+            state: 'mock_state_123',
+            authURL: 'https://accounts.google.com/o/oauth2/auth?client_id=123&',
+            codeVerifier: 'mock_verifier_123',
+            codeChallenge: 'mock_challenge_123',
+            codeChallengeMethod: 'S256',
+          },
+        ],
+      },
     });
 
     vi.mocked(pb.collection).mockReturnValue({

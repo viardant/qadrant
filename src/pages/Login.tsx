@@ -65,7 +65,7 @@ export default function Login() {
     try {
       setError(null);
       const authMethods = await pb.collection('users').listAuthMethods();
-      const googleProvider = authMethods.authProviders.find((p) => p.name === 'google');
+      const googleProvider = authMethods.oauth2?.providers?.find((p) => p.name === 'google');
       if (!googleProvider) {
         setError('Google authentication is not configured.');
         return;
@@ -74,7 +74,7 @@ export default function Login() {
       sessionStorage.setItem('oauth_verifier', googleProvider.codeVerifier);
       sessionStorage.setItem('oauth_state', googleProvider.state);
       const redirectUrl = window.location.origin + '/login';
-      const authUrl = googleProvider.authUrl + encodeURIComponent(redirectUrl);
+      const authUrl = googleProvider.authURL + encodeURIComponent(redirectUrl);
       window.location.href = authUrl;
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to list auth methods.');

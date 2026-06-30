@@ -2242,3 +2242,13 @@ select.input {
     justify-content: center;
   }
 }
+
+.alert-warning {
+  padding: var(--space-3);
+  border-left: 3px solid var(--warn);
+  background: rgba(181, 138, 43, 0.15);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.4;
+}

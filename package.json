@@ -15,7 +15,7 @@
     "date-fns": "^3.6.0",
     "framer-motion": "^11.2.10",
     "lucide-react": "^1.18.0",
-    "pocketbase": "^0.21.3",
+    "pocketbase": "^0.22.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0",
