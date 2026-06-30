@@ -365,9 +365,9 @@ describe('Settings — Spaces and Specializations', () => {
     mockCreateBatch.mockReturnValue({
       collection: mockBatchCollection,
       send: mockBatchSend,
-    });
+    } as any);
 
-    mockBatchCollection.mockImplementation((name: string) => {
+    mockBatchCollection.mockImplementation(() => {
       return {
         update: mockUpdateEntry,
         create: vi.fn(),
