@@ -427,7 +427,7 @@ describe('Settings — Spaces and Specializations', () => {
     expect(spaceRenameBtns.length).toBe(2);
 
     // Open manage modal for Design
-    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const designContainer = screen.getByText('Design').closest('.color-row') as HTMLElement;
     const manageBtn1 = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn1);
 
@@ -443,7 +443,7 @@ describe('Settings — Spaces and Specializations', () => {
     fireEvent.click(screen.getByRole('button', { name: /CLOSE/i }));
 
     // Open manage modal for Engineering
-    const engineeringContainer = screen.getByText('Engineering').closest('.color-row')!;
+    const engineeringContainer = screen.getByText('Engineering').closest('.color-row') as HTMLElement;
     const manageBtn2 = within(engineeringContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn2);
 
@@ -491,7 +491,7 @@ describe('Settings — Spaces and Specializations', () => {
     expect(designEl.compareDocumentPosition(engineeringEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     
     // Open manage modal for Design
-    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const designContainer = screen.getByText('Design').closest('.color-row') as HTMLElement;
     const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn);
 
@@ -541,7 +541,7 @@ describe('Settings — Spaces and Specializations', () => {
       expect(screen.getByText('WORK')).toBeInTheDocument();
     });
 
-    const workContainer = screen.getByText('WORK').closest('.color-row')!;
+    const workContainer = screen.getByText('WORK').closest('.color-row') as HTMLElement;
     const manageBtn = within(workContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn);
 
@@ -616,7 +616,7 @@ describe('Settings — Spaces and Specializations', () => {
       expect(screen.getByText('Design')).toBeInTheDocument();
     });
 
-    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const designContainer = screen.getByText('Design').closest('.color-row') as HTMLElement;
     const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn);
 
@@ -666,7 +666,7 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     // Space Rename Modal Cancel
-    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const designContainer = screen.getByText('Design').closest('.color-row') as HTMLElement;
     const spaceRenameBtn = within(designContainer).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(spaceRenameBtn);
     expect(screen.getByText('NEW SPACE NAME')).toBeInTheDocument();
@@ -713,7 +713,7 @@ describe('Settings — Spaces and Specializations', () => {
     });
 
     // Space modal disabled states
-    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const designContainer = screen.getByText('Design').closest('.color-row') as HTMLElement;
     const spaceRenameBtn = within(designContainer).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(spaceRenameBtn);
 
@@ -815,7 +815,7 @@ describe('Settings — Spaces and Specializations', () => {
       expect(screen.getByText('WORK')).toBeInTheDocument();
     });
 
-    const workContainer = screen.getByText('WORK').closest('.color-row')!;
+    const workContainer = screen.getByText('WORK').closest('.color-row') as HTMLElement;
     const manageBtn = within(workContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn);
 
@@ -890,7 +890,7 @@ describe('Settings — Spaces and Specializations', () => {
       expect(screen.getByText('Design')).toBeInTheDocument();
     });
 
-    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const designContainer = screen.getByText('Design').closest('.color-row') as HTMLElement;
     const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn);
 
@@ -898,7 +898,7 @@ describe('Settings — Spaces and Specializations', () => {
       expect(screen.getByText('Figma')).toBeInTheDocument();
     });
 
-    const figmaRow = screen.getByText('Figma').closest('div')!;
+    const figmaRow = screen.getByText('Figma').closest('div') as HTMLElement;
     const specRenameBtn = within(figmaRow).getByRole('button', { name: /\[RENAME\]/i });
     fireEvent.click(specRenameBtn);
 
@@ -964,7 +964,7 @@ describe('Settings — Spaces and Specializations', () => {
       expect(screen.getByText('Design')).toBeInTheDocument();
     });
 
-    const designContainer = screen.getByText('Design').closest('.color-row')!;
+    const designContainer = screen.getByText('Design').closest('.color-row') as HTMLElement;
     const manageBtn = within(designContainer).getByRole('button', { name: />>> MANAGE/i });
     fireEvent.click(manageBtn);
 
