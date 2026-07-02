@@ -828,7 +828,13 @@ export default function Stats() {
           <section className="section" aria-label="Daily trend line chart">
             <div className="section__head">
               <span className="eyebrow" style={{ whiteSpace: 'nowrap' }}>
-                {isMobile ? 'DAILY_TREND' : 'DAILY_TREND_VECTORS'}
+                {isMobile
+                  ? spaceFilter === 'ALL'
+                    ? 'DAILY_TREND'
+                    : `DAILY_TREND // ${spaceFilter.toUpperCase()}`
+                  : spaceFilter === 'ALL'
+                  ? 'DAILY_TREND_VECTORS'
+                  : `DAILY_TREND_VECTORS // ${spaceFilter.toUpperCase()}`}
               </span>
               <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>
                 {isMobile 
