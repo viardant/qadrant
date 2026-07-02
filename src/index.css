@@ -581,6 +581,19 @@ select.input {
   word-break: break-all;
 }
 
+.stage-drop__meta-value--editable {
+  border-bottom: 1px dashed rgba(253, 248, 248, 0.4);
+  transition: color 120ms var(--ease-out-soft), border-bottom-color 120ms var(--ease-out-soft);
+}
+
+.stage-drop__meta-value--editable:hover,
+.stage-drop__meta-value--editable:focus {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+  outline: none;
+}
+
+
 .stage-drop__stop {
   margin-top: var(--space-4);
   font-family: var(--font-mono);
