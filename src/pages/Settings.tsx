@@ -126,6 +126,13 @@ export default function Settings() {
 
         await runWithRetry(() => batch.send());
         updatedSome = true;
+
+        if (i + RENAME_BATCH_SIZE < entries.length) {
+          const delay = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') ? 0 : 500;
+          if (delay > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
       }
 
       // Update color settings if they exist
@@ -208,6 +215,7 @@ export default function Settings() {
   const [purgePhrase, setPurgePhrase] = useState('');
   const [purgeInProgress, setPurgeInProgress] = useState(false);
   const [purgeError, setPurgeError] = useState<string | null>(null);
+  const [purgeProgressText, setPurgeProgressText] = useState<string | null>(null);
   const purgeInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -302,6 +310,7 @@ export default function Settings() {
   const openPurge = () => {
     setPurgePhrase('');
     setPurgeError(null);
+    setPurgeProgressText(null);
     setPurgeOpen(true);
   };
 
@@ -310,6 +319,7 @@ export default function Settings() {
     setPurgeOpen(false);
     setPurgePhrase('');
     setPurgeError(null);
+    setPurgeProgressText(null);
   };
 
   const handlePurge = async (e: React.FormEvent) => {
@@ -330,13 +340,23 @@ export default function Settings() {
       const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
         filter: `user = "${userId}"`,
       });
+      const totalSteps = Math.ceil(entries.length / RENAME_BATCH_SIZE);
       for (let i = 0; i < entries.length; i += RENAME_BATCH_SIZE) {
         const batchItems = entries.slice(i, i + RENAME_BATCH_SIZE);
+        const currentStep = Math.floor(i / RENAME_BATCH_SIZE) + 1;
+        setPurgeProgressText(`PURGING_RECORDS // STEP ${currentStep} OF ${totalSteps || 1}…`);
         const batch = (pb as any).createBatch();
         for (const entry of batchItems) {
           batch.collection('time_entries').delete(entry.id);
         }
         await runWithRetry(() => batch.send());
+
+        if (i + RENAME_BATCH_SIZE < entries.length) {
+          const delay = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') ? 0 : 500;
+          if (delay > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
       }
       const updatedUser = await pb.collection('users').update(userId, {
         space_colors: {},
@@ -536,7 +556,7 @@ export default function Settings() {
               className="btn btn--danger"
               disabled={purgeInProgress || purgePhrase !== PURGE_CONFIRM_PHRASE}
             >
-              {purgeInProgress ? 'PURGING…' : '✕ PURGE'}
+              {purgeInProgress ? (purgeProgressText || 'PURGING…') : '✕ PURGE'}
             </button>
           </>
         }
