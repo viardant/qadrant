@@ -284,8 +284,9 @@ export default function Settings() {
   const handleCopyToken = async () => {
     const token = pb.authStore.token;
     if (!token) return;
+    const loginCommand = `qadrant login ${token} --url ${pb.baseUrl}`;
     try {
-      await navigator.clipboard.writeText(token);
+      await navigator.clipboard.writeText(loginCommand);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -472,12 +473,15 @@ export default function Settings() {
                 {copied ? '✓ COPIED' : 'COPY'}
               </button>
             </div>
+            <p className="settings-section__body" style={{ fontSize: '12px', margin: 0, marginTop: '2px' }}>
+              Click COPY to copy <code>qadrant login &lt;token&gt; --url {pb.baseUrl}</code>
+            </p>
             <Eyebrow muted>TERMINAL_SETUP</Eyebrow>
             <pre className="terminal-block" style={{ padding: isMobile ? '12px 16px' : undefined, fontSize: isMobile ? '12px' : undefined }}>
               <span className="terminal-block__prompt">npm install -g @viardant/qadrant-cli</span>
               {'\n'}
               <span className="terminal-block__prompt">
-                qadrant login {copied ? '<copied-token>' : '...'}
+                qadrant login {copied ? '<your-token>' : '...'} --url {pb.baseUrl}
               </span>
             </pre>
           </section>
