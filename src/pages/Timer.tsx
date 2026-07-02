@@ -13,7 +13,6 @@ import { TopBar } from '../components/ui/TopBar';
 import { StatsStrip } from '../components/ui/StatsStrip';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ActiveSessionStageDrop } from '../components/timer/ActiveSessionStageDrop';
-import { ActiveTimer } from '../components/timer/ActiveTimer';
 import { ComboSearch } from '../components/timer/ComboSearch';
 import { QuickReplay } from '../components/timer/QuickReplay';
 import { RecentActivity } from '../components/timer/RecentActivity';
@@ -229,6 +228,18 @@ export default function Timer() {
     }
   };
 
+  const updateSessionStartDate = async (id: string, newStartDate: string) => {
+    try {
+      await pb.collection('time_entries').update(id, {
+        start_date: newStartDate,
+      });
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to update start date:', err);
+      setError('FAILED_TO_UPDATE_START_DATE');
+    }
+  };
+
   const focusSearch = () => {
     const input = searchRef.current;
     if (!input) return;
@@ -385,71 +396,45 @@ export default function Timer() {
       )}
 
       {activeSessions.length > 0 && (
-        <>
-          {isMobile ? (
-            <div className="active-timer-carousel">
-              <ActiveSessionStageDrop
-                session={activeSessions[carouselIndex] || activeSessions[0]}
-                beatIndex={beatIndex}
-                onStop={stopSession}
-              />
-              {activeSessions.length > 1 && (
-                <div className="carousel-controls">
+        <div className="active-timer-carousel">
+          <ActiveSessionStageDrop
+            session={activeSessions[carouselIndex] || activeSessions[0]}
+            beatIndex={beatIndex}
+            onStop={stopSession}
+            onUpdateStartDate={updateSessionStartDate}
+          />
+          {activeSessions.length > 1 && (
+            <div className="carousel-controls">
+              <button
+                type="button"
+                className="carousel-btn"
+                onClick={() => setCarouselIndex((i) => (i - 1 + activeSessions.length) % activeSessions.length)}
+                aria-label="Previous active session"
+              >
+                ◀&nbsp;PREV
+              </button>
+              <div className="carousel-dots">
+                {activeSessions.map((s, idx) => (
                   <button
                     type="button"
-                    className="carousel-btn"
-                    onClick={() => setCarouselIndex((i) => (i - 1 + activeSessions.length) % activeSessions.length)}
-                    aria-label="Previous active session"
-                  >
-                    ◀&nbsp;PREV
-                  </button>
-                  <div className="carousel-dots">
-                    {activeSessions.map((s, idx) => (
-                      <button
-                        type="button"
-                        key={s.id}
-                        className={`carousel-dot ${idx === carouselIndex ? 'carousel-dot--active' : ''}`}
-                        onClick={() => setCarouselIndex(idx)}
-                        aria-label={`Go to session ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    className="carousel-btn"
-                    onClick={() => setCarouselIndex((i) => (i + 1) % activeSessions.length)}
-                    aria-label="Next active session"
-                  >
-                    NEXT&nbsp;▶
-                  </button>
-                </div>
-              )}
+                    key={s.id}
+                    className={`carousel-dot ${idx === carouselIndex ? 'carousel-dot--active' : ''}`}
+                    onClick={() => setCarouselIndex(idx)}
+                    aria-label={`Go to session ${idx + 1}`}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                className="carousel-btn"
+                onClick={() => setCarouselIndex((i) => (i + 1) % activeSessions.length)}
+                aria-label="Next active session"
+              >
+                NEXT&nbsp;▶
+              </button>
             </div>
-          ) : (
-            <>
-              <ActiveSessionStageDrop
-                session={activeSessions[0]}
-                beatIndex={beatIndex}
-                onStop={stopSession}
-              />
-              {activeSessions.length > 1 && (
-                <section className="section" aria-label="Additional active sessions">
-                  <div className="section__head">
-                    <span className="eyebrow">ACTIVE_SESSIONS</span>
-                    <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
-                      {(activeSessions.length - 1).toString().padStart(2, '0')}_MORE
-                    </span>
-                  </div>
-                  <div className="section" style={{ gap: 'var(--space-3)' }}>
-                    {activeSessions.slice(1).map((s) => (
-                      <ActiveTimer key={s.id} session={s} onStop={stopSession} />
-                    ))}
-                  </div>
-                </section>
-              )}
-            </>
           )}
-        </>
+        </div>
       )}
 
       <div className="page-stack">
