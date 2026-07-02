@@ -14,23 +14,10 @@ interface Props {
 }
 
 export function TopBar({ section, timestamp, metadata, rightSlot, compact = false }: Props) {
-  const hasMetadata = !!(metadata && (metadata.archiveId || metadata.version));
   const right = rightSlot ?? (
-    hasMetadata ? (
+    metadata?.archiveId ? (
       <span className="top-bar__meta">
-        {metadata?.archiveId && (
-          <>
-            <span>ARCHIVE_ID:&nbsp;{metadata.archiveId}</span>
-            <span className="top-bar__meta-sep">//</span>
-          </>
-        )}
-        {metadata?.version && <span>{metadata.version}</span>}
-        {(metadata?.archiveId || metadata?.version) && (
-          <>
-            <span className="top-bar__meta-sep">//</span>
-            <span>⌘K&nbsp;–&nbsp;INDEX</span>
-          </>
-        )}
+        <span>ARCHIVE_ID:&nbsp;{metadata.archiveId}</span>
       </span>
     ) : (
       (timestamp ?? 'NO_RECENT_ACTIVITY')
