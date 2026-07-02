@@ -228,6 +228,16 @@ export default function Stats() {
 
     const rollingAvg = getRolling30DAverage(trend);
 
+    // XAxis ticks offset computation
+    const xAxisTicks: string[] = [];
+    if (trend.length > 0) {
+      const step = isMobile ? Math.max(2, Math.floor(trend.length / 4)) : Math.max(1, Math.floor(trend.length / 6));
+      const offset = isMobile ? Math.min(2, Math.floor(step / 2) || 1) : 0;
+      for (let i = offset; i < trend.length; i += step) {
+        xAxisTicks.push(trend[i].date);
+      }
+    }
+
     // Global records (Always all-time)
     const records = getRecordLog(entries, now);
     const milestoneBadges = getMilestones(entries);
@@ -268,8 +278,9 @@ export default function Stats() {
       milestoneBadges,
       yearHeatmapCells,
       numDays,
+      xAxisTicks,
     };
-  }, [entries, scope, spaceFilter]);
+  }, [entries, scope, spaceFilter, isMobile]);
 
   // Heatmap helper styles
   const getIntensityClass = (mins: number, maxMins: number) => {
@@ -852,11 +863,7 @@ export default function Stats() {
                       tick={{ fontFamily: 'var(--font-mono)', fontSize: 10 }}
                       tickLine={false}
                       axisLine={{ stroke: 'var(--border-muted)' }}
-                      interval={Math.max(1, Math.floor(stats.trend.length / 6))}
-                      tickFormatter={(value, index) => {
-                        if (isMobile && index === 0) return '';
-                        return value;
-                      }}
+                      ticks={stats.xAxisTicks}
                     />
                     <YAxis
                       stroke="var(--fg-muted)"
