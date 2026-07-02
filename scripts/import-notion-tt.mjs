@@ -315,7 +315,7 @@ async function main() {
       source: e,
       row,
       hash,
-      usedTaskName: !e.subtype && !!e.taskName,
+      usedTaskName: e.spaceName === 'Piano' && !e.subtype && !!e.taskName,
     });
   }
 
