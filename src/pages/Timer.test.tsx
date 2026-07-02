@@ -502,6 +502,96 @@ describe('Timer page', () => {
     unmount();
   });
 
+  test('renders active sessions in a carousel on desktop when multiple timers are active', async () => {
+    setBreakpoint('desktop');
+    const start = new Date(Date.now() - 5_000).toISOString();
+    const entries = [
+      baseEntry({
+        id: 'active-1',
+        space: 'Dev',
+        specialization: 'frontend',
+        start_date: start,
+        completion_time: null,
+      }),
+      baseEntry({
+        id: 'active-2',
+        space: 'Design',
+        specialization: 'spec',
+        start_date: start,
+        completion_time: null,
+      }),
+    ];
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: entries }),
+      getFullList: vi.fn().mockResolvedValue(entries),
+    }));
+
+    const { unmount } = renderTimer();
+    await screen.findByText('00:00:05');
+    const stageDrop = document.querySelector('.stage-drop') as HTMLElement;
+    expect(stageDrop).toBeInTheDocument();
+    expect(within(stageDrop).getByText('Dev')).toBeInTheDocument();
+
+    const prevBtn = screen.getByRole('button', { name: /Previous active session/i });
+    const nextBtn = screen.getByRole('button', { name: /Next active session/i });
+    expect(prevBtn).toBeInTheDocument();
+    expect(nextBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(nextBtn);
+    });
+    expect(within(stageDrop).getByText('Design')).toBeInTheDocument();
+    unmount();
+  });
+
+  test('allows editing active session start time by clicking STARTED attribute', async () => {
+    const start = new Date('2026-07-02T14:00:00.000Z').toISOString();
+    const entry = baseEntry({
+      id: 'active-edit',
+      space: 'Dev',
+      specialization: 'frontend',
+      start_date: start,
+      completion_time: null,
+    });
+    const updateMock = vi.fn().mockResolvedValue({});
+    (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      getList: vi.fn().mockResolvedValue({ items: [entry] }),
+      getFullList: vi.fn().mockResolvedValue([entry]),
+      update: updateMock,
+    }));
+
+    const { unmount } = renderTimer();
+    await screen.findByText('STARTED');
+    
+    const editBtn = screen.getByTitle('Click to edit start time');
+    expect(editBtn).toBeInTheDocument();
+    
+    const timeInput = screen.getByLabelText('Edit start time') as HTMLInputElement;
+    expect(timeInput).toBeInTheDocument();
+    
+    const showPickerMock = vi.fn();
+    timeInput.showPicker = showPickerMock;
+    
+    fireEvent.click(editBtn);
+    expect(showPickerMock).toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.change(timeInput, { target: { value: '15:30' } });
+    });
+
+    expect(updateMock).toHaveBeenCalledWith('active-edit', expect.objectContaining({
+      start_date: expect.any(String),
+    }));
+
+    const updatedIso = updateMock.mock.calls[0][1].start_date;
+    const updatedDate = new Date(updatedIso);
+    expect(updatedDate.getHours()).toBe(15);
+    expect(updatedDate.getMinutes()).toBe(30);
+
+    unmount();
+  });
+
+
   test('shows a START_NEW_COMBO_FROM_QUERY affordance when a typed query has no matches', async () => {
     (pb.collection as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       getList: vi.fn().mockResolvedValue({ items: [] }),
