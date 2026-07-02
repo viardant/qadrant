@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BeatIndicator } from '../ui/BeatIndicator';
 import { formatDuration, type TimeEntry } from '../../lib/time-entry';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -21,7 +21,6 @@ function formatClock(iso: string): string {
 export function ActiveSessionStageDrop({ session, beatIndex = -1, onStop, onUpdateStartDate }: Props) {
   const { isDesktop } = useBreakpoint();
   const [activeDuration, setActiveDuration] = useState('00:00:00');
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const update = () => {
@@ -54,17 +53,6 @@ export function ActiveSessionStageDrop({ session, beatIndex = -1, onStop, onUpda
     newDate.setHours(hours, minutes, 0, 0);
     if (onUpdateStartDate) {
       onUpdateStartDate(session.id, newDate.toISOString());
-    }
-  };
-
-  const handleTriggerPicker = () => {
-    if (inputRef.current) {
-      try {
-        inputRef.current.showPicker();
-      } catch (e) {
-        inputRef.current.focus();
-        inputRef.current.click();
-      }
     }
   };
 
@@ -108,38 +96,46 @@ export function ActiveSessionStageDrop({ session, beatIndex = -1, onStop, onUpda
           </div>
           <div className="stage-drop__meta-row">
             <span className="stage-drop__meta-label">STARTED</span>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <div
+              className="stage-drop__time-container"
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }}
+            >
               <input
-                ref={inputRef}
                 type="time"
                 value={getLocalTimeValue(session.start_date)}
                 onChange={handleTimeChange}
-                style={{
-                  position: 'absolute',
-                  opacity: 0,
-                  width: 0,
-                  height: 0,
-                  pointerEvents: 'none',
-                }}
+                className="stage-drop__time-overlay-input"
                 aria-label="Edit start time"
-              />
-              <button
-                type="button"
-                onClick={handleTriggerPicker}
-                className="stage-drop__meta-value stage-drop__meta-value--editable"
                 title="Click to edit start time"
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  fontFamily: 'inherit',
-                  fontSize: 'inherit',
-                  color: 'inherit',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: 0,
                   cursor: 'pointer',
+                  zIndex: 2,
+                  margin: 0,
+                  padding: 0,
+                  border: 'none',
+                }}
+              />
+              <span
+                className="stage-drop__meta-value stage-drop__meta-value--editable"
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  pointerEvents: 'none',
                 }}
               >
                 {started}
-              </button>
+              </span>
             </div>
           </div>
           <button

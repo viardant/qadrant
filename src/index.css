@@ -400,9 +400,13 @@ a {
 
 /* Fix mobile Safari overflow/sizing bugs with datetime inputs */
 input[type="datetime-local"].input {
-  display: block;
-  min-width: 0;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
 }
+
 
 
 .input::placeholder {
@@ -594,6 +598,8 @@ select.input {
   transition: color 120ms var(--ease-out-soft), border-bottom-color 120ms var(--ease-out-soft);
 }
 
+.stage-drop__time-container:hover .stage-drop__meta-value--editable,
+.stage-drop__time-container:focus-within .stage-drop__meta-value--editable,
 .stage-drop__meta-value--editable:hover,
 .stage-drop__meta-value--editable:focus {
   color: var(--accent) !important;

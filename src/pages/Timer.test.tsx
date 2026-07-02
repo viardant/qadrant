@@ -563,18 +563,9 @@ describe('Timer page', () => {
     const { unmount } = renderTimer();
     await screen.findByText('STARTED');
     
-    const editBtn = screen.getByTitle('Click to edit start time');
-    expect(editBtn).toBeInTheDocument();
-    
     const timeInput = screen.getByLabelText('Edit start time') as HTMLInputElement;
     expect(timeInput).toBeInTheDocument();
     
-    const showPickerMock = vi.fn();
-    timeInput.showPicker = showPickerMock;
-    
-    fireEvent.click(editBtn);
-    expect(showPickerMock).toHaveBeenCalled();
-
     await act(async () => {
       fireEvent.change(timeInput, { target: { value: '15:30' } });
     });
