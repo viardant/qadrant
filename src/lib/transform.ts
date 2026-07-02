@@ -17,7 +17,7 @@ export interface DailyTrendPoint {
   hours: number;
 }
 
-export type StatsScope = 'ALL_TIME' | 'THIS_YEAR' | 'THIS_QUARTER' | 'THIS_MONTH' | 'THIS_WEEK';
+export type StatsScope = 'ALL_TIME' | 'THIS_YEAR' | 'THIS_QUARTER' | 'THIS_MONTH' | 'THIS_WEEK' | 'LAST_90D' | 'LAST_30D' | 'LAST_7D';
 
 export interface ScopeBounds {
   start: Date | null;
@@ -424,6 +424,24 @@ export function getScopeBounds(scope: StatsScope, relativeTo: Date = new Date())
       
       const elapsedMs = relativeTo.getTime() - start.getTime();
       priorEnd = new Date(priorStart.getTime() + elapsedMs);
+      break;
+    }
+    case 'LAST_7D': {
+      start = new Date(nowYear, nowMonth, nowDate - 7);
+      priorStart = new Date(nowYear, nowMonth, nowDate - 14);
+      priorEnd = new Date(start);
+      break;
+    }
+    case 'LAST_30D': {
+      start = new Date(nowYear, nowMonth, nowDate - 30);
+      priorStart = new Date(nowYear, nowMonth, nowDate - 60);
+      priorEnd = new Date(start);
+      break;
+    }
+    case 'LAST_90D': {
+      start = new Date(nowYear, nowMonth, nowDate - 90);
+      priorStart = new Date(nowYear, nowMonth, nowDate - 180);
+      priorEnd = new Date(start);
       break;
     }
     case 'ALL_TIME':

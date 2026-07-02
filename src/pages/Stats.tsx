@@ -182,12 +182,51 @@ export default function Stats() {
     const wowTrend = getWeekOverWeekBars(currentFiltered, now);
 
     // Trend vector
-    const trend30 = getDailyTotals(currentFiltered, 30, now).map((d) => ({
+    let numDays = 30;
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth();
+    const nowDate = now.getDate();
+
+    if (scope === 'LAST_7D') {
+      numDays = 7;
+    } else if (scope === 'LAST_30D') {
+      numDays = 30;
+    } else if (scope === 'LAST_90D') {
+      numDays = 90;
+    } else if (scope === 'THIS_WEEK') {
+      const day = now.getDay();
+      numDays = day === 0 ? 7 : day;
+    } else if (scope === 'THIS_MONTH') {
+      numDays = nowDate;
+    } else if (scope === 'THIS_QUARTER') {
+      const qStartMonth = Math.floor(nowMonth / 3) * 3;
+      const qStart = new Date(nowYear, qStartMonth, 1);
+      const diffTime = now.getTime() - qStart.getTime();
+      numDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    } else if (scope === 'THIS_YEAR') {
+      const yearStart = new Date(nowYear, 0, 1);
+      const diffTime = now.getTime() - yearStart.getTime();
+      numDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    } else if (scope === 'ALL_TIME') {
+      if (currentFiltered.length > 0) {
+        const oldestEntry = currentFiltered.reduce((oldest, e) => {
+          const d = new Date(e.start_date);
+          return d < oldest ? d : oldest;
+        }, now);
+        const diffTime = now.getTime() - oldestEntry.getTime();
+        const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        numDays = Math.min(90, diffDays);
+      } else {
+        numDays = 30;
+      }
+    }
+
+    const trend = getDailyTotals(currentFiltered, numDays, now).map((d) => ({
       date: d.dateStr.slice(5), // MM-DD
       hours: d.hours,
     }));
 
-    const rollingAvg = getRolling30DAverage(trend30);
+    const rollingAvg = getRolling30DAverage(trend);
 
     // Global records (Always all-time)
     const records = getRecordLog(entries, now);
@@ -223,11 +262,12 @@ export default function Stats() {
       specList,
       leaderboard,
       wowTrend,
-      trend: trend30,
+      trend,
       rollingAvg,
       records,
       milestoneBadges,
       yearHeatmapCells,
+      numDays,
     };
   }, [entries, scope, spaceFilter]);
 
@@ -256,28 +296,49 @@ export default function Stats() {
       <TopBar section="STATS" timestamp={loading ? null : stats.last} compact={isMobile} />
       
       {/* Scope and Filter capsule */}
-      <div className="section" style={{ paddingBottom: 0 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="section" style={{ paddingTop: 0, paddingBottom: 0 }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: 'var(--space-3)',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between'
+        }}>
           
-          {/* Capsule scope selectors */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
-            {(['ALL_TIME', 'THIS_YEAR', 'THIS_QUARTER', 'THIS_MONTH', 'THIS_WEEK'] as StatsScope[]).map((s) => (
-              <button
-                key={s}
-                className={`btn btn--ghost ${scope === s ? 'btn--filled' : ''}`}
-                style={{ padding: '4px 10px', fontSize: '11px', height: 'auto' }}
-                onClick={() => setScope(s)}
-              >
-                {s.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
+          {isMobile ? (
+            <select
+              className="input input--inline"
+              style={{ width: '100%', height: '36px', padding: '0 var(--space-3)', textTransform: 'uppercase' }}
+              value={scope}
+              onChange={(e) => setScope(e.target.value as StatsScope)}
+            >
+              {(['ALL_TIME', 'THIS_YEAR', 'THIS_QUARTER', 'THIS_MONTH', 'THIS_WEEK', 'LAST_90D', 'LAST_30D', 'LAST_7D'] as StatsScope[]).map((s) => (
+                <option key={s} value={s}>
+                  {s.replace('_', ' ')}
+                </option>
+              ))}
+            </select>
+          ) : (
+            /* Capsule scope selectors */
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+              {(['ALL_TIME', 'THIS_YEAR', 'THIS_QUARTER', 'THIS_MONTH', 'THIS_WEEK', 'LAST_90D', 'LAST_30D', 'LAST_7D'] as StatsScope[]).map((s) => (
+                <button
+                  key={s}
+                  className={`btn btn--ghost ${scope === s ? 'btn--filled' : ''}`}
+                  style={{ padding: '4px 10px', fontSize: '11px', height: 'auto' }}
+                  onClick={() => setScope(s)}
+                >
+                  {s.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
             {/* Space Dropdown */}
             <select
               className="input input--inline"
-              style={{ width: 'auto', minWidth: '160px', height: '36px', padding: '0 var(--space-3)' }}
+              style={{ width: '100%', minWidth: isMobile ? 'none' : '160px', height: '36px', padding: '0 var(--space-3)' }}
               value={spaceFilter}
               onChange={(e) => setSpaceFilter(e.target.value)}
             >
@@ -288,7 +349,6 @@ export default function Stats() {
                 </option>
               ))}
             </select>
-
           </div>
 
         </div>
@@ -416,7 +476,10 @@ export default function Stats() {
                 </div>
                 <div style={{ height: chartHeight }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.weekdayData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                    <BarChart
+                      data={stats.weekdayData}
+                      margin={isMobile ? { top: 8, right: 4, bottom: 0, left: -16 } : { top: 8, right: 8, bottom: 0, left: 0 }}
+                    >
                       <CartesianGrid stroke="var(--border-muted)" strokeDasharray="2 2" vertical={false} />
                       <XAxis
                         dataKey="day"
@@ -430,7 +493,7 @@ export default function Stats() {
                         tick={{ fontFamily: 'var(--font-mono)', fontSize: 10 }}
                         tickLine={false}
                         axisLine={{ stroke: 'var(--border-muted)' }}
-                        width={24}
+                        width={isMobile ? 18 : 24}
                       />
                       <Tooltip
                         contentStyle={{
@@ -729,15 +792,16 @@ export default function Stats() {
                           }}
                         />
                         <Legend
-                          layout="vertical"
-                          align="right"
-                          verticalAlign="middle"
+                          layout={isMobile ? "horizontal" : "vertical"}
+                          align={isMobile ? "center" : "right"}
+                          verticalAlign={isMobile ? "bottom" : "middle"}
                           iconType="circle"
                           iconSize={8}
                           wrapperStyle={{
                             fontFamily: 'var(--font-mono)',
-                            fontSize: '11px',
+                            fontSize: isMobile ? '9px' : '11px',
                             textTransform: 'uppercase',
+                            paddingTop: isMobile ? '8px' : '0px',
                           }}
                         />
                       </PieChart>
@@ -752,9 +816,13 @@ export default function Stats() {
           {/* Daily Trend with Rolling Average & Week-over-Week Practice Volume */}
           <section className="section" aria-label="Daily trend line chart">
             <div className="section__head">
-              <span className="eyebrow">DAILY_TREND_VECTORS</span>
-              <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)' }}>
-                30_DAYS // ROLLING_AVG_BASELINE: {stats.rollingAvg.toFixed(2)}h
+              <span className="eyebrow" style={{ whiteSpace: 'nowrap' }}>
+                {isMobile ? 'DAILY_TREND' : 'DAILY_TREND_VECTORS'}
+              </span>
+              <span className="type-tech-mono-sm" style={{ color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>
+                {isMobile 
+                  ? `${stats.numDays}D // AVG: ${stats.rollingAvg.toFixed(2)}h` 
+                  : `${stats.numDays}_DAYS // ROLLING_AVG_BASELINE: ${stats.rollingAvg.toFixed(2)}h`}
               </span>
             </div>
             <div className="stats-chart" style={{ height: chartHeight }}>
@@ -773,7 +841,10 @@ export default function Stats() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={stats.trend} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <ComposedChart
+                    data={stats.trend}
+                    margin={isMobile ? { top: 8, right: 4, bottom: 0, left: -16 } : { top: 8, right: 8, bottom: 0, left: 0 }}
+                  >
                     <CartesianGrid stroke="var(--border-muted)" strokeDasharray="2 2" vertical={false} />
                     <XAxis
                       dataKey="date"
@@ -788,7 +859,7 @@ export default function Stats() {
                       tick={{ fontFamily: 'var(--font-mono)', fontSize: 10 }}
                       tickLine={false}
                       axisLine={{ stroke: 'var(--border-muted)' }}
-                      width={36}
+                      width={isMobile ? 18 : 36}
                     />
                     <Tooltip
                       contentStyle={{
