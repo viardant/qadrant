@@ -138,12 +138,21 @@ function hashEntry(source) {
 function mapToQadrantRow(source, userId) {
   if (!source.completionTime) return null;
   const isPiano = source.spaceName === 'Piano';
-  const specialization =
-    isPiano
-      ? (source.subtype && source.subtype.length > 0
-          ? source.subtype
-          : source.taskName || '')
-      : (source.subtype || '');
+  const isKO2 = source.spaceName && source.spaceName.toUpperCase() === 'KO2';
+  let specialization = '';
+
+  if (isPiano) {
+    specialization = source.subtype && source.subtype.length > 0
+      ? source.subtype
+      : source.taskName || '';
+  } else if (isKO2) {
+    specialization = source.subtype && source.subtype.length > 0
+      ? source.subtype
+      : 'UNICREDIT';
+  } else {
+    specialization = source.subtype || '';
+  }
+
   return {
     start_date: source.startTime,
     completion_time: source.completionTime,
