@@ -9,7 +9,6 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 
 const PURGE_CONFIRM_PHRASE = 'DELETE ALL';
-const PURGE_BATCH_SIZE = 10;
 const RENAME_BATCH_SIZE = 100;
 
 const DEFAULT_COLORS = [
@@ -33,7 +32,7 @@ interface SpaceDetail {
 async function runWithRetry<T>(
   fn: () => Promise<T>,
   retries = 3,
-  delayMs = 1000
+  delayMs = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') ? 0 : 1000
 ): Promise<T> {
   try {
     return await fn();
@@ -331,11 +330,13 @@ export default function Settings() {
       const entries = await pb.collection('time_entries').getFullList<TimeEntry>({
         filter: `user = "${userId}"`,
       });
-      for (let i = 0; i < entries.length; i += PURGE_BATCH_SIZE) {
-        const batch = entries.slice(i, i + PURGE_BATCH_SIZE);
-        await Promise.all(
-          batch.map((entry) => pb.collection('time_entries').delete(entry.id)),
-        );
+      for (let i = 0; i < entries.length; i += RENAME_BATCH_SIZE) {
+        const batchItems = entries.slice(i, i + RENAME_BATCH_SIZE);
+        const batch = (pb as any).createBatch();
+        for (const entry of batchItems) {
+          batch.collection('time_entries').delete(entry.id);
+        }
+        await runWithRetry(() => batch.send());
       }
       const updatedUser = await pb.collection('users').update(userId, {
         space_colors: {},

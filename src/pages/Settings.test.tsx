@@ -35,10 +35,31 @@ describe('Settings — PURGE_DATA', () => {
 
   const mockGetOneUser = vi.fn();
   const mockGetFullListEntries = vi.fn();
-  const mockDeleteEntry = vi.fn();
   const mockUpdateUser = vi.fn();
+  const mockBatchSend = vi.fn();
+  const mockBatchCollection = vi.fn();
+  const mockBatchDelete = vi.fn();
+  const mockCreateBatch = vi.mocked(pb.createBatch);
 
   beforeEach(() => {
+    mockCreateBatch.mockClear();
+    mockBatchCollection.mockClear();
+    mockBatchSend.mockClear();
+    mockBatchDelete.mockClear();
+
+    mockCreateBatch.mockReturnValue({
+      collection: mockBatchCollection,
+      send: mockBatchSend,
+    } as any);
+
+    mockBatchCollection.mockImplementation(() => {
+      return {
+        delete: mockBatchDelete,
+      } as any;
+    });
+
+    mockBatchSend.mockResolvedValue([]);
+
     delete (window as any).location;
     window.location = {
       ...originalLocation,
@@ -56,7 +77,6 @@ describe('Settings — PURGE_DATA', () => {
       if (collectionName === 'time_entries') {
         return {
           getFullList: mockGetFullListEntries,
-          delete: mockDeleteEntry,
         } as any;
       }
       return {} as any;
@@ -65,7 +85,6 @@ describe('Settings — PURGE_DATA', () => {
     mockGetOneUser.mockResolvedValue({ id: 'user_123', space_colors: {} });
     mockGetFullListEntries.mockResolvedValue([]);
     mockUpdateUser.mockResolvedValue({ id: 'user_123', space_colors: {} });
-    mockDeleteEntry.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -166,7 +185,8 @@ describe('Settings — PURGE_DATA', () => {
         screen.queryByRole('dialog', { name: /PURGE_DATA_PROTOCOL/i }),
       ).not.toBeInTheDocument();
     });
-    expect(mockDeleteEntry).not.toHaveBeenCalled();
+    expect(mockBatchDelete).not.toHaveBeenCalled();
+    expect(mockBatchSend).not.toHaveBeenCalled();
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
@@ -204,7 +224,8 @@ describe('Settings — PURGE_DATA', () => {
       );
     });
     await waitFor(() => {
-      expect(mockDeleteEntry).toHaveBeenCalledTimes(3);
+      expect(mockBatchDelete).toHaveBeenCalledTimes(3);
+      expect(mockBatchSend).toHaveBeenCalled();
     });
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith('user_123', { space_colors: {} });
@@ -238,7 +259,8 @@ describe('Settings — PURGE_DATA', () => {
     fireEvent.click(screen.getByRole('button', { name: /^✕\s+PURGE$/i }));
 
     await waitFor(() => {
-      expect(mockDeleteEntry).not.toHaveBeenCalled();
+      expect(mockBatchDelete).not.toHaveBeenCalled();
+      expect(mockBatchSend).not.toHaveBeenCalled();
     });
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith('user_123', { space_colors: {} });
@@ -260,7 +282,7 @@ describe('Settings — PURGE_DATA', () => {
       },
     ];
     mockGetFullListEntries.mockResolvedValue(entries);
-    mockDeleteEntry.mockRejectedValueOnce(new Error('network down'));
+    mockBatchSend.mockRejectedValue(new Error('network down'));
 
     render(
       <MemoryRouter>
@@ -305,7 +327,7 @@ describe('Settings — PURGE_DATA', () => {
     mockGetFullListEntries
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce(entries);
-    mockDeleteEntry.mockRejectedValueOnce(new Error('boom'));
+    mockBatchSend.mockRejectedValue(new Error('boom'));
 
     render(
       <MemoryRouter>
