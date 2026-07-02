@@ -704,13 +704,11 @@ describe('NewComboSheet', () => {
     const onSubmit = vi.fn();
     const onClose = vi.fn();
     render(<NewComboSheet open onClose={onClose} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText(/QUIZAPP/i), { target: { value: 'QuizApp' } });
     fireEvent.change(screen.getByPlaceholderText(/^DEV/i), { target: { value: 'Dev' } });
     fireEvent.change(screen.getByPlaceholderText(/FRONTEND/i), { target: { value: 'frontend' } });
     const form = document.getElementById('new-combo-form') as HTMLFormElement;
     fireEvent.submit(form, { preventDefault: () => {} });
     expect(onSubmit).toHaveBeenCalledWith({
-      name: 'QuizApp',
       space: 'DEV',
       specialization: 'FRONTEND',
       start: true,

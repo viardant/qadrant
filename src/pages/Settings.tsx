@@ -455,35 +455,22 @@ export default function Settings() {
           <section className="settings-section" style={{ padding: isMobile ? '16px' : '32px', gap: isMobile ? '12px' : '16px' }}>
             <Eyebrow>▸&nbsp;&nbsp;CLI_AND_AI_AGENT_ACCESS</Eyebrow>
             <h2 className="settings-section__title">CLI_AND_AI_AGENT_ACCESS</h2>
-            <p className="settings-section__body">
-              Authenticate external sessions or automated code agents with this token. Keep it
-              private.
-            </p>
-            <div className="token-row" style={{ flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center' }}>
-              <div className="token-row__value" title={pb.authStore.token} style={isMobile ? { width: '100%', fontSize: '13px', wordBreak: 'break-all' } : undefined}>
-                {pb.authStore.token || 'NO_ACTIVE_AUTH_TOKEN'}
-              </div>
-              <button
-                type="button"
-                className="btn"
-                onClick={handleCopyToken}
-                aria-label="Copy token"
-                style={isMobile ? { width: '100%', minHeight: '44px', justifyContent: 'center' } : undefined}
-              >
-                {copied ? '✓ COPIED' : 'COPY'}
-              </button>
-            </div>
-            <p className="settings-section__body" style={{ fontSize: '12px', margin: 0, marginTop: '2px' }}>
-              Click COPY to copy <code>qadrant login &lt;token&gt; --url {pb.baseUrl}</code>
-            </p>
-            <Eyebrow muted>TERMINAL_SETUP</Eyebrow>
-            <pre className="terminal-block" style={{ padding: isMobile ? '12px 16px' : undefined, fontSize: isMobile ? '12px' : undefined }}>
+            <pre className="terminal-block" style={{ padding: isMobile ? '12px 16px' : undefined, fontSize: isMobile ? '12px' : undefined, margin: 0 }}>
               <span className="terminal-block__prompt">npm install -g @viardant/qadrant-cli</span>
               {'\n'}
               <span className="terminal-block__prompt">
-                qadrant login {copied ? '<your-token>' : '...'} --url {pb.baseUrl}
+                qadrant login {pb.authStore.token ? `${pb.authStore.token.slice(0, 10)}...` : 'TOKEN'} --url {pb.baseUrl}
               </span>
             </pre>
+            <button
+              type="button"
+              className="btn btn--filled"
+              onClick={handleCopyToken}
+              aria-label="Copy login command"
+              style={isMobile ? { width: '100%', minHeight: '44px', justifyContent: 'center' } : { alignSelf: 'flex-start', minWidth: '240px', justifyContent: 'center' }}
+            >
+              {copied ? '✓ COPIED' : '>>> COPY_LOGIN_COMMAND'}
+            </button>
           </section>
 
           <section className="settings-section" style={{ padding: isMobile ? '16px' : '32px', gap: isMobile ? '12px' : '16px' }}>

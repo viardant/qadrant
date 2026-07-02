@@ -4,7 +4,6 @@ import { Modal } from '../ui/Modal';
 export interface NewComboData {
   space: string;
   specialization: string;
-  name: string;
   start: boolean;
 }
 
@@ -15,14 +14,12 @@ interface Props {
 }
 
 export function NewComboSheet({ open, onClose, onSubmit }: Props) {
-  const [name, setName] = useState('');
   const [space, setSpace] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [start, setStart] = useState(true);
 
   useEffect(() => {
     if (!open) {
-      setName('');
       setSpace('');
       setSpecialization('');
       setStart(true);
@@ -33,7 +30,6 @@ export function NewComboSheet({ open, onClose, onSubmit }: Props) {
     e.preventDefault();
     if (!space.trim() && !specialization.trim()) return;
     onSubmit({
-      name: name.trim(),
       space: space.toUpperCase().trim(),
       specialization: specialization.toUpperCase().trim(),
       start
@@ -61,19 +57,8 @@ export function NewComboSheet({ open, onClose, onSubmit }: Props) {
         </>
       }
     >
-      <form id="new-combo-form" onSubmit={submit} className="section" style={{ gap: 'var(--space-4)' }}>
-        <label className="section" style={{ gap: 'var(--space-2)' }}>
-          <span className="eyebrow">NAME&nbsp;(OPTIONAL)</span>
-          <input
-            type="text"
-            className="input input--inline"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="QUIZAPP, VESPA, ..."
-            maxLength={48}
-          />
-        </label>
-        <label className="section" style={{ gap: 'var(--space-2)' }}>
+      <form id="new-combo-form" onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <span className="eyebrow">SPACE</span>
           <input
             type="text"
@@ -85,8 +70,8 @@ export function NewComboSheet({ open, onClose, onSubmit }: Props) {
             required
             maxLength={48}
           />
-        </label>
-        <label className="section" style={{ gap: 'var(--space-2)' }}>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <span className="eyebrow">SPECIALIZATION</span>
           <input
             type="text"
@@ -97,22 +82,24 @@ export function NewComboSheet({ open, onClose, onSubmit }: Props) {
             placeholder="FRONTEND, MEETING, ..."
             maxLength={48}
           />
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <input
-            type="checkbox"
-            checked={start}
-            onChange={(e) => setStart(e.target.checked)}
-            style={{ accentColor: 'var(--accent)' }}
-            aria-label="Start session on save"
-          />
-          <span className="type-tech-mono">START_SESSION_ON_SAVE</span>
-        </label>
-        <p className="type-tech-mono-sm" style={{ color: 'var(--fg-subtle)' }}>
-          {start
-            ? 'SAVING STARTS A LIVE TIMER // SPACE+SPECIALIZATION ADDED TO REPLAY'
-            : 'SAVING CREATES A 0-DURATION ENTRY TO SEED THE REPLAY LIST'}
-        </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={start}
+              onChange={(e) => setStart(e.target.checked)}
+              style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+              aria-label="Start session on save"
+            />
+            <span className="type-tech-mono" style={{ userSelect: 'none' }}>START_SESSION_ON_SAVE</span>
+          </label>
+          <p className="type-tech-mono-sm" style={{ color: 'var(--fg-subtle)', margin: 0, paddingLeft: '28px', lineHeight: 1.4 }}>
+            {start
+              ? 'SAVING STARTS A LIVE TIMER // SPACE+SPECIALIZATION ADDED TO REPLAY'
+              : 'SAVING CREATES A 0-DURATION ENTRY TO SEED THE REPLAY LIST'}
+          </p>
+        </div>
       </form>
     </Modal>
   );
