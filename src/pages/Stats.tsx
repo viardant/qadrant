@@ -853,7 +853,10 @@ export default function Stats() {
                       tickLine={false}
                       axisLine={{ stroke: 'var(--border-muted)' }}
                       interval={Math.max(1, Math.floor(stats.trend.length / 6))}
-                      padding={isMobile ? { left: 16, right: 8 } : { left: 0, right: 0 }}
+                      tickFormatter={(value, index) => {
+                        if (isMobile && index === 0) return '';
+                        return value;
+                      }}
                     />
                     <YAxis
                       stroke="var(--fg-muted)"
