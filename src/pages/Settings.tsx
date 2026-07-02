@@ -481,12 +481,13 @@ export default function Settings() {
               Sign out of the current device. This expires cookie tokens and invalidates the
               browser state.
             </p>
-            <div>
+            <div style={isMobile ? { width: '100%' } : undefined}>
               <button
                 type="button"
                 className="btn btn--danger"
                 onClick={handleLogout}
                 aria-label="Logout"
+                style={isMobile ? { width: '100%', minHeight: '44px', justifyContent: 'center' } : undefined}
               >
                 ✕&nbsp;&nbsp;LOGOUT_PROTOCOL
               </button>
@@ -500,12 +501,13 @@ export default function Settings() {
               Permanently delete every time entry in your account and reset your space color
               preferences. The account itself is preserved. This cannot be undone.
             </p>
-            <div>
+            <div style={isMobile ? { width: '100%' } : undefined}>
               <button
                 type="button"
                 className="btn btn--danger"
                 onClick={openPurge}
                 aria-label="Purge all data"
+                style={isMobile ? { width: '100%', minHeight: '44px', justifyContent: 'center' } : undefined}
               >
                 ✕&nbsp;&nbsp;PURGE_ALL_DATA
               </button>
