@@ -765,59 +765,71 @@ export default function Stats() {
                 </div>
                 
                 <div style={{ height: '240px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  {((spaceFilter === 'ALL' ? stats.spaceList.length : stats.specList.length) === 0) ? (
-                    <div className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>
-                      NO_DISTRIBUTION_DATA
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={spaceFilter === 'ALL' ? stats.spaceList : stats.specList}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={2}
-                        >
-                          {(spaceFilter === 'ALL' ? stats.spaceList : stats.specList).map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            background: 'var(--bg)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 'var(--radius-sm)',
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 11,
-                          }}
-                          formatter={(val: number, name: string) => {
-                            const formattedName =
-                              spaceFilter === 'ALL'
-                                ? name.toUpperCase()
-                                : `${spaceFilter.toUpperCase()} // ${name.toUpperCase()}`;
-                            return [`${val.toFixed(1)}h`, formattedName];
-                          }}
-                        />
-                        <Legend
-                          layout={isMobile ? "horizontal" : "vertical"}
-                          align={isMobile ? "center" : "right"}
-                          verticalAlign={isMobile ? "bottom" : "middle"}
-                          iconType="circle"
-                          iconSize={8}
-                          wrapperStyle={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: isMobile ? '9px' : '11px',
-                            textTransform: 'uppercase',
-                            paddingTop: isMobile ? '8px' : '0px',
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
+                  {(() => {
+                    const rawData = spaceFilter === 'ALL' ? stats.spaceList : stats.specList;
+                    if (rawData.length === 0) {
+                      return (
+                        <div className="type-tech-mono" style={{ color: 'var(--fg-muted)' }}>
+                          NO_DISTRIBUTION_DATA
+                        </div>
+                      );
+                    }
+                    const pieData = rawData.length <= 6 
+                      ? rawData 
+                      : [
+                          ...rawData.slice(0, 5),
+                          { name: 'OTHER', value: Number(rawData.slice(5).reduce((sum, item) => sum + item.value, 0).toFixed(2)) }
+                        ];
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={2}
+                          >
+                            {pieData.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              background: 'var(--bg)',
+                              border: '1px solid var(--border)',
+                              borderRadius: 'var(--radius-sm)',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 11,
+                            }}
+                            formatter={(val: number, name: string) => {
+                              const formattedName =
+                                spaceFilter === 'ALL'
+                                  ? name.toUpperCase()
+                                  : `${spaceFilter.toUpperCase()} // ${name.toUpperCase()}`;
+                              return [`${val.toFixed(1)}h`, formattedName];
+                            }}
+                          />
+                          <Legend
+                            layout={isMobile ? "horizontal" : "vertical"}
+                            align={isMobile ? "center" : "right"}
+                            verticalAlign={isMobile ? "bottom" : "middle"}
+                            iconType="circle"
+                            iconSize={8}
+                            wrapperStyle={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: isMobile ? '9px' : '11px',
+                              textTransform: 'uppercase',
+                              paddingTop: isMobile ? '8px' : '0px',
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
                 </div>
               </div>
 
