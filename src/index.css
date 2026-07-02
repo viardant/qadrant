@@ -400,6 +400,8 @@ a {
 
 /* Fix mobile Safari overflow/sizing bugs with datetime inputs */
 input[type="datetime-local"].input {
+  -webkit-appearance: none !important;
+  appearance: none !important;
   display: block !important;
   width: 100% !important;
   max-width: 100% !important;
