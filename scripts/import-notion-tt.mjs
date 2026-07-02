@@ -147,8 +147,8 @@ function mapToQadrantRow(source, userId) {
   return {
     start_date: source.startTime,
     completion_time: source.completionTime,
-    space: source.spaceName || '(no space)',
-    specialization,
+    space: (source.spaceName || '(no space)').toUpperCase().trim(),
+    specialization: specialization.toUpperCase().trim(),
     user: userId,
   };
 }
