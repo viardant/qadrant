@@ -394,8 +394,16 @@ a {
   color: var(--fg);
   border-radius: var(--radius-sm);
   width: 100%;
+  min-width: 0;
   transition: border-color 180ms var(--ease-out-soft);
 }
+
+/* Fix mobile Safari overflow/sizing bugs with datetime inputs */
+input[type="datetime-local"].input {
+  display: block;
+  min-width: 0;
+}
+
 
 .input::placeholder {
   color: var(--fg-subtle);

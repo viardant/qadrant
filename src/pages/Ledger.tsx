@@ -288,7 +288,7 @@ export default function Ledger() {
             <span className="eyebrow">START_DATETIME</span>
             <input
               type="datetime-local"
-              className="input"
+              className="input input--inline"
               value={editStartDate}
               onChange={(e) => setEditStartDate(e.target.value)}
               required
@@ -298,7 +298,7 @@ export default function Ledger() {
             <span className="eyebrow">STOP_DATETIME</span>
             <input
               type="datetime-local"
-              className="input"
+              className="input input--inline"
               value={editCompletionTime}
               onChange={(e) => setEditCompletionTime(e.target.value)}
               required
